@@ -63,29 +63,13 @@ fun YasserStoreHome(
     }
 
     val customApps = remember(response.apps) { response.apps.map { it.sourceRepo } }
-    // Original providers are still read and updated by the existing ViewModel.
-    // Skip GitHub code-only projects that do not have an APK link.
-    val curatedExternal = remember(state.fdroidApps, state.izzyApps, state.trending) {
-        (state.fdroidApps + state.izzyApps + state.trending)
-            .filter { entry ->
-                val path = entry.apkUrl.substringBefore('?').substringBefore('#').lowercase()
-                listOf(".apk", ".xapk", ".apks", ".apkm").any { path.endsWith(it) } &&
-                    entry.source != AppSource.MODULE
-            }
+    // Only owner-published catalog entries are visible to customers.
+    val allApps = remember(response.apps) { response.apps.map { it.sourceRepo } }
+    val games = remember(response.apps) {
+        response.apps.filter { it.category == "game" }.map { it.sourceRepo }
     }
-    val allApps = remember(customApps, curatedExternal) {
-        (customApps + curatedExternal)
-            .distinctBy { it.packageId.ifBlank { it.full_name.ifBlank { it.name } } }
-    }
-    val games = remember(response.apps, state.games) {
-        val custom = response.apps.filter { it.category == "game" }.map { it.sourceRepo }
-        val old = state.games.filter { it.apkUrl.substringBefore('?').substringBefore('#')
-            .lowercase().let { path -> listOf(".apk", ".xapk", ".apks", ".apkm").any(path::endsWith) } }
-        (custom + old).distinctBy { it.packageId.ifBlank { it.full_name.ifBlank { it.name } } }
-    }
-    val appsOnly = remember(allApps, games) {
-        val gameIds = games.mapTo(HashSet()) { it.id }
-        allApps.filterNot { it.id in gameIds }
+    val appsOnly = remember(response.apps) {
+        response.apps.filter { it.category != "game" }.map { it.sourceRepo }
     }
     val featured = response.apps.firstOrNull { it.featured }
     LazyColumn(
@@ -219,8 +203,8 @@ fun YasserStoreHome(
             if (appsOnly.isEmpty()) {
                 item(key = "apps_empty") {
                     YasserEmptyMessage(
-                        if (state.isLoading) "جاري جلب التطبيقات من المصادر..."
-                        else "ماكو تطبيقات متاحة للتحميل حاليًا. تأكد من الإنترنت أو أضف تطبيق لسورس YASSERAPPS."
+                        if (state.isLoading) "جاري تحميل تطبيقات المتجر..."
+                        else "ماكو تطبيقات منشورة حاليًا. ترقب الإضافات الجديدة."
                     )
                 }
             }
@@ -234,7 +218,7 @@ fun YasserStoreHome(
                 repo -> YasserAppListRow(repo, onAppClick)
             }
             if (games.isEmpty()) item(key = "games_empty") {
-                YasserEmptyMessage("لا توجد ألعاب منشورة بسورس YASSERAPPS أو المصادر الحالية بعد.")
+                YasserEmptyMessage("ماكو ألعاب منشورة حاليًا. ترقب الإضافات الجديدة.")
             }
         }
     }
@@ -427,7 +411,7 @@ fun YasserCatalogDetail(
         }
         item {
             Text(
-                "المصدر: YASSERAPPS. تحقّق من أذونات التطبيق وموثوقية ملف التحميل قبل التثبيت.",
+                "تحقّق من أذونات التطبيق وموثوقية ملف التحميل قبل التثبيت.",
                 color = YA_MUTED, fontSize = 11.sp
             )
         }
