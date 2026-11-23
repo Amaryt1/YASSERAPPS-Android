@@ -324,50 +324,10 @@ public final class MainActivity extends Activity {
         header(content);
         tabs(content);
         if ("app".equals(category)) {
-            Catalog.App featured = null;
-            for (Catalog.App a : apps) if (a.featured) { featured = a; break; }
-            if (featured != null) {
-                final Catalog.App highlighted = featured;
-                FrameLayout hero = new FrameLayout(this);
-                hero.setBackground(neonGradient());
-                hero.setClipToOutline(true);
-                ImageView banner = new ImageView(this);
-                banner.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                if (!featured.bannerUrl.isEmpty()) image(banner, featured.bannerUrl);
-                hero.addView(banner, new FrameLayout.LayoutParams(-1, -1));
-                LinearLayout overlay = linear(true);
-                overlay.setGravity(Gravity.CENTER_VERTICAL);
-                overlay.setPadding(dp(16), dp(13), dp(16), dp(12));
-                overlay.setBackground(new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT,
-                    new int[]{0xF20A1309, 0xAA0A160B, 0x300D170C}));
-                overlay.addView(text("مميز على YASSERAPPS", 13, GREEN, true));
-                gap(overlay, 8);
-                overlay.addView(text(featured.name, 25, WHITE, true));
-                gap(overlay, 7);
-                overlay.addView(text(featured.summary, 12, WHITE, false));
-                gap(overlay, 8);
-                overlay.addView(text("عرض التفاصيل ‹", 13, GREEN, true));
-                hero.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
-                hero.setOnClickListener(v -> showDetail(highlighted));
-                content.addView(hero, lp(-1, 178));
-            } else {
-                LinearLayout intro = linear(false);
-                intro.setGravity(Gravity.CENTER_VERTICAL);
-                intro.setPadding(dp(16), dp(17), dp(16), dp(17));
-                intro.setBackground(neonGradient());
-                ImageView logo = new ImageView(this);
-                logo.setImageResource(R.drawable.yasser_logo);
-                intro.addView(logo, lp(70, 70));
-                padx(intro, 12);
-                LinearLayout box = linear(true);
-                box.addView(text("YASSERAPPS", 24, GREEN, true));
-                box.addView(text("أحدث التطبيقات والألعاب في مكان واحد", 13, WHITE, false));
-                intro.addView(box, new LinearLayout.LayoutParams(0, -2, 1));
-                content.addView(intro, lp(-1, 160));
-            }
-            gap(content, 17);
+            heroCard(content);
+            gap(content, 14);
             section(content, "أحدث التطبيقات", matching("app"), false);
-            gap(content, 18);
+            gap(content, 17);
             section(content, "أحدث الألعاب", matching("game"), true);
         } else {
             section(content, "أحدث الألعاب", matching("game"), false);
@@ -375,31 +335,117 @@ public final class MainActivity extends Activity {
         render(content, true);
     }
 
+    private void heroCard(LinearLayout root) {
+        Catalog.App featured = null;
+        int featuredCount = 0;
+        for (Catalog.App candidate : apps) {
+            if (candidate.featured) {
+                featuredCount++;
+                if (featured == null) featured = candidate;
+            }
+        }
+        final Catalog.App selected = featured;
+        FrameLayout banner = new FrameLayout(this);
+        banner.setBackground(shape(Color.rgb(7,14,8), 18, Color.rgb(65,105,47)));
+        banner.setClipToOutline(true);
+        banner.addView(new BrandArt(this), new FrameLayout.LayoutParams(-1,-1));
+
+        if (selected != null && !selected.bannerUrl.isEmpty()) {
+            ImageView art = new ImageView(this);
+            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            image(art,selected.bannerUrl);
+            banner.addView(art,new FrameLayout.LayoutParams(-1,-1));
+        }
+        View shade = new View(this);
+        shade.setBackground(new GradientDrawable(
+            GradientDrawable.Orientation.RIGHT_LEFT,
+            new int[]{0xE6000600,0xB509100B,0x53060B08}
+        ));
+        banner.addView(shade,new FrameLayout.LayoutParams(-1,-1));
+
+        LinearLayout inner = linear(false);
+        inner.setGravity(Gravity.CENTER_VERTICAL);
+        inner.setPadding(dp(18),dp(14),dp(18),dp(16));
+        LinearLayout title = linear(true);
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        if (selected == null) {
+            title.addView(text("YASSERAPPS",24,GREEN,true));
+            gap(title,7);
+            title.addView(text("متجرك للتطبيقات والألعاب",16,WHITE,true));
+            gap(title,6);
+            TextView sub=text("أحدث الإضافات والتحديثات في مكان واحد",12,SUBTEXT,false);
+            sub.setMaxLines(2);
+            title.addView(sub);
+        } else {
+            TextView brand=text("حصري على YASSERAPPS",12,GREEN,true);
+            title.addView(brand);
+            gap(title,6);
+            TextView name=text(selected.name,26,WHITE,true);
+            name.setMaxLines(2);
+            title.addView(name);
+            gap(title,7);
+            TextView sub=text(selected.summary,12,WHITE,false);
+            sub.setMaxLines(2);
+            title.addView(sub);
+            gap(title,12);
+            title.addView(text("عرض التفاصيل ‹",14,GREEN,true));
+        }
+        inner.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        ImageView logo=new ImageView(this);
+        logo.setImageResource(R.drawable.yasser_logo);
+        logo.setAlpha(.93f);
+        inner.addView(logo,lp(88,88));
+        banner.addView(inner,new FrameLayout.LayoutParams(-1,-1));
+        banner.setOnClickListener(v -> {
+            if (selected != null) showDetail(selected);
+            else showSearch();
+        });
+        root.addView(banner,lp(-1,191));
+
+        if(featuredCount>1){
+            LinearLayout indicators=linear(false);
+            indicators.setGravity(Gravity.CENTER);
+            gap(root,8);
+            for (int i=0;i<Math.min(7,featuredCount);i++) {
+                View dot=new View(this);
+                dot.setBackground(shape(i==0?GREEN:Color.rgb(76,80,77),8,0));
+                LinearLayout.LayoutParams dotParams=lp(i==0?18:7,7);
+                dotParams.setMargins(dp(4),0,dp(4),0);
+                indicators.addView(dot,dotParams);
+            }
+            root.addView(indicators);
+        }
+    }
+
     private void section(LinearLayout root, String name, List<Catalog.App> entries, boolean compact) {
         LinearLayout title = linear(false);
         title.setGravity(Gravity.CENTER_VERTICAL);
-        TextView heading = text(name, 21, WHITE, true);
-        title.addView(heading, new LinearLayout.LayoutParams(0, dp(39), 1));
-        TextView all = text("عرض الكل ‹", 13, GREEN, true);
+        StoreGlyph badge=new StoreGlyph(this,
+            name.contains("الألعاب")?"game":"grid", GREEN);
+        title.addView(badge,lp(24,27));
+        padx(title,7);
+        TextView heading=text(name,19,WHITE,true);
+        title.addView(heading,new LinearLayout.LayoutParams(0,dp(38),1));
+        TextView all=text("عرض الكل  ‹",13,WHITE,false);
         all.setGravity(Gravity.CENTER_VERTICAL);
         all.setOnClickListener(v -> {
-            category = name.contains("الألعاب") ? "game" : "app";
-            showList(name, category);
+            category=name.contains("الألعاب")?"game":"app";
+            showList(name,category);
         });
         title.addView(all);
         root.addView(title);
-        gap(root, 7);
-        if (entries.isEmpty()) {
-            String m = loading ? "جاري تحميل التطبيقات..." :
-                ("game".equals(category) ? "ماكو ألعاب منشورة حاليًا." : "ماكو تطبيقات منشورة حاليًا.");
-            if (warning != null) m = warning;
-            panelText(root, m);
+        gap(root,7);
+        if(entries.isEmpty()){
+            String message=loading ? "جاري تحميل محتوى المتجر..." :
+                name.contains("الألعاب")?"ماكو ألعاب منشورة حاليًا.":"ماكو تطبيقات منشورة حاليًا.";
+            if(warning!=null) message=warning;
+            panelText(root,message);
             return;
         }
-        int length = compact ? Math.min(3, entries.size()) : Math.min(10, entries.size());
-        for (int i = 0; i < length; i++) {
-            card(root, entries.get(i));
-            gap(root, 10);
+        int max=compact?Math.min(3,entries.size()):Math.min(10,entries.size());
+        for(int i=0;i<max;i++){
+            card(root,entries.get(i));
+            gap(root,9);
         }
     }
 
@@ -415,32 +461,70 @@ public final class MainActivity extends Activity {
     }
 
     private void card(LinearLayout root, Catalog.App app) {
-        LinearLayout row = linear(false);
+        LinearLayout row=linear(false);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(10), dp(10), dp(10));
-        row.setBackground(shape(PANEL, 17, Color.rgb(51, 59, 52)));
-        ImageView icon = new ImageView(this);
+        row.setPadding(dp(9),dp(10),dp(11),dp(10));
+        GradientDrawable background=new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[]{Color.rgb(24,26,27),Color.rgb(15,17,18)}
+        );
+        background.setCornerRadius(dp(18));
+        background.setStroke(dp(1),Color.rgb(53,59,55));
+        row.setBackground(background);
+
+        FrameLayout iconHolder=new FrameLayout(this);
+        iconHolder.setBackground(shape(PANEL2,15,Color.rgb(50,63,47)));
+        iconHolder.setClipToOutline(true);
+        ImageView icon=new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
         icon.setImageResource(R.drawable.yasser_logo);
-        icon.setBackground(shape(PANEL2, 14, 0));
-        image(icon, app.iconUrl);
-        row.addView(icon, lp(68, 68));
-        padx(row, 10);
-        LinearLayout content = linear(true);
-        TextView title = text(app.name, 16, WHITE, true);
-        title.setMaxLines(1);
-        content.addView(title);
-        TextView sub = text(app.summary.isEmpty() ? "تطبيق للأندرويد" : app.summary, 12, SUBTEXT, false);
+        image(icon,app.iconUrl);
+        iconHolder.addView(icon,new FrameLayout.LayoutParams(-1,-1));
+        row.addView(iconHolder,lp(73,73));
+        padx(row,12);
+
+        LinearLayout contents=linear(true);
+        contents.setGravity(Gravity.CENTER_VERTICAL);
+        TextView name=text(app.name,16.5f,WHITE,true);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        contents.addView(name);
+        gap(contents,3);
+        TextView sub=text(app.summary.isEmpty()?"تطبيق للأندرويد":app.summary,12,SUBTEXT,false);
         sub.setMaxLines(2);
-        content.addView(sub);
-        gap(content, 6);
-        content.addView(text("الإصدار " + app.version + "   •   " + size(app.sizeBytes), 11, SUBTEXT, false));
-        row.addView(content, new LinearLayout.LayoutParams(0, -2, 1));
-        padx(row, 9);
-        TextView install = action(installedAndNewer(app) ? "تحديث ↓" : "تثبيت ↓", true, () -> showDetail(app));
-        row.addView(install, lp(81, 45));
+        sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        contents.addView(sub);
+        gap(contents,8);
+        LinearLayout meta=linear(false);
+        TextView version=text("الإصدار "+app.version,10.5f,SUBTEXT,false);
+        version.setPadding(dp(8),dp(4),dp(8),dp(4));
+        version.setBackground(shape(Color.rgb(43,45,48),9,0));
+        meta.addView(version);
+        padx(meta,5);
+        TextView bytes=text(size(app.sizeBytes),10.5f,SUBTEXT,false);
+        bytes.setPadding(dp(8),dp(4),dp(8),dp(4));
+        bytes.setBackground(shape(Color.rgb(43,45,48),9,0));
+        meta.addView(bytes);
+        contents.addView(meta);
+        row.addView(contents,new LinearLayout.LayoutParams(0,-2,1));
+        padx(row,10);
+
+        View dividingLine=new View(this);
+        dividingLine.setBackgroundColor(Color.rgb(55,57,55));
+        row.addView(dividingLine,lp(1,60));
+        padx(row,10);
+        LinearLayout installButton=linear(false);
+        installButton.setGravity(Gravity.CENTER);
+        installButton.setBackground(shape(GREEN,12,0));
+        TextView install=text(installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        installButton.addView(install);
+        padx(installButton,4);
+        installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
+        installButton.setOnClickListener(v -> showDetail(app));
+        row.addView(installButton,lp(89,45));
+
         row.setOnClickListener(v -> showDetail(app));
-        root.addView(row, lp(-1, -2));
+        root.addView(row,lp(-1,-2));
     }
 
     private String size(long bytes) {
