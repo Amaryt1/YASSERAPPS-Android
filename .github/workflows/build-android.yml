@@ -48,19 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          build = Path('upstream/app/build.gradle.kts')
-          text = build.read_text()
-          block = '''compileSdk {
-        version = release(37) {
-            minorApiLevel = 0
-        }
-    }'''
-          if text.count(block) != 1:
-              raise SystemExit('Unexpected upstream SDK configuration; stop for review')
-          build.write_text(text.replace(block, 'compileSdk = 36'))
-          PY
+          python3 -c 'from pathlib import Path; p=Path("upstream/app/build.gradle.kts"); s=p.read_text(); a=s.index("    compileSdk {"); b=s.index("    defaultConfig {", a); p.write_text(s[:a] + "    compileSdk = 36\\n\\n" + s[b:])'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
