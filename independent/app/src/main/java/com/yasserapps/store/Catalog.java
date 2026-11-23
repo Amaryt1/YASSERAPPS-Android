@@ -95,7 +95,7 @@ public final class Catalog {
             if (app.id.length() < 3 || app.name.isEmpty() ||
                 !app.packageName.matches("[a-zA-Z_][a-zA-Z_0-9]*(\\.[a-zA-Z_][a-zA-Z_0-9]*)+") ||
                 app.versionCode < 1 || !validHttps(app.apkUrl) || !validHttps(app.iconUrl) ||
-                !new java.net.URI(app.apkUrl).getPath().toLowerCase(java.util.Locale.ROOT).endsWith(".apk") ||
+                !DownloadCoordinator.isDirectApk(app.apkUrl) ||
                 !("app".equals(app.category) || "game".equals(app.category)) ||
                 !seenIds.add(app.id) || !seenPackages.add(app.packageName)) {
                 continue;
