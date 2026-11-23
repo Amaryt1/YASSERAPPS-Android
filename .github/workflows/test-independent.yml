@@ -65,5 +65,9 @@ jobs:
             independent-emulator-logcat.txt
             independent-pid.txt
             independent-home.png
+            independent-downloads.png
+            independent-settings.png
+            independent-search.png
+            independent-updates.png
           if-no-files-found: warn
           retention-days: 14
