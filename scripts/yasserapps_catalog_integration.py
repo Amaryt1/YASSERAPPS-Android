@@ -24,6 +24,15 @@ edit("AppData.kt",
     '    APTOIDE  ("Aptoide",     0xFFF57C00L),',
     '    YASSERAPPS("YASSERAPPS", 0xFFC7FF00L),\n    APTOIDE  ("Aptoide",     0xFFF57C00L),')
 
+# Original UI has two exhaustive source label switches.
+# Keep new source recognized by both even when the classic screen is used.
+edit("AppComponents.kt",
+    '                                AppSource.APTOIDE  -> "View on Aptoide"',
+    '                                AppSource.YASSERAPPS -> "View on YASSERAPPS"\n                                AppSource.APTOIDE  -> "View on Aptoide"')
+edit("AppComponents.kt",
+    '                            AppSource.APTOIDE  -> "View on Aptoide"',
+    '                            AppSource.YASSERAPPS -> "View on YASSERAPPS"\n                            AppSource.APTOIDE  -> "View on Aptoide"')
+
 for source in ("YasserCatalog.kt", "YasserStoreUi.kt"):
     source_path = Path("android") / source
     if not source_path.is_file():
