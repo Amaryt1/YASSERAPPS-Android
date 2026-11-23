@@ -27,7 +27,7 @@ adb pull /sdcard/yasserapps-search.png independent-search.png
 
 adb shell input keyevent 4
 sleep 2
-adb shell input tap 170 235
+adb shell input tap 170 440
 sleep 3
 adb shell screencap -p /sdcard/yasserapps-updates.png
 adb pull /sdcard/yasserapps-updates.png independent-updates.png
