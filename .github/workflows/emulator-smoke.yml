@@ -5,6 +5,11 @@ on:
     workflows:
       - Build YASSERAPPS Android APK
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/emulator-smoke.yml'
+      - 'scripts/smoke-test-android.sh'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +18,7 @@ permissions:
 
 jobs:
   launch-smoke:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -23,11 +28,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Identify last successful APK build
+        id: build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            run_id="${{ github.event.workflow_run.id }}"
+          else
+            run_id="$(gh run list -R "$GITHUB_REPOSITORY" --workflow 'Build YASSERAPPS Android APK' --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          test -n "$run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
       - name: Download built Android APK
         uses: actions/download-artifact@v4
         with:
           name: YASSERAPPS-Android-Debug-APK
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.build.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: apk
       - name: Enable KVM support
@@ -41,26 +59,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            set -e
-            adb install -r apk/app-debug.apk
-            adb logcat -c
-            adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
-            sleep 15
-            adb logcat -d -v time > emulator-logcat.txt
-            echo 'App process:'
-            adb shell pidof com.yasserapps.store
-            if grep -q 'FATAL EXCEPTION' emulator-logcat.txt; then
-              echo 'FATAL EXCEPTION found in Android logcat'
-              grep -A 24 -B 5 'FATAL EXCEPTION' emulator-logcat.txt | tail -75
-              exit 1
-            fi
-            echo 'Android app launched and survived 15 seconds without fatal exception.'
+          script: bash scripts/smoke-test-android.sh
       - name: Upload emulator diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: YASSERAPPS-Emulator-Logcat
-          path: emulator-logcat.txt
+          path: |
+            emulator-logcat.txt
+            app-pid.txt
           if-no-files-found: warn
           retention-days: 14
