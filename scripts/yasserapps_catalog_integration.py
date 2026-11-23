@@ -76,20 +76,18 @@ edit(home,
                                         onRefreshSources = { viewModel.loadAll() }
                                     )''')
 
-# Search still uses original providers. Add the user-managed catalog to results.
+# Customer search only uses the YASSERAPPS-owned catalog; no GitHub repo search results.
 edit(home,
 '''                                        results               = state.searchResults,
                                         platform              = state.platform,''',
-'''                                        results               = (
-                                            YasserCatalog.cached(context).apps
-                                                .filter { a ->
-                                                    state.searchQuery.length >= 2 &&
-                                                    (a.name.contains(state.searchQuery, ignoreCase = true) ||
-                                                     a.summary.contains(state.searchQuery, ignoreCase = true) ||
-                                                     a.packageName.contains(state.searchQuery, ignoreCase = true))
-                                                }
-                                                .map { it.sourceRepo } + state.searchResults
-                                            ).distinctBy { it.packageId.ifBlank { it.full_name } },
+'''                                        results               = YasserCatalog.cached(context).apps
+                                            .filter { a ->
+                                                state.searchQuery.length >= 2 &&
+                                                (a.name.contains(state.searchQuery, ignoreCase = true) ||
+                                                 a.summary.contains(state.searchQuery, ignoreCase = true) ||
+                                                 a.packageName.contains(state.searchQuery, ignoreCase = true))
+                                            }
+                                            .map { it.sourceRepo },
                                         platform              = state.platform,''')
 
 # Replace the technical "Profile" nav entry with a real search tab, keep downloads.
