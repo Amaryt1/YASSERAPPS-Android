@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 VALID_CATEGORIES = {"app", "game"}
-VALID_EXT = (".apk", ".xapk", ".apks", ".apkm")
+VALID_EXT = (".apk",)
 REQUIRED = ("id", "name", "packageName", "category", "version", "versionCode", "apkUrl", "iconUrl")
 PACK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
 ID = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,79}$")
@@ -24,7 +24,7 @@ def validate_url(raw, *, extension=False, optional=False):
     if u.scheme != "https" or not u.hostname or u.username or u.password:
         raise ValueError("URL must be public HTTPS without credentials")
     if extension and not u.path.lower().endswith(VALID_EXT):
-        raise ValueError("APK URL path must end in .apk, .xapk, .apks or .apkm")
+        raise ValueError("Catalog installs currently require a direct .apk URL; split packages are not yet enabled")
 
 def validate(path):
     document = json.loads(Path(path).read_text(encoding="utf-8"))
