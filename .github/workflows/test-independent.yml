@@ -64,5 +64,6 @@ jobs:
           path: |
             independent-emulator-logcat.txt
             independent-pid.txt
+            independent-home.png
           if-no-files-found: warn
           retention-days: 14
