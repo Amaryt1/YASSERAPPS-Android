@@ -192,26 +192,50 @@ public final class MainActivity extends Activity {
     }
 
     private void header(LinearLayout root) {
-        LinearLayout row = linear(false);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.yasser_logo);
-        row.addView(logo, lp(58, 58));
-        padx(row, 9);
-        LinearLayout words = linear(true);
-        LinearLayout name = linear(false);
-        name.setGravity(Gravity.CENTER_VERTICAL);
-        name.addView(text("YASSER", 23, WHITE, true));
-        name.addView(text("APPS", 23, GREEN, true));
-        words.addView(name);
-        TextView caption = text("متجر التطبيقات والألعاب للأندرويد", 11, WHITE, false);
-        words.addView(caption);
-        row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView telegram = text("➤", 23, GREEN, true);
+
+        TextView telegram = text("♧", 24, GREEN, true);
         telegram.setGravity(Gravity.CENTER);
         telegram.setContentDescription("قناة YASSERAPPS");
         telegram.setOnClickListener(v -> open(CHANNEL));
-        row.addView(telegram, lp(40, 46));
+        row.addView(telegram, lp(37, 48));
+
+        View spacer = new View(this);
+        row.addView(spacer, lp(8, 1));
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.yasser_logo);
+        row.addView(logo, lp(58, 58));
+
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        words.setPadding(dp(8), 0, dp(4), 0);
+
+        String brandName = "YASSERAPPS";
+        android.text.SpannableString styled = new android.text.SpannableString(brandName);
+        styled.setSpan(
+            new android.text.style.ForegroundColorSpan(GREEN),
+            6, brandName.length(),
+            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+        TextView name = text(brandName, 23, WHITE, true);
+        name.setTextDirection(View.TEXT_DIRECTION_LTR);
+        name.setText(styled);
+        words.addView(name);
+        TextView caption = text("متجر التطبيقات والألعاب للأندرويد", 11, WHITE, false);
+        caption.setTextDirection(View.TEXT_DIRECTION_RTL);
+        words.addView(caption);
+        row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView search = text("⌕", 28, WHITE, true);
+        search.setGravity(Gravity.CENTER);
+        search.setContentDescription("البحث داخل المتجر");
+        search.setOnClickListener(v -> showSearch());
+        row.addView(search, lp(39, 48));
+
         root.addView(row);
         gap(root, 12);
     }
