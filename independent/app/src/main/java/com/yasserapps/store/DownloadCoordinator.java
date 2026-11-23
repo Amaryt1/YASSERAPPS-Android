@@ -209,9 +209,10 @@ public final class DownloadCoordinator {
         try (android.database.Cursor cursor = manager.query(
             new DownloadManager.Query().setFilterById(entry.id))) {
             if (cursor == null || !cursor.moveToFirst()) {
-                File f = file(entry);
-                entry.missing = f == null || !f.isFile();
-                entry.status = entry.missing ? DownloadManager.STATUS_FAILED : DownloadManager.STATUS_SUCCESSFUL;
+                // No registered system download means no trusted content URI,
+                // even if a stray local file happens to exist.
+                entry.missing = true;
+                entry.status = DownloadManager.STATUS_FAILED;
                 return;
             }
             entry.status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
