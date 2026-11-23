@@ -17,4 +17,6 @@ if grep -q 'FATAL EXCEPTION' independent-emulator-logcat.txt; then
   grep -A 30 -B 6 'FATAL EXCEPTION' independent-emulator-logcat.txt | tail -80
   exit 1
 fi
+adb shell screencap -p /sdcard/yasserapps-home.png
+adb pull /sdcard/yasserapps-home.png independent-home.png
 echo 'PASS: Independent YASSERAPPS launched and stayed running without a fatal exception.'
