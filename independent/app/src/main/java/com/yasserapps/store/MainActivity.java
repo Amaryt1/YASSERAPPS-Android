@@ -71,6 +71,7 @@ public final class MainActivity extends Activity {
     private boolean checkedStoreUpdateThisLaunch = false;
     private Catalog.App pendingLegacyDownload;
     private static final int REQUEST_LEGACY_STORAGE = 4281;
+    private static final int REQUEST_UPDATE_NOTICES = 4282;
     private final String FAVORITES_KEY = "favorites_store_v1";
     private final Runnable downloadsTick = new Runnable() {
         @Override public void run() {
@@ -1113,6 +1114,18 @@ public final class MainActivity extends Activity {
             });
         c.addView(wifi, lp(-1, 54));
         gap(c, 11);
+        TextView notifications = action("تفعيل إشعارات تحديث المتجر", false, () -> {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                    REQUEST_UPDATE_NOTICES);
+            } else {
+                Toast.makeText(this, "إشعارات المتجر مفعّلة أو مدعومة تلقائيًا", Toast.LENGTH_SHORT).show();
+            }
+        });
+        c.addView(notifications, lp(-1, 54));
+        gap(c, 11);
         TextView storeUpdate = action("فحص تحديث متجر YASSERAPPS", true,
             () -> checkStoreUpdate(true));
         c.addView(storeUpdate, lp(-1, 54));
@@ -1140,6 +1153,13 @@ public final class MainActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQUEST_UPDATE_NOTICES) {
+            boolean yes = results.length > 0 &&
+                results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            Toast.makeText(this, yes ? "تم تفعيل إشعارات تحديث المتجر" :
+                "الإشعارات غير مفعّلة؛ تقدر تفحص التحديثات يدويًا", Toast.LENGTH_LONG).show();
+            return;
+        }
         if (requestCode == REQUEST_LEGACY_STORAGE) {
             Catalog.App pending = pendingLegacyDownload;
             pendingLegacyDownload = null;
