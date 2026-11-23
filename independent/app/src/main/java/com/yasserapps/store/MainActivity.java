@@ -60,8 +60,13 @@ public final class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService images = Executors.newFixedThreadPool(3);
     private final List<Catalog.App> apps = new ArrayList<>();
-    private final Map<Long, Catalog.App> downloads = new HashMap<>();
-    private final Map<Long, File> destinations = new HashMap<>();
+    private DownloadCoordinator downloadCoordinator;
+    private boolean verifyingInstall = false;
+    private final Runnable downloadsTick = new Runnable() {
+        @Override public void run() {
+            if ("downloads".equals(page) && !isFinishing()) showDownloads();
+        }
+    };
     private FrameLayout screen;
     private String page = "home";
     private String category = "app";
@@ -72,6 +77,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
+        downloadCoordinator = new DownloadCoordinator(this);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().getDecorView().setSystemUiVisibility(0);
@@ -712,9 +718,16 @@ public final class MainActivity extends Activity {
         mainButton.setBackground(shape(GREEN,19,0));
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
-        TextView action=text(installedAndNewer(app)?"تحديث":"تثبيت",21,Color.BLACK,true);
+        DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
+        String installLabel = previous != null && previous.complete() ?
+            "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
+        TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
-        mainButton.setOnClickListener(v -> download(app));
+        mainButton.setOnClickListener(v -> {
+            DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
+            if (existing != null && existing.complete()) installFromHistory(existing);
+            else download(app);
+        });
         buttons.addView(mainButton,new LinearLayout.LayoutParams(0,dp(58),2));
         padx(buttons,9);
         LinearLayout altButton=linear(false);
@@ -814,139 +827,132 @@ public final class MainActivity extends Activity {
 
     private void download(Catalog.App app) {
         try {
-            Uri uri = Uri.parse(app.apkUrl);
-            if (!"https".equalsIgnoreCase(uri.getScheme()) ||
-                uri.getHost() == null || !uri.getPath().toLowerCase(Locale.ROOT).endsWith(".apk")) {
-                Toast.makeText(this, "رابط APK غير صالح", Toast.LENGTH_LONG).show();
-                return;
+            DownloadCoordinator.Entry entry = downloadCoordinator.start(app);
+            if (entry.complete()) {
+                Toast.makeText(this, "هذا الإصدار محمّل مسبقًا، تقدر تثبّته من التنزيلات", Toast.LENGTH_LONG).show();
+            } else if (entry.active()) {
+                Toast.makeText(this, "بدأ التحميل أو هو مستمر بالنظام", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "راجع حالة التحميل في التنزيلات", Toast.LENGTH_SHORT).show();
             }
-            File downloadFolder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-            if (downloadFolder == null) throw new IllegalStateException("Download folder unavailable");
-            String filename = app.packageName.replaceAll("[^a-zA-Z0-9_.-]", "_") + "_" +
-                app.versionCode + ".apk";
-            File output = new File(downloadFolder, filename);
-            DownloadManager.Request req = new DownloadManager.Request(uri);
-            req.setTitle(app.name);
-            req.setDescription("YASSERAPPS");
-            req.setMimeType("application/vnd.android.package-archive");
-            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            req.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, filename);
-            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-            long id = dm.enqueue(req);
-            downloads.put(id, app);
-            destinations.put(id, output);
-            Toast.makeText(this, "بدأ تحميل " + app.name, Toast.LENGTH_SHORT).show();
-            poll(id, 0);
             showDownloads();
         } catch (Exception ex) {
             Toast.makeText(this, "تعذّر بدء التحميل: " + ex.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    private void poll(long id, int attempts) {
-        if (attempts >= 900) return;
-        main.postDelayed(() -> {
-            if (!downloads.containsKey(id)) return;
-            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-            DownloadManager.Query query = new DownloadManager.Query().setFilterById(id);
-            try (android.database.Cursor cur = dm.query(query)) {
-                if (cur != null && cur.moveToFirst()) {
-                    int status = cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
-                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                        Catalog.App app = downloads.get(id);
-                        if (app != null) {
-                            if ("downloads".equals(page)) showDownloads();
-                            verifyAndInstall(id, app, destinations.get(id));
-                        }
-                        downloads.remove(id);
-                        return;
-                    }
-                    if (status == DownloadManager.STATUS_FAILED) {
-                        Toast.makeText(this, "فشل تحميل التطبيق", Toast.LENGTH_LONG).show();
-                        downloads.remove(id);
-                        if ("downloads".equals(page)) showDownloads();
-                        return;
-                    }
+    private void installFromHistory(DownloadCoordinator.Entry entry) {
+        if (verifyingInstall) return;
+        verifyingInstall = true;
+        Toast.makeText(this, "جاري فحص ملف APK قبل التثبيت", Toast.LENGTH_SHORT).show();
+        downloadCoordinator.verify(entry, (success, error, uri) -> {
+            verifyingInstall = false;
+            if (!success) {
+                Toast.makeText(this, error == null ? "تعذّر فحص APK" : error, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (!DownloadCoordinator.allowedToInstall(this)) {
+                Toast.makeText(this, "فعّل التثبيت من YASSERAPPS، ثم ارجع واضغط تثبيت مجددًا", Toast.LENGTH_LONG).show();
+                try { startActivity(DownloadCoordinator.permissionIntent(this)); }
+                catch (Exception e) {
+                    Toast.makeText(this, "تعذّر فتح إعدادات صلاحية التثبيت", Toast.LENGTH_LONG).show();
                 }
-            } catch (Exception ignored) { }
-            poll(id, attempts + 1);
-        }, 1300);
-    }
-
-    private void verifyAndInstall(long id, Catalog.App app, File file) {
-        if (file == null || !file.isFile()) {
-            Toast.makeText(this, "تعذّر العثور على الملف", Toast.LENGTH_LONG).show();
-            return;
-        }
-        String expected = app.sha256 == null ? "" : app.sha256;
-        if (expected.isEmpty()) {
-            installDownloaded(id, app);
-            return;
-        }
-        images.execute(() -> {
-            boolean valid = false;
-            try (FileInputStream stream = new FileInputStream(file)) {
-                MessageDigest dig = MessageDigest.getInstance("SHA-256");
-                byte[] buffer = new byte[32768];
-                int n;
-                while ((n = stream.read(buffer)) > 0) dig.update(buffer, 0, n);
-                StringBuilder actual = new StringBuilder();
-                for (byte b : dig.digest()) actual.append(String.format(Locale.ROOT, "%02x", b & 255));
-                valid = actual.toString().equalsIgnoreCase(expected);
-            } catch (Exception ignored) { }
-            final boolean result = valid;
-            main.post(() -> {
-                if (result) installDownloaded(id, app);
-                else Toast.makeText(this, "فشل فحص سلامة APK، تم منع التثبيت", Toast.LENGTH_LONG).show();
-            });
+                return;
+            }
+            try {
+                Intent installer = new Intent(Intent.ACTION_VIEW);
+                installer.setDataAndType(uri, "application/vnd.android.package-archive");
+                installer.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(installer);
+            } catch (Exception ex) {
+                Toast.makeText(this, "تعذّر فتح مثبت أندرويد: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+            }
         });
     }
 
-    private void installDownloaded(long id, Catalog.App app) {
-        try {
-            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-                Toast.makeText(this, "فعّل السماح بالتثبيت من YASSERAPPS ثم ارجع إلى التنزيلات", Toast.LENGTH_LONG).show();
-                Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:" + getPackageName()));
-                startActivity(i);
-                return;
-            }
-            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-            Uri content = dm.getUriForDownloadedFile(id);
-            if (content == null) throw new IllegalStateException("Download URI unavailable");
-            Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setDataAndType(content, "application/vnd.android.package-archive");
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(i);
-        } catch (Exception ex) {
-            Toast.makeText(this, "تعذّر فتح المثبت: " + ex.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
     private void showDownloads() {
+        main.removeCallbacks(downloadsTick);
         page = "downloads";
-        LinearLayout c = verticalContent();
-        header(c);
-        c.addView(text("التنزيلات", 23, WHITE, true));
-        gap(c, 15);
-        if (downloads.isEmpty()) {
-            panelText(c, "ماكو تنزيلات نشطة. التطبيقات اللي تختارها تظهر هنا أثناء التحميل.");
-        } else for (Map.Entry<Long, Catalog.App> entry : new HashMap<>(downloads).entrySet()) {
-            long id = entry.getKey();
-            Catalog.App app = entry.getValue();
-            LinearLayout box = linear(true);
-            box.setBackground(shape(PANEL, 17, Color.rgb(48, 65, 48)));
-            box.setPadding(dp(16), dp(13), dp(16), dp(13));
-            box.addView(text(app.name, 18, WHITE, true));
-            box.addView(text("جاري التحميل، راقب شريط الإشعارات…", 13, GREEN, false));
-            box.setOnClickListener(v -> {
-                File file = destinations.get(id);
-                if (file != null && file.exists()) installDownloaded(id, app);
+        LinearLayout content = verticalContent();
+        header(content);
+        content.addView(text("إدارة التنزيلات", 23, WHITE, true));
+        gap(content, 7);
+        content.addView(text("التنزيل يستمر بالنظام حتى لو قفلت المتجر. التثبيت بموافقتك.", 12, SUBTEXT, false));
+        gap(content, 16);
+        List<DownloadCoordinator.Entry> records = downloadCoordinator.all();
+        if (records.isEmpty()) {
+            panelText(content, "ما عندك تحميلات بعد. من تختار تطبيق أو لعبة، راح يظهر تقدم التحميل هنا.");
+        } else for (DownloadCoordinator.Entry entry : records) {
+            LinearLayout card = linear(true);
+            card.setPadding(dp(13), dp(13), dp(13), dp(14));
+            card.setBackground(shape(PANEL, 17, Color.rgb(51, 66, 47)));
+            TextView title = text(entry.name, 17, WHITE, true);
+            title.setMaxLines(2);
+            card.addView(title);
+            gap(card, 4);
+            String stateText = entry.message();
+            int color = entry.failed() ? Color.rgb(255, 161, 141) : GREEN;
+            card.addView(text(stateText, 12, color, false));
+            gap(card, 9);
+            if (entry.active()) {
+                android.widget.ProgressBar progress = new android.widget.ProgressBar(
+                    this, null, android.R.attr.progressBarStyleHorizontal);
+                progress.setMax(100);
+                if (entry.percent() < 0) {
+                    progress.setIndeterminate(true);
+                } else {
+                    progress.setIndeterminate(false);
+                    progress.setProgress(entry.percent());
+                }
+                if (Build.VERSION.SDK_INT >= 21) progress.setProgressTintList(
+                    android.content.res.ColorStateList.valueOf(GREEN));
+                card.addView(progress, lp(-1, 6));
+                gap(card, 6);
+                String done = size(entry.bytesDone);
+                String total = entry.bytesTotal > 0 ? size(entry.bytesTotal) : "الحجم غير معروف";
+                String percent = entry.percent() < 0 ? "" : " • " + entry.percent() + "%";
+                card.addView(text(done + " / " + total + percent, 12, SUBTEXT, false));
+            }
+            gap(card, 10);
+            LinearLayout actions = linear(false);
+            if (entry.complete()) {
+                TextView install = action("فحص وتثبيت", true, () -> installFromHistory(entry));
+                actions.addView(install, new LinearLayout.LayoutParams(0, dp(44), 1));
+                padx(actions, 8);
+            } else if (entry.failed()) {
+                TextView retry = action("إعادة المحاولة", true, () -> {
+                    Catalog.App candidate = null;
+                    for (Catalog.App item : apps) if (entry.packageName.equals(item.packageName)) {
+                        candidate = item; break;
+                    }
+                    downloadCoordinator.remove(entry.id);
+                    if (candidate != null) download(candidate);
+                    else {
+                        Toast.makeText(this, "التطبيق مو موجود بالكتالوج الحالي", Toast.LENGTH_LONG).show();
+                        showDownloads();
+                    }
+                });
+                actions.addView(retry, new LinearLayout.LayoutParams(0, dp(44), 1));
+                padx(actions, 8);
+            }
+            TextView delete = action(entry.active() ? "إلغاء" : "حذف", false, () -> {
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle(entry.active() ? "إلغاء التحميل؟" : "حذف ملف التنزيل؟")
+                    .setMessage("راح ينحذف التحميل وسجله من جهازك. ما يتأثر التطبيق المثبّت.")
+                    .setPositiveButton("تأكيد", (dialog, which) -> {
+                        downloadCoordinator.remove(entry.id);
+                        showDownloads();
+                    })
+                    .setNegativeButton("رجوع", null)
+                    .show();
             });
-            c.addView(box, lp(-1, -2));
-            gap(c, 12);
+            actions.addView(delete, new LinearLayout.LayoutParams(0, dp(44), 1));
+            card.addView(actions);
+            content.addView(card, lp(-1, -2));
+            gap(content, 11);
         }
-        render(c, true);
+        render(content, true);
+        main.postDelayed(downloadsTick, 2400);
     }
 
     private void showSettings() {
@@ -976,6 +982,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(downloadsTick);
         images.shutdownNow();
         super.onDestroy();
     }
