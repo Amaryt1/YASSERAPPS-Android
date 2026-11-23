@@ -62,6 +62,7 @@ public final class MainActivity extends Activity {
     private final List<Catalog.App> apps = new ArrayList<>();
     private DownloadCoordinator downloadCoordinator;
     private boolean verifyingInstall = false;
+    private final String FAVORITES_KEY = "favorites_store_v1";
     private final Runnable downloadsTick = new Runnable() {
         @Override public void run() {
             if ("downloads".equals(page) && !isFinishing()) showDownloads();
@@ -623,9 +624,22 @@ public final class MainActivity extends Activity {
         page = "updates";
         category = "updates";
         LinearLayout c = verticalContent();
-        backBar(c, "التحديثات", () -> { category = "app"; showHome(); });
+        backBar(c, "تحديثات التطبيقات", () -> { category = "app"; showHome(); });
+        TextView check = action("فحص تحديثات المتجر الآن", true, () -> {
+            Toast.makeText(this, "جاري جلب أحدث إصدارات المتجر", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+        c.addView(check, lp(-1, 49));
+        gap(c, 10);
+        c.addView(text(
+            "يفحص المتجر إصدارات التطبيقات المنشورة عندنا والمتاحة للرؤية على جهازك، ولا يثبت أي تحديث دون موافقتك.",
+            12, SUBTEXT, false
+        ));
+        gap(c, 17);
         List<Catalog.App> updates = matching("updates");
-        if (updates.isEmpty()) panelText(c, "ماكو تحديثات متوفرة للتطبيقات المثبتة المعروفة بالمتجر حاليًا.");
+        if (updates.isEmpty()) panelText(c, loading ?
+            "جاري التحقق من الإصدارات..." :
+            "ماكو تحديثات مكتشفة حاليًا. بعض التطبيقات قد تكون غير مرئية للنظام بسبب إعدادات أندرويد.");
         for (Catalog.App app : updates) {
             card(c, app);
             gap(c, 10);
@@ -739,7 +753,14 @@ public final class MainActivity extends Activity {
         altButton.setOnClickListener(v -> shareApp(app));
         buttons.addView(altButton,new LinearLayout.LayoutParams(0,dp(58),1));
         content.addView(buttons);
-        gap(content,25);
+        gap(content,10);
+        TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
+            false, () -> {
+                toggleFavorite(app);
+                showDetail(app);
+            });
+        content.addView(favorite, lp(-1, 44));
+        gap(content,18);
 
         if(!app.screenshots.isEmpty()) {
             content.addView(text("صور التطبيق",20,WHITE,true));
@@ -793,6 +814,7 @@ public final class MainActivity extends Activity {
             if ("home".equals(page)) showHome();
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
+            else if ("favorites".equals(page)) showFavorites();
         }));
     }
 
@@ -955,6 +977,35 @@ public final class MainActivity extends Activity {
         main.postDelayed(downloadsTick, 2400);
     }
 
+    private boolean isFavorite(Catalog.App app) {
+        return getSharedPreferences(FAVORITES_KEY, MODE_PRIVATE)
+            .getStringSet("ids", java.util.Collections.emptySet()).contains(app.id);
+    }
+
+    private void toggleFavorite(Catalog.App app) {
+        android.content.SharedPreferences pref = getSharedPreferences(FAVORITES_KEY, MODE_PRIVATE);
+        java.util.HashSet<String> ids = new java.util.HashSet<>(
+            pref.getStringSet("ids", java.util.Collections.emptySet()));
+        if (!ids.add(app.id)) ids.remove(app.id);
+        pref.edit().putStringSet("ids", ids).apply();
+    }
+
+    private void showFavorites() {
+        page = "favorites";
+        LinearLayout c = verticalContent();
+        backBar(c, "المفضلة", this::showSettings);
+        int count = 0;
+        for (Catalog.App item : apps) {
+            if (isFavorite(item)) {
+                card(c, item);
+                gap(c, 11);
+                count++;
+            }
+        }
+        if (count == 0) panelText(c, "ما عندك تطبيقات مفضّلة. افتح صفحة أي تطبيق واضغط إضافة إلى المفضلة.");
+        render(c, true);
+    }
+
     private void showSettings() {
         page = "settings";
         LinearLayout c = verticalContent();
@@ -964,21 +1015,46 @@ public final class MainActivity extends Activity {
         TextView channel = action("قناة YASSERAPPS على تيليجرام", false, () -> open(CHANNEL));
         c.addView(channel, lp(-1, 54));
         gap(c, 11);
-        TextView refresh = action("تحديث قائمة التطبيقات", true, () -> {
+        TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
+        c.addView(favorites, lp(-1, 54));
+        gap(c, 11);
+        TextView wifi = action(downloadCoordinator.wifiOnly() ?
+            "التنزيل عبر Wi-Fi فقط: مفعّل" : "التنزيل عبر Wi-Fi فقط: غير مفعّل", false, () -> {
+                downloadCoordinator.setWifiOnly(!downloadCoordinator.wifiOnly());
+                showSettings();
+            });
+        c.addView(wifi, lp(-1, 54));
+        gap(c, 11);
+        TextView updates = action("فحص تحديثات التطبيقات", false, this::showUpdates);
+        c.addView(updates, lp(-1, 54));
+        gap(c, 11);
+        TextView refresh = action("تحديث قائمة التطبيقات والألعاب", true, () -> {
             Toast.makeText(this, "جاري تحديث المتجر", Toast.LENGTH_SHORT).show();
             refresh();
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 7.0.0\nمتجر أندرويد مستقل، يعرض فقط التطبيقات والألعاب المنشورة في كتالوج المتجر.");
+        detailSection(c, "حول المتجر", "YASSERAPPS 8.0.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
+            + "يدعم سجل التحميلات، متابعة التقدم، إعادة المحاولة، والفحص الأمني قبل التثبيت.");
         gap(c, 12);
-        c.addView(text("واجهة عربية • الأسود والأخضر • بدون طلب توكن من المستخدم", 12, SUBTEXT, false));
+        c.addView(text("الحماية: التثبيت يطلب موافقتك • لا يطلب توكن GitHub", 12, SUBTEXT, false));
         render(c, true);
     }
 
     @Override public void onBackPressed() {
         if ("home".equals(page)) super.onBackPressed();
         else { category = "app"; showHome(); }
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (downloadCoordinator != null && "downloads".equals(page)) showDownloads();
+        else if (downloadCoordinator != null && "updates".equals(page)) showUpdates();
+    }
+
+    @Override protected void onPause() {
+        main.removeCallbacks(downloadsTick);
+        super.onPause();
     }
 
     @Override protected void onDestroy() {
