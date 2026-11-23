@@ -949,7 +949,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 6.0.0\nمتجر أندرويد مستقل، يعرض فقط التطبيقات والألعاب المنشورة في كتالوج المتجر.");
+        detailSection(c, "حول المتجر", "YASSERAPPS 7.0.0\nمتجر أندرويد مستقل، يعرض فقط التطبيقات والألعاب المنشورة في كتالوج المتجر.");
         gap(c, 12);
         c.addView(text("واجهة عربية • الأسود والأخضر • بدون طلب توكن من المستخدم", 12, SUBTEXT, false));
         render(c, true);
