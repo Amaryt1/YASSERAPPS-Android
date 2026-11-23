@@ -40,7 +40,7 @@ Set `category` to `game` to place it in Games, or `app` for Apps. Set `featured`
 
 - The source is public because the repository is public. **Never include access tokens or secret download credentials** in the catalog or APK.
 - Only publish APK files you have the right to distribute, and verify the publisher/signature and security of each file.
-- URLs must use HTTPS and the APK URL path must end in .apk, .xapk, .apks or .apkm. File installation support for split packages is provided by the upstream engine but must be tested on a device.
+- URLs must use HTTPS and the APK URL path must end in .apk. Split formats like .xapk, .apks and .apkm are not currently accepted by this catalog, because the classic installation path verifies standard APK files only.
 - When possible, set the exact SHA-256 checksum of your APK. The catalog validator checks formatting, **not** whether the remote binary matches; server-side verification is still recommended.
 - Run `python3 scripts/validate_catalog.py catalog/apps.json` before committing. GitHub Actions checks the JSON on every change.
 - The application keeps the last successfully loaded catalog for offline use. Public GitHub raw caching and connectivity may delay changes briefly.
