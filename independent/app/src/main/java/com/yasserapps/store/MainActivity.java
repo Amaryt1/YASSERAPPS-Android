@@ -49,10 +49,10 @@ import java.util.concurrent.Executors;
  * apps.json catalog. No third-party store-client framework is used.
  */
 public final class MainActivity extends Activity {
-    private static final int BG = Color.rgb(5, 8, 6);
-    private static final int PANEL = Color.rgb(21, 25, 22);
-    private static final int PANEL2 = Color.rgb(30, 34, 31);
-    private static final int GREEN = Color.rgb(193, 255, 16);
+    private static final int BG = Color.BLACK;
+    private static final int PANEL = Color.rgb(18, 20, 22);
+    private static final int PANEL2 = Color.rgb(28, 30, 29);
+    private static final int GREEN = Color.rgb(105, 255, 0);
     private static final int WHITE = Color.WHITE;
     private static final int SUBTEXT = Color.rgb(182, 188, 184);
     private static final String CHANNEL = "https://t.me/YasserAppsIQ";
@@ -163,32 +163,42 @@ public final class MainActivity extends Activity {
     private void addFooter(FrameLayout parent) {
         LinearLayout dock = linear(false);
         dock.setGravity(Gravity.CENTER);
-        dock.setBackground(shape(Color.rgb(21, 26, 23), 20, Color.rgb(44, 66, 38)));
-        dock.setPadding(dp(3), dp(4), dp(3), dp(4));
-        FrameLayout.LayoutParams pos = new FrameLayout.LayoutParams(-1, dp(70), Gravity.BOTTOM);
-        pos.setMargins(dp(11), dp(2), dp(11), dp(11));
-        parent.addView(dock, pos);
-        nav(dock, "⌂", "الرئيسية", "home", this::showHome);
-        nav(dock, "⌕", "البحث", "search", this::showSearch);
-        nav(dock, "↓", "التنزيلات", "downloads", this::showDownloads);
-        nav(dock, "⚙", "الإعدادات", "settings", this::showSettings);
+        GradientDrawable background = new GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{Color.rgb(33, 36, 37), Color.rgb(12, 15, 14)}
+        );
+        background.setCornerRadius(dp(21));
+        background.setStroke(dp(1), Color.rgb(45, 58, 43));
+        dock.setBackground(background);
+        dock.setElevation(dp(7));
+        dock.setPadding(dp(4), dp(5), dp(4), dp(5));
+        FrameLayout.LayoutParams position = new FrameLayout.LayoutParams(-1, dp(72), Gravity.BOTTOM);
+        position.setMargins(dp(10), dp(2), dp(10), dp(10));
+        parent.addView(dock, position);
+        nav(dock, "home", "الرئيسية", "home", this::showHome);
+        nav(dock, "search", "البحث", "search", this::showSearch);
+        nav(dock, "download", "التحميلات", "downloads", this::showDownloads);
+        nav(dock, "settings", "الإعدادات", "settings", this::showSettings);
     }
 
     private void nav(LinearLayout row, String icon, String label, String key, Runnable callback) {
-        LinearLayout b = linear(true);
-        b.setGravity(Gravity.CENTER);
+        LinearLayout button = linear(true);
+        button.setGravity(Gravity.CENTER);
         boolean active = page.equals(key);
-        b.setBackground(shape(active ? Color.rgb(25, 70, 13) : PANEL, 18, active ? Color.rgb(67, 140, 17) : 0));
-        TextView ico = text(icon, 25, active ? GREEN : SUBTEXT, true);
-        ico.setGravity(Gravity.CENTER);
-        TextView caption = text(label, 12, active ? GREEN : WHITE, active);
+        button.setBackground(shape(
+            active ? Color.rgb(20, 58, 8) : Color.TRANSPARENT, 19,
+            active ? Color.rgb(67, 135, 18) : 0
+        ));
+        StoreGlyph glyph = new StoreGlyph(this, icon, active ? GREEN : Color.rgb(210, 216, 209));
+        button.addView(glyph, lp(27, 27));
+        gap(button, 4);
+        TextView caption = text(label, 11.5f, active ? GREEN : WHITE, active);
         caption.setGravity(Gravity.CENTER);
-        b.addView(ico);
-        b.addView(caption);
-        b.setOnClickListener(v -> callback.run());
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -1, 1);
-        p.setMargins(dp(2), 0, dp(2), 0);
-        row.addView(b, p);
+        button.addView(caption);
+        button.setOnClickListener(v -> callback.run());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1);
+        params.setMargins(dp(2), 0, dp(2), 0);
+        row.addView(button, params);
     }
 
     private void header(LinearLayout root) {
@@ -197,47 +207,55 @@ public final class MainActivity extends Activity {
         row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView telegram = text("🔔", 22, GREEN, true);
-        telegram.setGravity(Gravity.CENTER);
+        FrameLayout telegram = new FrameLayout(this);
+        StoreGlyph bell = new StoreGlyph(this, "bell", WHITE);
+        FrameLayout.LayoutParams b = new FrameLayout.LayoutParams(dp(27), dp(27), Gravity.CENTER);
+        telegram.addView(bell, b);
+        View dot = new View(this);
+        dot.setBackground(shape(GREEN, 8, 0));
+        FrameLayout.LayoutParams dotPos = new FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP | Gravity.RIGHT);
+        dotPos.rightMargin = dp(3);
+        dotPos.topMargin = dp(5);
+        telegram.addView(dot, dotPos);
         telegram.setContentDescription("قناة YASSERAPPS");
         telegram.setOnClickListener(v -> open(CHANNEL));
-        row.addView(telegram, lp(37, 48));
+        row.addView(telegram, lp(38, 54));
 
-        View spacer = new View(this);
-        row.addView(spacer, lp(8, 1));
+        padx(row, 9);
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.yasser_logo);
-        row.addView(logo, lp(58, 58));
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        row.addView(logo, lp(59, 59));
 
         LinearLayout words = new LinearLayout(this);
         words.setOrientation(LinearLayout.VERTICAL);
         words.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        words.setPadding(dp(8), 0, dp(4), 0);
-
-        String brandName = "YASSERAPPS";
-        android.text.SpannableString styled = new android.text.SpannableString(brandName);
-        styled.setSpan(
-            new android.text.style.ForegroundColorSpan(GREEN),
-            6, brandName.length(),
-            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        );
-        TextView name = text(brandName, 23, WHITE, true);
+        words.setGravity(Gravity.CENTER_VERTICAL);
+        words.setPadding(dp(8), 0, dp(1), 0);
+        String brand = "YASSERAPPS";
+        android.text.SpannableString styled = new android.text.SpannableString(brand);
+        styled.setSpan(new android.text.style.ForegroundColorSpan(GREEN), 6,
+            brand.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        TextView name = text(brand, 21, WHITE, true);
         name.setTextDirection(View.TEXT_DIRECTION_LTR);
+        name.setSingleLine(true);
         name.setText(styled);
+        name.setLetterSpacing(-0.025f);
         words.addView(name);
-        TextView caption = text("متجر التطبيقات والألعاب للأندرويد", 11, WHITE, false);
-        caption.setTextDirection(View.TEXT_DIRECTION_RTL);
-        words.addView(caption);
+        TextView subtitle = text("متجر التطبيقات والألعاب للأندرويد", 10.5f, SUBTEXT, false);
+        subtitle.setTextDirection(View.TEXT_DIRECTION_RTL);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        words.addView(subtitle);
         row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView search = text("⌕", 28, WHITE, true);
-        search.setGravity(Gravity.CENTER);
-        search.setContentDescription("البحث داخل المتجر");
+        StoreGlyph search = new StoreGlyph(this, "search", WHITE);
+        search.setContentDescription("البحث عن التطبيقات والألعاب");
         search.setOnClickListener(v -> showSearch());
-        row.addView(search, lp(39, 48));
+        row.addView(search, lp(34, 43));
 
         root.addView(row);
-        gap(root, 12);
+        gap(root, 19);
     }
 
     private void searchBox(LinearLayout root) {
@@ -256,18 +274,29 @@ public final class MainActivity extends Activity {
     private void tabs(LinearLayout root) {
         LinearLayout row = linear(false);
         for (String type : new String[]{"app", "game", "updates"}) {
+            boolean active = category.equals(type);
             String label = type.equals("app") ? "التطبيقات" : type.equals("game") ? "الألعاب" : "التحديثات";
-            TextView tab = action(label, category.equals(type), () -> {
+            String glyphName = type.equals("app") ? "grid" : type.equals("game") ? "game" : "refresh";
+            LinearLayout button = linear(false);
+            button.setGravity(Gravity.CENTER);
+            button.setBackground(shape(active ? GREEN : Color.rgb(16,18,19), 16,
+                active ? GREEN : Color.rgb(65,67,68)));
+            StoreGlyph icon = new StoreGlyph(this, glyphName, active ? Color.BLACK : WHITE);
+            button.addView(icon, lp(23, 23));
+            padx(button, 7);
+            TextView text = text(label, 14, active ? Color.BLACK : WHITE, true);
+            button.addView(text);
+            button.setOnClickListener(v -> {
                 category = type;
                 if (type.equals("updates")) showUpdates();
                 else showHome();
             });
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(49), 1);
-            p.setMargins(dp(3), 0, dp(3), 0);
-            row.addView(tab, p);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+            params.setMargins(dp(3), 0, dp(3), 0);
+            row.addView(button, params);
         }
         root.addView(row);
-        gap(root, 15);
+        gap(root, 13);
     }
 
     private boolean installedAndNewer(Catalog.App app) {
@@ -293,7 +322,6 @@ public final class MainActivity extends Activity {
         if ("updates".equals(category)) category = "app";
         LinearLayout content = verticalContent();
         header(content);
-        searchBox(content);
         tabs(content);
         if ("app".equals(category)) {
             Catalog.App featured = null;
