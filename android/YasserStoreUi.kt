@@ -96,7 +96,7 @@ fun YasserStoreHome(
         item(key = "brand") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = painterResource(R.mipmap.ic_launcher),
+                    painter = painterResource(R.drawable.splash_icon),
                     contentDescription = "YASSERAPPS",
                     modifier = Modifier.size(52.dp)
                 )
@@ -193,7 +193,7 @@ fun YasserStoreHome(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Image(painterResource(R.mipmap.ic_launcher), null, Modifier.size(63.dp))
+                    Image(painterResource(R.drawable.splash_icon), null, Modifier.size(63.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text("YASSERAPPS", color = YA_GREEN, fontWeight = FontWeight.Black, fontSize = 19.sp)
@@ -293,7 +293,7 @@ private fun YasserAppListRow(repo: GitHubRepo, onAppClick: (GitHubRepo) -> Unit)
                 model = link, contentDescription = name,
                 modifier = Modifier.size(62.dp).background(Color(0xFF242A24), RoundedCornerShape(13.dp)),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.mipmap.ic_launcher)
+                error = painterResource(R.drawable.splash_icon)
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
