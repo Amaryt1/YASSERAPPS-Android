@@ -74,7 +74,12 @@ public final class StoreUpdates {
             .setPeriodic(24L * 60L * 60L * 1000L)
             .setPersisted(true)
             .build();
-        jobs.schedule(job);
+        try {
+            jobs.schedule(job);
+        } catch (SecurityException | IllegalArgumentException e) {
+            android.util.Log.w("YASSERAPPS_UPDATE", "Periodic update schedule unavailable", e);
+            // Never crash the storefront because a device restricted background jobs.
+        }
     }
 
     private static int installedVersion(Context ctx) {
