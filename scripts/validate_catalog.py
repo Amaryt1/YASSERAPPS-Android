@@ -77,8 +77,8 @@ def validate(path):
             if type(app.get("sizeBytes", 0)) is not int or app.get("sizeBytes", 0) < 0:
                 raise ValueError("sizeBytes must be nonnegative integer")
             checksum = app.get("sha256", "")
-            if not isinstance(checksum, str) or (checksum and not HEX.fullmatch(checksum)):
-                raise ValueError("sha256 must be 64 hexadecimal chars, or blank")
+            if not isinstance(checksum, str) or not HEX.fullmatch(checksum):
+                raise ValueError("sha256 is required and must be 64 hexadecimal characters")
         except (ValueError, TypeError, KeyError) as e:
             raise ValueError(f"apps[{i}]: {e}") from e
     print(f"YASSERAPPS catalog valid: {len(apps)} apps")
