@@ -625,65 +625,134 @@ public final class MainActivity extends Activity {
     private void showDetail(Catalog.App app) {
         detailApp = app;
         page = "detail";
-        LinearLayout c = verticalContent();
-        backBar(c, "YASSERAPPS", this::showHome);
-        LinearLayout header = linear(false);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView icon = new ImageView(this);
-        icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        icon.setImageResource(R.drawable.yasser_logo);
-        image(icon, app.iconUrl);
-        header.addView(icon, lp(107, 107));
-        padx(header, 14);
-        LinearLayout labels = linear(true);
-        labels.addView(text(app.name, 27, WHITE, true));
-        gap(labels, 7);
-        labels.addView(text("إصدار " + app.version + "   •   " + size(app.sizeBytes), 13, SUBTEXT, false));
-        gap(labels, 6);
-        labels.addView(text(app.isGame() ? "لعبة أندرويد" : "تطبيق أندرويد", 13, GREEN, true));
-        header.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
-        c.addView(header);
-        gap(c, 20);
+        LinearLayout content = verticalContent();
 
-        TextView button = action(installedAndNewer(app) ? "تحديث التطبيق  ↓" : "تثبيت التطبيق  ↓",
-            true, () -> download(app));
-        button.setTextSize(18);
-        c.addView(button, lp(-1, 56));
-        gap(c, 9);
-        TextView share = action("مشاركة التطبيق", false, () -> {
-            Intent send = new Intent(Intent.ACTION_SEND);
-            send.setType("text/plain");
-            send.putExtra(Intent.EXTRA_TEXT, app.name + "\n" + app.apkUrl);
-            startActivity(Intent.createChooser(send, "مشاركة التطبيق"));
-        });
-        c.addView(share, lp(-1, 48));
-        gap(c, 19);
+        LinearLayout top=linear(false);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        StoreGlyph back=new StoreGlyph(this,"arrow",WHITE);
+        back.setContentDescription("العودة إلى المتجر");
+        back.setOnClickListener(v -> showHome());
+        top.addView(back,lp(32,40));
+        padx(top,11);
+        ImageView brandIcon=new ImageView(this);
+        brandIcon.setImageResource(R.drawable.yasser_logo);
+        top.addView(brandIcon,lp(39,39));
+        padx(top,6);
+        TextView brand=text("YASSERAPPS",21,GREEN,true);
+        brand.setTextDirection(View.TEXT_DIRECTION_LTR);
+        brand.setSingleLine(true);
+        top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        StoreGlyph shareIcon=new StoreGlyph(this,"share",WHITE);
+        shareIcon.setContentDescription("مشاركة التطبيق");
+        shareIcon.setOnClickListener(v -> shareApp(app));
+        top.addView(shareIcon,lp(29,40));
+        content.addView(top);
+        gap(content,24);
 
-        if (!app.screenshots.isEmpty()) {
-            c.addView(text("صور التطبيق", 21, WHITE, true));
-            gap(c, 10);
-            android.widget.HorizontalScrollView scroller = new android.widget.HorizontalScrollView(this);
+        LinearLayout intro=linear(false);
+        intro.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout iconFrame=new FrameLayout(this);
+        iconFrame.setClipToOutline(true);
+        iconFrame.setBackground(shape(Color.rgb(19,22,20),19,GREEN));
+        ImageView appIcon=new ImageView(this);
+        appIcon.setImageResource(R.drawable.yasser_logo);
+        appIcon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        image(appIcon,app.iconUrl);
+        FrameLayout.LayoutParams iconPos=new FrameLayout.LayoutParams(-1,-1);
+        iconPos.setMargins(dp(2),dp(2),dp(2),dp(2));
+        iconFrame.addView(appIcon,iconPos);
+        intro.addView(iconFrame,lp(118,118));
+        padx(intro,13);
+        LinearLayout texts=linear(true);
+        TextView name=text(app.name,27,WHITE,true);
+        name.setMaxLines(2);
+        texts.addView(name);
+        gap(texts,6);
+        TextView summary=text(app.summary,13,SUBTEXT,false);
+        summary.setMaxLines(2);
+        texts.addView(summary);
+        gap(texts,11);
+        TextView platform=text(app.isGame()?"🎮 لعبة للأندرويد":"تطبيق للأندرويد",12,GREEN,true);
+        texts.addView(platform);
+        intro.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
+        content.addView(intro);
+        gap(content,18);
+
+        LinearLayout specs=linear(false);
+        TextView version=text("الإصدار "+app.version,12,WHITE,true);
+        version.setPadding(dp(11),dp(8),dp(11),dp(8));
+        version.setBackground(shape(PANEL2,17,0));
+        specs.addView(version);
+        padx(specs,8);
+        TextView bytes=text(size(app.sizeBytes),12,WHITE,true);
+        bytes.setPadding(dp(11),dp(8),dp(11),dp(8));
+        bytes.setBackground(shape(PANEL2,17,0));
+        specs.addView(bytes);
+        content.addView(specs);
+        gap(content,22);
+
+        LinearLayout buttons=linear(false);
+        LinearLayout mainButton=linear(false);
+        mainButton.setGravity(Gravity.CENTER);
+        mainButton.setBackground(shape(GREEN,19,0));
+        mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
+        padx(mainButton,10);
+        TextView action=text(installedAndNewer(app)?"تحديث":"تثبيت",21,Color.BLACK,true);
+        mainButton.addView(action);
+        mainButton.setOnClickListener(v -> download(app));
+        buttons.addView(mainButton,new LinearLayout.LayoutParams(0,dp(58),2));
+        padx(buttons,9);
+        LinearLayout altButton=linear(false);
+        altButton.setGravity(Gravity.CENTER);
+        altButton.setBackground(shape(Color.rgb(5,12,5),19,GREEN));
+        altButton.addView(new StoreGlyph(this,"share",GREEN),lp(22,22));
+        padx(altButton,7);
+        altButton.addView(text("مشاركة",14,GREEN,true));
+        altButton.setOnClickListener(v -> shareApp(app));
+        buttons.addView(altButton,new LinearLayout.LayoutParams(0,dp(58),1));
+        content.addView(buttons);
+        gap(content,25);
+
+        if(!app.screenshots.isEmpty()) {
+            content.addView(text("صور التطبيق",20,WHITE,true));
+            gap(content,12);
+            android.widget.HorizontalScrollView scroller=
+                new android.widget.HorizontalScrollView(this);
             scroller.setHorizontalScrollBarEnabled(false);
-            LinearLayout gallery = linear(false);
-            for (String url : app.screenshots) {
-                ImageView shot = new ImageView(this);
-                shot.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                shot.setBackground(shape(PANEL, 13, Color.rgb(50, 70, 45)));
-                image(shot, url);
-                LinearLayout.LayoutParams p = lp(228, 152);
-                p.setMargins(dp(5), 0, dp(5), 0);
-                gallery.addView(shot, p);
+            LinearLayout gallery=linear(false);
+            for(String url : app.screenshots){
+                FrameLayout photoFrame=new FrameLayout(this);
+                photoFrame.setBackground(shape(PANEL,18,GREEN));
+                photoFrame.setClipToOutline(true);
+                ImageView screenshot=new ImageView(this);
+                screenshot.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                image(screenshot,url);
+                FrameLayout.LayoutParams imagePos=new FrameLayout.LayoutParams(-1,-1);
+                imagePos.setMargins(dp(1),dp(1),dp(1),dp(1));
+                photoFrame.addView(screenshot,imagePos);
+                LinearLayout.LayoutParams p=lp(260,170);
+                p.setMargins(dp(5),0,dp(5),0);
+                gallery.addView(photoFrame,p);
             }
             scroller.addView(gallery);
-            c.addView(scroller, lp(-1, 160));
-            gap(c, 18);
+            content.addView(scroller,lp(-1,173));
+            gap(content,23);
         }
-        detailSection(c, "الوصف", app.description.isEmpty() ? app.summary : app.description);
-        gap(c, 15);
-        detailSection(c, "سجل التحديثات", app.changelog.isEmpty() ? "الإصدار " + app.version : app.changelog);
-        gap(c, 18);
-        c.addView(text("التثبيت يتم بموافقة المستخدم عبر نظام أندرويد.", 12, SUBTEXT, false));
-        render(c, false);
+        detailSection(content,"الوصف",app.description.isEmpty()?app.summary:app.description);
+        gap(content,16);
+        detailSection(content,"سجل التحديثات  •  "+app.version,
+            app.changelog.isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":app.changelog);
+        gap(content,16);
+        TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
+        content.addView(note);
+        render(content,false);
+    }
+
+    private void shareApp(Catalog.App app) {
+        Intent send=new Intent(Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(Intent.EXTRA_TEXT,app.name+"\n"+app.apkUrl);
+        startActivity(Intent.createChooser(send,"مشاركة التطبيق"));
     }
 
     private void refresh() {
