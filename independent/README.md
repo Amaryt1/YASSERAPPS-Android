@@ -1,20 +1,16 @@
-# YASSERAPPS Android — independent edition
+# YASSERAPPS Android
 
-This Android application is original project code maintained in this repository. It does not copy, package or build any Vyxel application code, resources, or dependencies.
+تطبيق أندرويد مستقل بتصميم عربي أسود وأخضر فسفوري.
 
-- Uses Java Android SDK and Gradle's standard Android application plugin
-- Loads only this repository's `catalog/apps.json` as its user-visible source of apps
-- Displays apps/games with working APK links defined by the catalog administrator
-- Arabic black + fluorescent green storefront
-- Search only among the store's catalog
-- Android system Download Manager and system package installer
-- Installed-package version check and update indications
-- Optional cached offline catalog
+- يعرض فقط تطبيقات وألعاب `catalog/apps.json`.
+- البحث داخل المتجر حصريًا.
+- صفحات رئيسية وتفاصيل التطبيق والألعاب والتحديثات والتنزيلات.
+- يستخدم تنزيل الملفات ومثبّت Android الرسمي.
+- يحفظ آخر كتالوج صحيح لاستخدامه دون اتصال.
+- لا يطلب GitHub Token من المستخدم.
 
-**Catalog is currently empty.** No fake downloads, versions or app listings are generated.
+لا توجد تطبيقات مصطنعة. عند فراغ قاعدة البيانات تظهر رسالة واضحة.
 
-**Development debug build only:** GitHub Actions debugging APKs are not signed with your production key. Publish a release only after generating and safely storing a permanent signing key.
+البناء: `gradle --no-daemon :app:assembleDebug` من مجلد `independent`.
 
-Do not publish APKs without permission or verification. Only direct HTTPS `.apk` entries are accepted for installation.
-
-Build: `gradle --no-daemon :app:assembleDebug`.
+النسخة التجريبية ليست موقّعة بمفتاح إصدار دائم. تأكد من سلامة ملفات APK وحقوق توزيعها قبل نشرها.
