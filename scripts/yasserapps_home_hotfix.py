@@ -85,9 +85,17 @@ if "VYXEL STORE" not in data:
     raise RuntimeError("No original wordmark found")
 strings.write_text(data.replace("VYXEL STORE", "YASSERAPPS").replace("متجر VYXEL", "YASSERAPPS"), encoding="utf-8")
 
+# The build kit may already rebrand the About title.
 prefix = chr(36) + "{com.vythera.vyxelapps.BuildConfig.VERSION_NAME}"
-edit("expressive/ui/screens/SettingsScreen.kt",
-    '"Vyxel Apps ' + prefix + '"',
-    '"YASSERAPPS ' + prefix + '"')
+settings_path = src / "expressive/ui/screens/SettingsScreen.kt"
+settings_text = settings_path.read_text(encoding="utf-8-sig")
+old_about = '"Vyxel Apps ' + prefix + '"'
+new_about = '"YASSERAPPS ' + prefix + '"'
+if old_about in settings_text:
+    edit("expressive/ui/screens/SettingsScreen.kt", old_about, new_about)
+elif new_about in settings_text:
+    print("Already branded: SettingsScreen.kt")
+else:
+    raise RuntimeError("Unexpected About app title; inspect source")
 
 print("YASSERAPPS home and update-isolation hotfix applied")
