@@ -120,12 +120,32 @@ public final class Catalog {
             String value = p.getString(CACHE, "");
             if (!value.isEmpty()) return parse(value);
         } catch (Exception ignored) { }
+        // The app ships a verified starter catalog so first launch works even
+        // without a network. Online GitHub updates always override this snapshot.
+        try (InputStream file = context.getAssets().open("yasserapps_starter_catalog.json")) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = file.read(buffer)) > 0) {
+                if (out.size() + count > MAX_BYTES) throw new Exception("Starter catalog too large");
+                out.write(buffer, 0, count);
+            }
+            return parse(out.toString("UTF-8"));
+        } catch (Exception e) {
+            android.util.Log.w("YASSERAPPS_CATALOG", "Offline catalog not available", e);
+        }
         return new ArrayList<>();
     }
 
     public static void load(Context context, Callback callback) {
         Context app = context.getApplicationContext();
         IO.execute(() -> {
+            List<App> initial = cache(app);
+            if (!initial.isEmpty()) {
+                // Display verified bundled/cached applications immediately,
+                // while the network refresh proceeds asynchronously.
+                callback.loaded(new Result(initial, null));
+            }
             Result result;
             HttpURLConnection conn = null;
             try {
@@ -151,6 +171,7 @@ public final class Catalog {
                     .edit().putString(CACHE, data).apply();
                 result = new Result(apps, null);
             } catch (Exception e) {
+                android.util.Log.w("YASSERAPPS_CATALOG", "Live catalog fetch failed; using cached snapshot", e);
                 List<App> offline = cache(app);
                 result = new Result(offline, offline.isEmpty() ? null : "تعذّر تحديث المتجر. نعرض آخر قائمة محفوظة.");
             } finally {
