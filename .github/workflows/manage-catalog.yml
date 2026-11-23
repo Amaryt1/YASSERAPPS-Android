@@ -1,0 +1,48 @@
+name: Manage YASSERAPPS catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Upsert application, disable or enable existing"
+        type: choice
+        options: [upsert, disable, enable]
+        required: true
+        default: upsert
+      entry_json:
+        description: "JSON entry from the YASSERAPPS admin form (for disable/enable use {\"id\":\"...\"})"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yasserapps-catalog-admin
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Validate and update catalog
+        env:
+          ADMIN_OPERATION: ${{ inputs.operation }}
+          ADMIN_ENTRY_JSON: ${{ inputs.entry_json }}
+        run: |
+          python3 scripts/catalog_admin.py --operation "$ADMIN_OPERATION" --entry-json "$ADMIN_ENTRY_JSON"
+      - name: Commit verified catalog change
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- catalog/apps.json; then
+            echo "No catalog changes"
+            exit 0
+          fi
+          git config user.name "yasserapps-catalog-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/apps.json
+          git commit -m "Update YASSERAPPS app catalog via owner workflow"
+          git push origin HEAD:main
