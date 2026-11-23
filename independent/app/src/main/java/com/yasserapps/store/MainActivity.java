@@ -197,7 +197,7 @@ public final class MainActivity extends Activity {
         row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView telegram = text("♧", 24, GREEN, true);
+        TextView telegram = text("♢", 24, GREEN, true);
         telegram.setGravity(Gravity.CENTER);
         telegram.setContentDescription("قناة YASSERAPPS");
         telegram.setOnClickListener(v -> open(CHANNEL));
