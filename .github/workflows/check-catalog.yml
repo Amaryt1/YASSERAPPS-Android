@@ -1,0 +1,24 @@
+name: Validate YASSERAPPS catalog
+on:
+  push:
+    paths:
+      - 'catalog/**'
+      - 'scripts/validate_catalog.py'
+      - '.github/workflows/check-catalog.yml'
+  pull_request:
+    paths:
+      - 'catalog/**'
+      - 'scripts/validate_catalog.py'
+      - '.github/workflows/check-catalog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate catalog data
+        run: python3 scripts/validate_catalog.py catalog/apps.json
