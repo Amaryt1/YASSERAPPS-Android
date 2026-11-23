@@ -5,6 +5,7 @@
 للإضافة أو التحديث: GitHub → Actions → Manage YASSERAPPS catalog → Run workflow؛ اختر upsert والصق JSON في entry_json.
 للإخفاء: اختر disable والصق JSON مثل {"id":"newpipe.official"}. للإظهار مجددًا اختر enable.
 هذه الإدارة تتطلب حساب GitHub عنده صلاحية كتابة على مستودعك، ولا تحتاج توكن داخل تطبيقات المستخدمين.
+إذا تريد رابطًا ويب للوحة، فعّل GitHub Pages من Settings → Pages → Source: GitHub Actions، ثم شغّل Actions → Publish YASSERAPPS admin web panel. لوحة HTML المعروضة عامة للقراءة، لكن النشر الفعلي يتطلب حساب GitHub مخوّل؛ لذلك لا تحتوي اللوحة أي كلمة مرور أو توكن.
 التعديل على [catalog/apps.json](../catalog/apps.json) يحدث دون إعادة بناء APK.
 
 ## التطبيقات التجريبية المرخصة
