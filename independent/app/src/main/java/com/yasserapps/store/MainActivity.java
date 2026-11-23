@@ -435,7 +435,7 @@ public final class MainActivity extends Activity {
             sub.setMaxLines(2);
             title.addView(sub);
         } else {
-            TextView brand=text("حصري على YASSERAPPS",12,GREEN,true);
+            TextView brand=text("مميز في YASSERAPPS",12,GREEN,true);
             title.addView(brand);
             gap(title,6);
             TextView name=text(selected.name,26,WHITE,true);
