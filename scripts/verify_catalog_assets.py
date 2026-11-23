@@ -14,6 +14,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Verify public official release URLs before recommending installations.
 CATALOG = Path("catalog/apps.json")
 AAPT = sys.argv[1] if len(sys.argv) > 1 else "aapt"
 
