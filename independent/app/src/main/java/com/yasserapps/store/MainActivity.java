@@ -149,6 +149,20 @@ public final class MainActivity extends Activity {
         screen = new FrameLayout(this);
         screen.setBackgroundColor(BG);
         screen.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        // Android 15 enables edge-to-edge by default for target SDK 35.
+        // Respect system status/navigation bars so the logo and dock never overlap them.
+        if (Build.VERSION.SDK_INT >= 35) {
+            screen.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+                android.graphics.Insets bars = windowInsets.getInsets(
+                    android.view.WindowInsets.Type.statusBars() |
+                    android.view.WindowInsets.Type.navigationBars()
+                );
+                if (view.getPaddingTop() != bars.top || view.getPaddingBottom() != bars.bottom) {
+                    view.setPadding(0, bars.top, 0, bars.bottom);
+                }
+                return windowInsets;
+            });
+        }
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
@@ -158,6 +172,7 @@ public final class MainActivity extends Activity {
         screen.addView(scroll, s);
         if (footer) addFooter(screen);
         setContentView(screen);
+        if (Build.VERSION.SDK_INT >= 35) screen.requestApplyInsets();
     }
 
     private void addFooter(FrameLayout parent) {
