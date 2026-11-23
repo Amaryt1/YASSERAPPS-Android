@@ -4,7 +4,34 @@ test -s apk/app-debug.apk
 adb install -r apk/app-debug.apk
 adb logcat -c
 adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
-sleep 18
+sleep 8
+adb shell screencap -p /sdcard/yasserapps-home.png
+adb pull /sdcard/yasserapps-home.png independent-home.png
+
+# Pixel 6 emulator viewport: 1080x2400. Verify each real menu can be opened
+# without depending on the live catalog having any published third-party APKs.
+adb shell input tap 350 2250
+sleep 3
+adb shell screencap -p /sdcard/yasserapps-downloads.png
+adb pull /sdcard/yasserapps-downloads.png independent-downloads.png
+
+adb shell input tap 130 2250
+sleep 3
+adb shell screencap -p /sdcard/yasserapps-settings.png
+adb pull /sdcard/yasserapps-settings.png independent-settings.png
+
+adb shell input tap 635 2250
+sleep 3
+adb shell screencap -p /sdcard/yasserapps-search.png
+adb pull /sdcard/yasserapps-search.png independent-search.png
+
+adb shell input keyevent 4
+sleep 2
+adb shell input tap 170 235
+sleep 3
+adb shell screencap -p /sdcard/yasserapps-updates.png
+adb pull /sdcard/yasserapps-updates.png independent-updates.png
+
 adb logcat -d -v time > independent-emulator-logcat.txt
 adb shell pidof com.yasserapps.store > independent-pid.txt || true
 if ! grep -Eq '[0-9]+' independent-pid.txt; then
@@ -13,10 +40,8 @@ if ! grep -Eq '[0-9]+' independent-pid.txt; then
   exit 1
 fi
 if grep -q 'FATAL EXCEPTION' independent-emulator-logcat.txt; then
-  echo 'FAIL: crash detected'
+  echo 'FAIL: Android reported a fatal exception'
   grep -A 30 -B 6 'FATAL EXCEPTION' independent-emulator-logcat.txt | tail -80
   exit 1
 fi
-adb shell screencap -p /sdcard/yasserapps-home.png
-adb pull /sdcard/yasserapps-home.png independent-home.png
-echo 'PASS: Independent YASSERAPPS launched and stayed running without a fatal exception.'
+echo 'PASS: YASSERAPPS V8 home, downloads, settings, search, and updates smoke test finished without fatal exception.'
