@@ -18,6 +18,9 @@
         android:icon="@drawable/yasser_logo"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true">
+        <receiver
+            android:name=".InstallResultReceiver"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:screenOrientation="unspecified"
