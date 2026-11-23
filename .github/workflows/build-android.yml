@@ -44,18 +44,36 @@ jobs:
       - name: Apply YASSERAPPS brand, icon and channel
         run: python3 buildkit/customize.py upstream
 
+      - name: Use stable Android API 36 for reproducible build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          build = Path('upstream/app/build.gradle.kts')
+          text = build.read_text()
+          block = '''compileSdk {
+        version = release(37) {
+            minorApiLevel = 0
+        }
+    }'''
+          if text.count(block) != 1:
+              raise SystemExit('Unexpected upstream SDK configuration; stop for review')
+          build.write_text(text.replace(block, 'compileSdk = 36'))
+          PY
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android 37 SDK
+      - name: Install stable Android 36 SDK
         shell: bash
         run: |
           set -euo pipefail
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-37' 'build-tools;37.0.0' 'platform-tools'
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v4
