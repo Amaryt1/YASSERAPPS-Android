@@ -68,6 +68,7 @@ public final class MainActivity extends Activity {
     private final List<Catalog.App> apps = new ArrayList<>();
     private DownloadCoordinator downloadCoordinator;
     private boolean verifyingInstall = false;
+    private boolean checkedStoreUpdateThisLaunch = false;
     private Catalog.App pendingLegacyDownload;
     private static final int REQUEST_LEGACY_STORAGE = 4281;
     private final String FAVORITES_KEY = "favorites_store_v1";
@@ -92,6 +93,32 @@ public final class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(0);
         showHome();
         refresh();
+        StoreUpdates.schedule(this);
+        checkStoreUpdate("com.yasserapps.store.SHOW_UPDATE".equals(getIntent().getAction()));
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if ("com.yasserapps.store.SHOW_UPDATE".equals(intent.getAction())) checkStoreUpdate(true);
+    }
+
+    private void checkStoreUpdate(boolean interactive) {
+        StoreUpdates.check(this, (update, error) -> main.post(() -> {
+            if (isFinishing()) return;
+            if (update != null) {
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle("تحديث YASSERAPPS " + update.version)
+                    .setMessage(update.notes + "\n\nيتم التحميل بعد موافقتك، والتثبيت بمثبت أندرويد الرسمي.")
+                    .setPositiveButton("تنزيل التحديث", (dialog, which) -> download(update.toApp()))
+                    .setNegativeButton("لاحقًا", null)
+                    .show();
+            } else if (interactive) {
+                Toast.makeText(this, error == null ?
+                    "متجر YASSERAPPS محدث حاليًا أو لم يُنشر إصدار جديد" :
+                    "تعذّر فحص تحديث المتجر: " + error, Toast.LENGTH_LONG).show();
+            }
+        }));
     }
 
     private int dp(float v) { return Math.round(getResources().getDisplayMetrics().density * v); }
@@ -936,6 +963,12 @@ public final class MainActivity extends Activity {
                 }
                 return;
             }
+            if (SplitPackageInstaller.isBundle(entry.url)) {
+                SplitPackageInstaller.install(this,
+                    downloadCoordinator.fileFor(entry), entry.packageName, entry.versionCode,
+                    (ok, message) -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
+                return;
+            }
             try {
                 Intent installer = new Intent(Intent.ACTION_VIEW);
                 installer.setDataAndType(uri, "application/vnd.android.package-archive");
@@ -1080,6 +1113,10 @@ public final class MainActivity extends Activity {
             });
         c.addView(wifi, lp(-1, 54));
         gap(c, 11);
+        TextView storeUpdate = action("فحص تحديث متجر YASSERAPPS", true,
+            () -> checkStoreUpdate(true));
+        c.addView(storeUpdate, lp(-1, 54));
+        gap(c, 11);
         TextView updates = action("فحص تحديثات التطبيقات", false, this::showUpdates);
         c.addView(updates, lp(-1, 54));
         gap(c, 11);
@@ -1089,7 +1126,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 8.0.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
+        detailSection(c, "حول المتجر", "YASSERAPPS 9.0.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
             + "يدعم سجل التحميلات، متابعة التقدم، إعادة المحاولة، والفحص الأمني قبل التثبيت.");
         gap(c, 12);
         c.addView(text("الحماية: التثبيت يطلب موافقتك • لا يطلب توكن GitHub", 12, SUBTEXT, false));
