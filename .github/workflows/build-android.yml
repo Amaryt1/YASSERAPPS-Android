@@ -10,6 +10,9 @@ on:
       - 'README.md'
       - 'scripts/yasserapps_home_hotfix.py'
       - 'scripts/yasserapps_store_cleanup.py'
+      - 'scripts/yasserapps_catalog_integration.py'
+      - 'android/YasserCatalog.kt'
+      - 'android/YasserStoreUi.kt'
 
 permissions:
   contents: read
@@ -51,6 +54,9 @@ jobs:
 
       - name: Clean YASSERAPPS storefront and launcher artwork
         run: python3 scripts/yasserapps_store_cleanup.py upstream
+
+      - name: Integrate YASSERAPPS native catalog and detail screens
+        run: python3 scripts/yasserapps_catalog_integration.py upstream
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
