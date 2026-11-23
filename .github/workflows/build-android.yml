@@ -8,6 +8,7 @@ on:
       - '.github/workflows/build-android.yml'
       - 'YASSERAPPS_Vyxel_BuildKit.zip'
       - 'README.md'
+      - 'scripts/yasserapps_home_hotfix.py'
 
 permissions:
   contents: read
@@ -43,6 +44,9 @@ jobs:
 
       - name: Apply YASSERAPPS brand, icon and channel
         run: python3 buildkit/customize.py upstream
+
+      - name: Apply YASSERAPPS home and update hotfix
+        run: python3 scripts/yasserapps_home_hotfix.py upstream
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
