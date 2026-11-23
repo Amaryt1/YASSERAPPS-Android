@@ -156,9 +156,13 @@ public final class DownloadCoordinator {
         return base == null ? null : new File(base, entry.fileName);
     }
 
+    public File fileFor(Entry entry) {
+        return file(entry);
+    }
+
     /** DownloadManager persists and resumes transfers independently of the Activity. */
     public synchronized Entry start(Catalog.App item) throws Exception {
-        if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK مباشر");
+        if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
         ArrayList<Entry> entries = load();
         for (Entry old : entries) {
             if (old.packageName.equals(item.packageName) && old.versionCode == item.versionCode) {
@@ -167,12 +171,15 @@ public final class DownloadCoordinator {
             }
         }
         String clean = item.packageName.replaceAll("[^A-Za-z0-9_.-]", "_");
+        String rawPath = new URI(item.apkUrl).getPath().toLowerCase(Locale.ROOT);
+        String extension = rawPath.substring(rawPath.lastIndexOf('.'));
         String fileName = clean + "_" + item.versionCode + "_" +
-            System.currentTimeMillis() + ".apk";
+            System.currentTimeMillis() + extension;
         DownloadManager.Request req = new DownloadManager.Request(Uri.parse(item.apkUrl));
         req.setTitle(item.name);
         req.setDescription("تحميل من YASSERAPPS");
-        req.setMimeType("application/vnd.android.package-archive");
+        req.setMimeType(extension.equals(".apk") ?
+            "application/vnd.android.package-archive" : "application/octet-stream");
         req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         req.setAllowedOverMetered(!wifiOnly());
         req.setAllowedOverRoaming(false);
@@ -200,7 +207,9 @@ public final class DownloadCoordinator {
             URI uri = new URI(link);
             return "https".equalsIgnoreCase(uri.getScheme()) &&
                 uri.getHost() != null && uri.getUserInfo() == null &&
-                uri.getPath() != null && uri.getPath().toLowerCase(Locale.ROOT).endsWith(".apk");
+                uri.getPath() != null &&
+                java.util.Arrays.asList(".apk", ".xapk", ".apkm", ".apks").stream()
+                .anyMatch(ext -> uri.getPath().toLowerCase(Locale.ROOT).endsWith(ext));
         } catch (Exception e) { return false; }
     }
 
@@ -286,21 +295,25 @@ public final class DownloadCoordinator {
                         throw new Exception("فشل فحص SHA-256، الملف لا يطابق النسخة المعتمدة");
                     }
                 }
-                PackageInfo packageInfo;
-                PackageManager pm = app.getPackageManager();
-                if (Build.VERSION.SDK_INT >= 33) {
-                    packageInfo = pm.getPackageArchiveInfo(
-                        apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(0));
-                } else {
-                    packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
-                }
-                if (packageInfo == null || !current.packageName.equals(packageInfo.packageName)) {
-                    throw new Exception("اسم الحزمة داخل APK لا يطابق المتجر، تم منع التثبيت");
-                }
-                long code = Build.VERSION.SDK_INT >= 28 ?
-                    packageInfo.getLongVersionCode() : packageInfo.versionCode;
-                if (code != current.versionCode) {
-                    throw new Exception("رقم إصدار APK مختلف عن الرقم المعلن في المتجر");
+                // Android's PackageInstaller verifies split APK metadata and signatures.
+                // Plain APK archive metadata is also checked before launching installer.
+                if (!SplitPackageInstaller.isBundle(current.url)) {
+                    PackageInfo packageInfo;
+                    PackageManager pm = app.getPackageManager();
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        packageInfo = pm.getPackageArchiveInfo(
+                            apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(0));
+                    } else {
+                        packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
+                    }
+                    if (packageInfo == null || !current.packageName.equals(packageInfo.packageName)) {
+                        throw new Exception("اسم الحزمة داخل APK لا يطابق المتجر، تم منع التثبيت");
+                    }
+                    long code = Build.VERSION.SDK_INT >= 28 ?
+                        packageInfo.getLongVersionCode() : packageInfo.versionCode;
+                    if (code != current.versionCode) {
+                        throw new Exception("رقم إصدار APK مختلف عن الرقم المعلن في المتجر");
+                    }
                 }
                 uri = manager.getUriForDownloadedFile(current.id);
                 if (uri == null) throw new Exception("تعذّر الوصول إلى ملف التثبيت");
