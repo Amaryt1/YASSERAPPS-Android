@@ -83,7 +83,7 @@ edit(home,
                                                      a.packageName.contains(state.searchQuery, ignoreCase = true))
                                                 }
                                                 .map { it.sourceRepo } + state.searchResults
-                                            ).distinctBy { it.packageId.ifBlank { p -> it.full_name } },
+                                            ).distinctBy { it.packageId.ifBlank { it.full_name } },
                                         platform              = state.platform,''')
 
 # Replace the technical "Profile" nav entry with a real search tab, keep downloads.
