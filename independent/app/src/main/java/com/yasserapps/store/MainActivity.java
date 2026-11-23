@@ -59,6 +59,12 @@ public final class MainActivity extends Activity {
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService images = Executors.newFixedThreadPool(3);
+    private final android.util.LruCache<String, Bitmap> thumbnails =
+        new android.util.LruCache<String, Bitmap>(12 * 1024 * 1024) {
+            @Override protected int sizeOf(String key, Bitmap value) {
+                return value.getByteCount();
+            }
+        };
     private final List<Catalog.App> apps = new ArrayList<>();
     private DownloadCoordinator downloadCoordinator;
     private boolean verifyingInstall = false;
@@ -820,21 +826,58 @@ public final class MainActivity extends Activity {
 
     private void image(ImageView target, String address) {
         if (address == null || !address.startsWith("https://")) return;
+        Bitmap cached = thumbnails.get(address);
+        if (cached != null && !cached.isRecycled()) {
+            target.setImageBitmap(cached);
+            return;
+        }
         images.execute(() -> {
             Bitmap bitmap = null;
             try {
                 URL url = new URL(address);
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(6000);
-                conn.setReadTimeout(9000);
-                try (InputStream input = conn.getInputStream()) {
-                    BitmapFactory.Options opt = new BitmapFactory.Options();
-                    opt.inSampleSize = 2;
-                    bitmap = BitmapFactory.decodeStream(input, null, opt);
-                } finally { conn.disconnect(); }
-            } catch (Exception ignored) {}
-            final Bitmap result = bitmap;
-            if (result != null) main.post(() -> target.setImageBitmap(result));
+                java.net.HttpURLConnection connection =
+                    (java.net.HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(6000);
+                connection.setReadTimeout(9000);
+                connection.setInstanceFollowRedirects(true);
+                if (!"https".equalsIgnoreCase(connection.getURL().getProtocol())) {
+                    throw new IllegalArgumentException("Images must use HTTPS");
+                }
+                try (InputStream input = connection.getInputStream();
+                     java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+                    byte[] buffer = new byte[16384];
+                    int size = 0, read;
+                    while ((read = input.read(buffer)) != -1) {
+                        size += read;
+                        if (size > 5_000_000) throw new IllegalArgumentException("Image too large");
+                        output.write(buffer, 0, read);
+                    }
+                    byte[] bytes = output.toByteArray();
+                    BitmapFactory.Options bounds = new BitmapFactory.Options();
+                    bounds.inJustDecodeBounds = true;
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                        throw new IllegalArgumentException("Invalid image");
+                    }
+                    BitmapFactory.Options decode = new BitmapFactory.Options();
+                    decode.inPreferredConfig = Bitmap.Config.RGB_565;
+                    decode.inSampleSize = 1;
+                    while (bounds.outWidth / decode.inSampleSize > 1200 ||
+                           bounds.outHeight / decode.inSampleSize > 1200) {
+                        decode.inSampleSize *= 2;
+                    }
+                    bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, decode);
+                } finally {
+                    connection.disconnect();
+                }
+            } catch (Exception ignored) { }
+            final Bitmap ready = bitmap;
+            if (ready != null && !ready.isRecycled()) {
+                thumbnails.put(address, ready);
+                main.post(() -> {
+                    if (!isDestroyed()) target.setImageBitmap(ready);
+                });
+            }
         });
     }
 
