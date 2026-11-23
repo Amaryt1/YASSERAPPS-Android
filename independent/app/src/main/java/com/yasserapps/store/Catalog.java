@@ -150,7 +150,8 @@ public final class Catalog {
                     .edit().putString(CACHE, data).apply();
                 result = new Result(apps, null);
             } catch (Exception e) {
-                result = new Result(cache(app), "تعذّر تحديث قائمة التطبيقات. تحقق من الإنترنت.");
+                List<App> offline = cache(app);
+                result = new Result(offline, offline.isEmpty() ? null : "تعذّر تحديث المتجر. نعرض آخر قائمة محفوظة.");
             } finally {
                 if (conn != null) conn.disconnect();
             }
