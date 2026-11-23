@@ -1,0 +1,66 @@
+name: Smoke test YASSERAPPS APK on Android emulator
+
+on:
+  workflow_run:
+    workflows:
+      - Build YASSERAPPS Android APK
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  launch-smoke:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download built Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: YASSERAPPS-Android-Debug-APK
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: apk
+      - name: Enable KVM support
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Launch on Android 15 emulator and check for fatal crash
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            set -e
+            adb install -r apk/app-debug.apk
+            adb logcat -c
+            adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb logcat -d -v time > emulator-logcat.txt
+            echo 'App process:'
+            adb shell pidof com.yasserapps.store
+            if grep -q 'FATAL EXCEPTION' emulator-logcat.txt; then
+              echo 'FATAL EXCEPTION found in Android logcat'
+              grep -A 24 -B 5 'FATAL EXCEPTION' emulator-logcat.txt | tail -75
+              exit 1
+            fi
+            echo 'Android app launched and survived 15 seconds without fatal exception.'
+      - name: Upload emulator diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YASSERAPPS-Emulator-Logcat
+          path: emulator-logcat.txt
+          if-no-files-found: warn
+          retention-days: 14
