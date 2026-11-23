@@ -68,6 +68,8 @@ public final class MainActivity extends Activity {
     private final List<Catalog.App> apps = new ArrayList<>();
     private DownloadCoordinator downloadCoordinator;
     private boolean verifyingInstall = false;
+    private Catalog.App pendingLegacyDownload;
+    private static final int REQUEST_LEGACY_STORAGE = 4281;
     private final String FAVORITES_KEY = "favorites_store_v1";
     private final Runnable downloadsTick = new Runnable() {
         @Override public void run() {
@@ -891,6 +893,16 @@ public final class MainActivity extends Activity {
     }
 
     private void download(Catalog.App app) {
+        if (Build.VERSION.SDK_INT <= 28 &&
+            checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            pendingLegacyDownload = app;
+            requestPermissions(
+                new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                REQUEST_LEGACY_STORAGE
+            );
+            return;
+        }
         try {
             DownloadCoordinator.Entry entry = downloadCoordinator.start(app);
             if (entry.complete()) {
@@ -1087,6 +1099,21 @@ public final class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if ("home".equals(page)) super.onBackPressed();
         else { category = "app"; showHome(); }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQUEST_LEGACY_STORAGE) {
+            Catalog.App pending = pendingLegacyDownload;
+            pendingLegacyDownload = null;
+            if (results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (pending != null) download(pending);
+            } else {
+                Toast.makeText(this,
+                    "لا يمكن تنزيل ملفات APK على إصدار أندرويد هذا بدون إذن التخزين",
+                    Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override protected void onResume() {
