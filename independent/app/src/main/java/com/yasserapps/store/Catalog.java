@@ -96,6 +96,7 @@ public final class Catalog {
                 !app.packageName.matches("[a-zA-Z_][a-zA-Z_0-9]*(\\.[a-zA-Z_][a-zA-Z_0-9]*)+") ||
                 app.versionCode < 1 || !validHttps(app.apkUrl) || !validHttps(app.iconUrl) ||
                 !DownloadCoordinator.isDirectApk(app.apkUrl) ||
+                !app.sha256.matches("(?i)[a-f0-9]{64}") ||
                 !("app".equals(app.category) || "game".equals(app.category)) ||
                 !seenIds.add(app.id) || !seenPackages.add(app.packageName)) {
                 continue;
