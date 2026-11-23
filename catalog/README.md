@@ -1,6 +1,6 @@
 # YASSERAPPS — catalog administration
 
-This folder is **the exclusive YASSERAPPS store source**, not a replacement for the existing external sources. The Android app fetches it at runtime over HTTPS:
+This is **the only customer-visible YASSERAPPS application and game catalog**. The independent Android client does not browse third-party developer repositories. The Android app fetches it at runtime over HTTPS:
 
 https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/apps.json
 
@@ -40,8 +40,12 @@ Set `category` to `game` to place it in Games, or `app` for Apps. Set `featured`
 
 - The source is public because the repository is public. **Never include access tokens or secret download credentials** in the catalog or APK.
 - Only publish APK files you have the right to distribute, and verify the publisher/signature and security of each file.
-- URLs must use HTTPS and the APK URL path must end in .apk. Split formats like .xapk, .apks and .apkm are not currently accepted by this catalog, because the classic installation path verifies standard APK files only.
+- URLs must use HTTPS and the APK URL path must end in .apk. Split formats like .xapk, .apks and .apkm are not currently accepted by this catalog, because the independent YASSERAPPS installer supports direct APK files.
 - When possible, set the exact SHA-256 checksum of your APK. The catalog validator checks formatting, **not** whether the remote binary matches; server-side verification is still recommended.
 - Run `python3 scripts/validate_catalog.py catalog/apps.json` before committing. GitHub Actions checks the JSON on every change.
 - The application keeps the last successfully loaded catalog for offline use. Public GitHub raw caching and connectivity may delay changes briefly.
 - Editing this JSON does **not** rebuild the APK; any new functionality in the Android client itself still requires a new signed APK.
+
+## Brand banner and reference design
+
+A featured app appears in the full-width homepage hero when `featured` is true. Provide `bannerUrl` for its promotional artwork. App and game cards are created dynamically from real catalog records; blank catalogs show an honest empty state rather than made-up installations. The app-details gallery uses `screenshots`, and the green install button downloads only the `apkUrl` associated with that record.
