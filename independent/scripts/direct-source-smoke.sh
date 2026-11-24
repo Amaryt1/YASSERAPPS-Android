@@ -19,6 +19,42 @@ done
 adb shell am instrument -w com.yasserapps.store.test/com.yasserapps.store.DirectCatalogTest | tee "$tmp/result.txt"
 grep -F 'PASS signed direct sources on Android:' "$tmp/result.txt"
 adb shell run-as com.yasserapps.store rm -f files/fdroid.jar files/fdroid.json files/izzyondroid.jar files/izzyondroid.json
+# Confirm the actual home sections and category tabs from the verified cache.
+adb shell svc wifi disable
+adb shell svc data disable
+adb logcat -c
+adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
+for n in $(seq 1 20); do
+  adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/ui.log"
+  if grep -Eq 'UI_HOME_SECTION kind=app total=[1-9][0-9]+' "$tmp/ui.log" && grep -Eq 'UI_HOME_SECTION kind=game total=[1-9][0-9]*' "$tmp/ui.log"; then break; fi
+  sleep 2
+done
+grep -E 'UI_HOME_SECTION kind=app total=[1-9][0-9]+' "$tmp/ui.log"
+grep -E 'UI_HOME_SECTION kind=game total=[1-9][0-9]*' "$tmp/ui.log"
+tap_tab() {
+  adb shell uiautomator dump /sdcard/yasser-ui.xml >/dev/null
+  adb pull /sdcard/yasser-ui.xml "$tmp/ui.xml" >/dev/null
+  read -r x y < <(python3 - "$tmp/ui.xml" "$1" <<'PY'
+import sys,re,xml.etree.ElementTree as E
+for n in E.parse(sys.argv[1]).iter('node'):
+    if n.get('text')==sys.argv[2]:
+        a,b,c,d=map(int,re.findall(r'\d+',n.get('bounds')))
+        print((a+c)//2,(b+d)//2)
+        break
+else: raise SystemExit('Missing tab '+sys.argv[2])
+PY
+)
+  adb shell input tap "$x" "$y"
+  sleep 2
+}
+adb logcat -c
+tap_tab 'التطبيقات'
+adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=40'
+adb logcat -c
+tap_tab 'الألعاب'
+adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]* rendered=[1-9][0-9]*'
+echo 'PASS verified source entries in home and category tabs'
+adb shell am force-stop com.yasserapps.store
 # Separate live-device check: report network failure honestly instead of calling it success.
 adb shell svc wifi enable
 adb shell svc data enable
