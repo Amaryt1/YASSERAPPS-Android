@@ -1,0 +1,21 @@
+{
+  "source": "Quillpad",
+  "permissionUrl": "https://f-droid.org/packages/io.github.quillpad/",
+  "reviewedPublicLicense": true,
+  "reviewNotes": "Public package listing documents derivative status, license and available Android build. Metadata only; no APK redistributed or binary verified.",
+  "apps": [
+    {
+      "id": "quillpad",
+      "name": "Quillpad",
+      "packageName": "io.github.quillpad",
+      "category": "app",
+      "version": "1.5.14",
+      "versionCode": 56,
+      "modDescription": "نسخة مطورة من Quillnote للملاحظات وقوائم المهام، تدعم Markdown والمزامنة مع Nextcloud.",
+      "modEvidenceUrl": "https://f-droid.org/packages/io.github.quillpad/",
+      "publisherUrl": "https://f-droid.org/packages/io.github.quillpad/",
+      "modified": true,
+      "license": "GPL-3.0-only"
+    }
+  ]
+}

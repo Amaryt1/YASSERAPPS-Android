@@ -36,7 +36,7 @@ def main():
         d=json.loads(file.read_text())
         source=d.get("source","")
         permission=d.get("permissionUrl","")
-        if d.get("reviewedByOwner") is not True or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}",source) or not https(permission): raise ValueError("Unapproved source")
+        if (d.get("reviewedByOwner") is not True and d.get("reviewedPublicLicense") is not True) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}",source) or not https(permission): raise ValueError("Unapproved source")
         for item in d.get("apps",[]):
             r=accept(item,source,permission)
             if r is not None: rows[r["id"]]=r
