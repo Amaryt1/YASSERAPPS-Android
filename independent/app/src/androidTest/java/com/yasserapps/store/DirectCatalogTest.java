@@ -86,6 +86,8 @@ public final class DirectCatalogTest extends Instrumentation {
             String rss="<rss version='2.0'><channel><item><title>Example 2.0</title><link>https://www.apkmirror.com/apk/example/example-app/example-2-release/</link><description>Example description</description><pubDate>Tue, 24 Nov 2026 10:00:00 +0000</pubDate></item><item><title>Unsafe</title><link>https://www.apkmirror.com.evil.example/apk/a/b/</link></item></channel></rss>";
             List<Catalog.App> mirror=MirrorFeed.parse(new java.io.ByteArrayInputStream(rss.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             if(mirror.size()!=1||!mirror.get(0).discoveryOnly||!mirror.get(0).packageName.isEmpty()||!mirror.get(0).apkUrl.isEmpty()||!Catalog.fromJson(Catalog.toJson(mirror.get(0))).id.equals(mirror.get(0).id))throw new AssertionError("Mirror RSS metadata boundary");
+            List<String> mirrorLinks=PublicChartFeed.links("APKMirror","<a href='/apk/example/app/example-release/'>release</a><a href='/apk/example/app/'>app</a><a href='https://www.apkmirror.com.evil.example/apk/a/b/'>unsafe</a>","https://www.apkmirror.com/uploads/");
+            if(mirrorLinks.size()!=1||!mirrorLinks.get(0).equals("https://www.apkmirror.com/apk/example/app/"))throw new AssertionError("Mirror application canonical identity");
             String chart="<a href='/app/123'>Game</a><a href='https://www.taptap.io.evil.example/app/12'>Unsafe</a>";
             List<String> chartLinks=PublicChartFeed.links("TapTap",chart,"https://www.taptap.io/top/");
             if(chartLinks.size()!=1||!chartLinks.get(0).equals("https://www.taptap.io/app/123"))throw new AssertionError("Chart origin validation");
