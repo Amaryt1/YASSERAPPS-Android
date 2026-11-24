@@ -60,6 +60,13 @@ final class AptoideFeed {
         return a;
     }
     static List<Catalog.App> parse(JSONObject root,String category) throws Exception {
+        return parseRows(root,category,false);
+    }
+    // Unchecked metadata can be searched, but it cannot enter the APK installer.
+    static List<Catalog.App> discover(JSONObject root,String category) throws Exception {
+        return parseRows(root,category,true);
+    }
+    private static List<Catalog.App> parseRows(JSONObject root,String category,boolean allowMissingVerdict) throws Exception {
         if(!"OK".equals(root.getJSONObject("info").optString("status")))throw new java.io.IOException("Public API status not OK");
         JSONArray rows=root.getJSONObject("datalist").getJSONArray("list");
         ArrayList<Catalog.App> result=new ArrayList<>();
@@ -69,7 +76,7 @@ final class AptoideFeed {
             JSONObject f=r.optJSONObject("file");
             if(f==null)continue;
             JSONObject malware=f.optJSONObject("malware");
-            if(malware==null||!"TRUSTED".equals(malware.optString("rank")))continue;
+            if(malware==null ? !allowMissingVerdict : !"TRUSTED".equals(malware.optString("rank")))continue;
             String pkg=r.optString("package"),name=r.optString("name"),slug=r.optString("uname");
             int code=f.optInt("vercode");
             long size=f.optLong("filesize",r.optLong("size"));
@@ -80,8 +87,8 @@ final class AptoideFeed {
             a.category="games".equals(category)?"game":"app"; a.versionCode=code; a.version=f.optString("vername");
             a.sizeBytes=size; a.sourceName="Aptoide"; a.discoveryOnly=true;
             a.publisherUrl=link; a.attribution="Aptoide";
-            a.summary="صفحة التطبيق في Aptoide";
-            a.description="بيانات من واجهة Aptoide الرسمية. افتح صفحة المصدر لمعرفة التوافق والتنزيل. لم يتم التحقق من APK ببصمة SHA-256 داخل المتجر.";
+            a.summary=malware==null?"Aptoide • بيانات غير مفحوصة":"Aptoide • فحص بيانات الإصدار";
+            a.description=(malware==null?"لم تُفحص حالة أمان هذا الإصدار بعد. ":"حالة الإصدار في المصدر TRUSTED، وليست ضماناً مستقلاً للأمان. ")+"افتح صفحة المصدر لمعرفة التوافق والتنزيل. لا يتوفر تثبيت مباشر قبل التحقق من بصمة APK وتوقيعه.";
             String icon=r.optString("icon"),graphic=r.optString("graphic");
             if(safeImage(icon))a.iconUrl=icon;
             if(safeImage(graphic))a.bannerUrl=graphic;
