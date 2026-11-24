@@ -79,8 +79,12 @@ def aptoide(r,group):
     pkg=r.get("package",""); slug=r.get("uname",""); code=f.get("vercode",0); size=f.get("filesize",r.get("size",0))
     if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)+",pkg) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}",slug) or not isinstance(code,int) or code<1 or not isinstance(size,int) or size<1: return None
     return entry("Aptoide","aptoide."+pkg,r.get("name",""),"https://"+slug+".en.aptoide.com/app",packageName=pkg,category="game" if group=="games" else "app",version=clean(f.get("vername",""),80),versionCode=code,sizeBytes=size,iconUrl=image("Aptoide",r.get("icon","")),bannerUrl=image("Aptoide",r.get("graphic","")),updatedAt=update_time(r.get("updated","")))
-def chart(source,url):
+def chart(source,url,discovered=None):
     p=HTML(); p.feed(get(url).decode("utf-8","replace"))
+    if discovered is not None:
+        for href in p.links:
+            candidate=link(source,urllib.parse.urljoin(url,href))
+            if candidate and candidate!=url: discovered.add(candidate)
     data=software(p.schemas)
     name=data.get("name") or " ".join(p.title)
     desc=clean(data.get("description") or p.meta.get("og:description",""),180)
@@ -159,7 +163,7 @@ def main():
                     pause_source(e.code)
                     return rows,cursors,{source:{"status":"cooldown","http":e.code}}
             except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
-        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/games","https://en.uptodown.com/android/games/newreleases","https://en.uptodown.com/android/newreleases"],"TapTap":["https://www.taptap.io/top/"]+["https://www.taptap.io/tag/"+tag for tag in ("editor_choice","arcade","strategy","casual","action","sports","racing")],"APKMirror":["https://www.apkmirror.com/uploads/","https://www.apkmirror.com/categories/"]}
+        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/games","https://en.uptodown.com/android/games/newreleases","https://en.uptodown.com/android/newreleases"],"TapTap":["https://www.taptap.io/","https://www.taptap.io/top/","https://www.taptap.io/top/?page=2"]+["https://www.taptap.io/tag/"+tag for tag in ("editor_choice","arcade","strategy","casual","action","sports","racing")],"APKMirror":["https://www.apkmirror.com/uploads/","https://www.apkmirror.com/categories/"]}
         if source in charts:
             pages=charts[source]
             urls={}
@@ -169,7 +173,7 @@ def main():
                 if not p or p.fragment: return ""
                 if source=="APKMirror" and p.hostname=="www.apkmirror.com" and re.fullmatch(r"/uploads/page/[1-9][0-9]{0,5}/?",p.path) and not p.query: return url
                 if source=="Uptodown" and p.hostname=="en.uptodown.com" and re.fullmatch(r"/android/(?:apps|games|latest-updates|newreleases)(?:/[a-z0-9-]{1,70}){0,3}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
-                if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/(?:top(?:/[a-zA-Z0-9_-]{1,70}){0,2}|tag/[a-zA-Z0-9_-]{1,70})/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
+                if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/(?:(?:top(?:/[a-zA-Z0-9_-]{1,70}){0,2}|tag/[a-zA-Z0-9_-]{1,70})/?)?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
                 return ""
             known=list(dict.fromkeys(pages+[u for u in cursors.get(source+":pages",[]) if navigation(u)]))[:2000]
             navpos=int(cursors.get(source+":navpos",0))%max(1,len(known))
@@ -204,11 +208,12 @@ def main():
             existing=[u for u in rotated if u in indexed]
             selected=unseen[:90]+existing[:max(0,100-min(90,len(unseen)))]
             if len(selected)<100: selected+=unseen[90:90+100-len(selected)]
+            discovered=set()
             for u in selected:
                 if time.monotonic()-start>=210: break
                 checked+=1
                 try:
-                    row=chart(source,u)
+                    row=chart(source,u,discovered)
                     if row: save(row); accepted+=1
                 except urllib.error.HTTPError as e:
                     print("CHART_HTTP",source,e.code,flush=True)
@@ -216,7 +221,10 @@ def main():
                 except Exception as e: print("CHART_DETAIL_FAILED",source,type(e).__name__,flush=True)
                 time.sleep(1.2)
             if candidates: cursors[source]=(pos+checked)%len(candidates)
-            stats[source]={"links":len(candidates),"checked":checked,"accepted":accepted}
+            # Reuse links already returned in fetched detail pages; no extra requests.
+            queue=list(dict.fromkeys(cursors[source+":listings"]+sorted(discovered)))[:10000]
+            cursors[source+":listings"]=queue
+            stats[source]={"links":len(queue),"checked":checked,"accepted":accepted,"relatedDiscovered":len(discovered)}
         return rows,cursors,stats
 
     prior_rows=dict(rows)
