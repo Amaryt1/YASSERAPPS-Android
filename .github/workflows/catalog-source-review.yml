@@ -1,0 +1,27 @@
+name: Catalog source review
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'catalog/sources.json'
+      - 'scripts/import_catalog_sources.py'
+      - '.github/workflows/catalog-source-review.yml'
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test candidate conversion
+        run: python3 scripts/import_catalog_sources.py --self-test
+      - name: Fetch upstream catalog candidates
+        run: python3 scripts/import_catalog_sources.py --output source-candidates.json
+      - name: Archive candidates for manual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-candidates
+          path: source-candidates.json
+          if-no-files-found: warn
