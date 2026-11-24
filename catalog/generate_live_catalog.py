@@ -92,6 +92,28 @@ def chart(source,url,discovered=None):
     if not name or not desc or not icon: return None
     key="apkmirror:"+urllib.parse.urlsplit(url).path if source=="APKMirror" else source.lower()+":"+url
     return entry(source,key,name,url,category="game" if source=="TapTap" or "game" in str(data.get("applicationCategory","")).lower() else "app",version=clean(data.get("softwareVersion",""),80),iconUrl=icon,summary=desc,description=desc)
+def approved_rows(source):
+    """Import an explicitly authorized provider export, not a guessed endpoint."""
+    file=Path(__file__).resolve().parent/"approved-feeds"/(source.lower()+".json")
+    if not file.exists(): return [], "no_authorized_export"
+    if file.stat().st_size>32*1024*1024: raise ValueError("Provider export exceeds byte limit")
+    data=json.loads(file.read_text(encoding="utf-8"))
+    if data.get("source")!=source or not isinstance(data.get("authorization"),str) or not data["authorization"].strip() or not isinstance(data.get("apps"),list):
+        raise ValueError("Missing source or authorization record")
+    out={}
+    for item in data["apps"]:
+        if not isinstance(item,dict): continue
+        url=link(source,item.get("publisherUrl",""))
+        if not url: continue
+        name=clean(item.get("name",""),200)
+        desc=clean(item.get("description",""),180)
+        icon=image(source,item.get("iconUrl",""))
+        if not name or not desc or not icon: continue
+        key="apkmirror:"+urllib.parse.urlsplit(url).path if source=="APKMirror" else source.lower()+":"+url
+        row=entry(source,key,name,url,category="game" if source=="TapTap" or item.get("category")=="game" else "app",version=clean(item.get("version",""),80),iconUrl=icon,summary=desc,description=desc)
+        if row: out[key]=row
+    return list(out.values()),"authorized_export"
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--output",default="catalog/generated/index.json"); ap.add_argument("--min-new",type=int,default=500); ap.add_argument("--max-pages",type=int,default=120); args=ap.parse_args()
     path=Path(args.output); prior=json.loads(path.read_text()) if path.exists() else {}
@@ -112,13 +134,21 @@ def main():
         def pause_source(code):
             # Respect access restrictions and rate limiting across scheduled runs.
             cursors[cooldown_key]=int(time.time())+(3600 if code==403 else 900)
-        if int(cursors.get(cooldown_key,0))>int(time.time()):
-            return rows,cursors,{source:{"status":"cooldown","retryAfter":cursors[cooldown_key]}}
         def save(row):
             if not row: return
             old=rows.get(row["id"])
             if old is None and len(rows)>=LIMIT: return
             if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
+        if source in ("Uptodown","TapTap","APKMirror"):
+            imported,status=approved_rows(source)
+            if imported:
+                for row in imported: save(row)
+                return rows,cursors,{source:{"status":status,"accepted":len(imported)}}
+            if source=="Uptodown":
+                # Terms restrict bulk data mining without authorization.
+                return rows,cursors,{source:{"status":"awaiting_authorized_export","retained":len(rows)}}
+        if int(cursors.get(cooldown_key,0))>int(time.time()):
+            return rows,cursors,{source:{"status":"cooldown","retryAfter":cursors[cooldown_key]}}
         if source=="Aptoide" and len(rows)>=17000:
             # Keep existing entries but reserve remaining capacity for other providers.
             return rows,cursors,{source:{"status":"growth_paused_for_source_balance","retained":len(rows)}}

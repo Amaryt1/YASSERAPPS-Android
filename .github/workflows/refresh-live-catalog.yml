@@ -8,6 +8,7 @@ on:
     paths:
       - 'catalog/generate_live_catalog.py'
       - 'catalog/build_api.py'
+      - 'catalog/approved-feeds/**'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
   contents: write
