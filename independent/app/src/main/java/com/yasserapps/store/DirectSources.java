@@ -433,7 +433,7 @@ final class DirectSources {
         writeCache(context,source,fresh);
         return fresh;
     }
-    private static Snapshot update(Context context,Source source,Snapshot cached) throws Exception {
+    private static Snapshot update(Context context,Source source,Snapshot cached,java.util.function.Consumer<List<Catalog.App>> preview) throws Exception {
         if(source.id.equals("aptoide")) {
             long now=System.currentTimeMillis();
             if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
@@ -468,6 +468,9 @@ final class DirectSources {
                             Thread.sleep(500);
                         }
                     }
+                    // Show the first page of each group on a cold load, without waiting for all 40 pages.
+                    // Never publish an incomplete cache over a previously complete snapshot.
+                    if(page==0&&cached==null&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
                     int next=datalist.optInt("next",-1);
                     if(rows.length()==0||next<=offset||next>=datalist.optInt("total",Integer.MAX_VALUE))break;
                     offset=next;
@@ -557,7 +560,12 @@ final class DirectSources {
         int succeeded=0;
         for(Source source:SOURCES) {
             try {
-                Snapshot snapshot=update(context,source,snapshots.get(source.id));
+                Snapshot snapshot=update(context,source,snapshots.get(source.id),partial -> {
+                    Map<String,Snapshot> view=new LinkedHashMap<>(snapshots);
+                    view.put(source.id,new Snapshot(System.currentTimeMillis(),"",partial));
+                    android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_PREVIEW "+source.id+" count="+partial.size());
+                    callback.loaded(new Catalog.Result(merge(view),null,false));
+                });
                 snapshots.put(source.id,snapshot); succeeded++;
                 android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_SOURCE_OK "+source.id+" count="+snapshot.apps.size());
                 callback.loaded(new Catalog.Result(merge(snapshots),null,false));
