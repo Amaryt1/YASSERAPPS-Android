@@ -12,6 +12,7 @@ on:
       - 'catalog/provider_formats.py'
       - 'catalog/test_provider_sync.py'
       - 'catalog/mod-source-candidates.json'
+      - 'catalog/liteapks-review-index.json'
       - 'catalog/approved-mod-feeds/**'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:

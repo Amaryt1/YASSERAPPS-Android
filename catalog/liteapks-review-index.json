@@ -174,5 +174,6 @@
     }
   ],
   "publishedInstallable": 0,
-  "authorizationConfirmed": false
+  "authorizationConfirmed": false,
+  "ownerReportedPermission": true
 }

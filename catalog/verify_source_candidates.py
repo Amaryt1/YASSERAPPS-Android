@@ -71,11 +71,11 @@ def main():
     for cfg in registry["sources"]:
         if not cfg.get("ownerReportedPermission"):continue
         # Keep written-consent-only source paused until the documented consent is available.
-        result=inspect(cfg["name"],cfg["probeHome"],review_pages=12)
+        result=inspect(cfg["name"],cfg["probeHome"],review_pages=24,seed=cfg.get("probeSeed"))
         rows=result.get("reviewRows",[])
         eligible=[x for x in rows if x.get("modClaim") and x.get("explicitApkUrl") and x.get("category") in ("app","game")]
         verified=[];outcomes={}
-        for row in eligible[:2]:
+        for row in eligible[:4]:
             item,status=verify(row,sdk)
             outcomes[status]=outcomes.get(status,0)+1
             if item:verified.append(item)

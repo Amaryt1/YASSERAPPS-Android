@@ -8,12 +8,12 @@
       "probeHome": "https://liteapks.com/",
       "probeSeed": "https://liteapks.com/worms-zone-io.html",
       "localApi": "sources/liteapks/index.json",
-      "status": "awaiting_source_access",
+      "status": "owner_reported_permission",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
       "authorizationConfirmed": false,
-      "ownerReportedPermission": false,
+      "ownerReportedPermission": true,
       "probeOnly": true,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -30,7 +30,8 @@
         "open-graph",
         "public-json"
       ],
-      "reason": "New sole target at owner request; public discovery and permission scope not yet established."
+      "reason": "Owner confirms permission from LiteAPKs; no independently verified provider grant or release-level rights record. Public verification enabled; authorized feed not supplied.",
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     }
   ],
   "onlyRegisteredSources": true
