@@ -926,7 +926,7 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly ? "صفحة الإصدارات" : previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly ? "فتح المصدر" : previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
@@ -952,7 +952,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly) { gap(content,8); content.addView(text("هذا رابط مشروع، وليس APK مفحوصاً للتثبيت المباشر.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly) { gap(content,8); content.addView(text("هذا إدخال من المصدر، وليس APK مفحوصاً للتثبيت المباشر.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -1004,7 +1004,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openPublisher(String url) {
-        if(!PortFeeds.publisherLink(url)) {
+        if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)) {
             Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
         }
         try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
@@ -1509,7 +1509,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.1\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
