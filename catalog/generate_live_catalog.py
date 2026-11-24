@@ -11,6 +11,12 @@ def https(s):
         p=urlsplit(s)
         return p.scheme=="https" and bool(p.hostname) and not p.username and not p.password
     except (TypeError,ValueError): return False
+def apk_endpoint(url):
+    if not isinstance(url,str) or len(url)>4096 or not https(url):return False
+    try:
+        p=urlsplit(url)
+        return not p.fragment and p.port in (None,443) and not p.path.lower().endswith((".xapk",".apkm",".apks"))
+    except ValueError:return False
 def accept(item,source,permission):
     if not isinstance(item,dict) or item.get("modified") is not True: return None
     if not all(isinstance(item.get(k),str) and item[k].strip() for k in ("id","name","packageName","version","modDescription","modEvidenceUrl","publisherUrl")): return None
@@ -31,7 +37,7 @@ def accept(item,source,permission):
     sha=item.get("sha256","")
     signer=item.get("signerSha256","")
     size=item.get("sizeBytes",0)
-    direct=bool(apk) and https(apk) and urlsplit(apk).path.lower().endswith(".apk") and isinstance(sha,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",sha)) and isinstance(signer,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",signer)) and type(size)==int and 0<size<=8*1024**3
+    direct=bool(apk) and apk_endpoint(apk) and isinstance(sha,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",sha)) and isinstance(signer,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",signer)) and type(size)==int and 0<size<=8*1024**3
     if apk and not direct: return None
     return {"id":source.lower()+"."+item["id"],"name":item["name"][:200],"packageName":item["packageName"],"category":item["category"],"version":item["version"][:80],"versionCode":code,"sizeBytes":size if direct else 0,"apkUrl":apk if direct else "","iconUrl":icon,"bannerUrl":banner,"screenshots":screenshots,"summary":item["modDescription"][:500],"description":item["modDescription"][:4000],"sha256":sha.lower() if direct else "","signerSha256":signer.lower() if direct else "","sourceName":source,"publisherUrl":item["publisherUrl"],"modified":True,"modEvidenceUrl":item["modEvidenceUrl"],"permissionUrl":permission,"updatedAt":int(time.time()*1000),"discoveryOnly":not direct,"license":str(item.get("license",""))[:200]}
 def main():

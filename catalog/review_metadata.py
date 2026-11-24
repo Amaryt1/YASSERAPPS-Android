@@ -35,7 +35,7 @@ def factual_rows(html,source,url):
             if isinstance(raw,str):
                 link=urljoin(url,raw)
                 parsed=urlsplit(link)
-                if parsed.scheme=="https" and parsed.hostname==urlsplit(url).hostname and not parsed.username and not parsed.password and not parsed.fragment and parsed.path.lower().endswith(".apk"):
+                if parsed.scheme=="https" and parsed.hostname==urlsplit(url).hostname and not parsed.username and not parsed.password and not parsed.fragment and parsed.port in (None,443) and not parsed.path.lower().endswith((".xapk",".apkm",".apks")):
                     row["explicitApkUrl"]=link
             cats=str(item.get("applicationCategory","")).lower()
             types=item.get("@type",[])

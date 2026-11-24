@@ -1,6 +1,6 @@
 import unittest
 from provider_sync import read_source
-from generate_live_catalog import accept
+from generate_live_catalog import accept,apk_endpoint
 from provider_formats import decode
 
 class FeedTest(unittest.TestCase):
@@ -22,6 +22,11 @@ class FeedTest(unittest.TestCase):
     def test_rss_uses_mapping(self):
         cfg=dict(self.config(),format="rss",fields={"name":"title"})
         self.assertEqual(read_source(cfg,lambda u,t,k:decode("<rss><channel><item><title>Example</title></item></channel></rss>",k),lambda n:None),[{"name":"Example"}])
+    def test_extensionless_apk_endpoint(self):
+        self.assertTrue(apk_endpoint("https://example.invalid/download?id=123"))
+        self.assertFalse(apk_endpoint("http://example.invalid/download"))
+        self.assertFalse(apk_endpoint("https://example.invalid/file.xapk"))
+        self.assertFalse(apk_endpoint("https://example.invalid/download#fragment"))
     def test_disabled(self):
         self.assertEqual(read_source({"name":"Fixture","enabled":False}),[])
     def test_permission(self):

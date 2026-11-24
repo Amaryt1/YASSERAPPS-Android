@@ -3,6 +3,11 @@ from review_metadata import candidates,factual_rows
 class ReviewTest(unittest.TestCase):
     def test_candidates(self):
         self.assertEqual(candidates(["https://x.invalid/tag/a","https://x.invalid/foo.apk","https://x.invalid/app/game"]),["https://x.invalid/app/game"])
+    def test_explicit_extensionless_url(self):
+        html='<script type="application/ld+json">{"@type":"MobileApplication","name":"Fixture MOD APK","downloadUrl":"/download?id=123","applicationCategory":"Game"}</script>'
+        rows=factual_rows(html,"Fixture","https://x.invalid/app")
+        self.assertEqual(rows[0]["explicitApkUrl"],"https://x.invalid/download?id=123")
+        self.assertFalse(rows[0]["installable"])
     def test_rows(self):
         html='<script type="application/ld+json">{"@graph":[{"@type":"MobileApplication","name":"Fixture","softwareVersion":"2.0","image":"https://x.invalid/image.png"},{"@type":"Article","name":"Not app"}]}</script>'
         rows=factual_rows(html,"Fixture","https://x.invalid/app")
