@@ -184,12 +184,19 @@
   "gameFeeds": [
     {
       "id": "2113games",
-      "name": "2113 Apps Games",
+      "name": "2113 Apps",
       "url": "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json",
       "enabled": true,
       "license": "CC-BY-4.0",
-      "format": "verified-release-discovery",
-      "verification": "Match publisher GitHub asset size and SHA-256; validate APK signer, package and version before installation."
+      "verification": "Resolve exact APK link on publisher-listed 2113 page; check full SHA-256, APK signer, package and version before install."
+    },
+    {
+      "id": "porthub",
+      "name": "PortHub",
+      "url": "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json",
+      "enabled": true,
+      "mode": "discovery-only",
+      "verification": "Publisher release links, no direct installation or playable count until APK hash and signer are verified."
     }
   ],
   "discoveryCandidates": [
@@ -197,13 +204,13 @@
       "id": "recompa",
       "url": "https://recompa.app/index.json",
       "status": "audit-only",
-      "reason": "Need schema, reuse permission and direct publisher APK checks; many ports need owned game data."
+      "reason": "Inspect schema and confirm catalog reuse terms before enabling. No original retail data hosted."
     },
     {
-      "id": "porthub",
-      "url": "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json",
+      "id": "openportsgames",
+      "url": "https://github.com/Kymie131/openportsgames",
       "status": "audit-only",
-      "reason": "Links-only catalog; Android-compatible release assets and licenses need verification."
+      "reason": "CC BY 4.0 official source directory; requires independent Android APK verification."
     }
   ]
 }
