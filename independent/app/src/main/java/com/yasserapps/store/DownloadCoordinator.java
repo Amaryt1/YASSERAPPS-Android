@@ -48,6 +48,7 @@ public final class DownloadCoordinator {
         public int versionCode;
         public String url = "";
         public String sha256 = "";
+        public String signerSha256 = "";
         public String fileName = "";
         public long createdAt;
         public int status;
@@ -91,6 +92,7 @@ public final class DownloadCoordinator {
             o.put("versionCode", versionCode);
             o.put("url", url);
             o.put("sha256", sha256);
+            o.put("signerSha256", signerSha256);
             o.put("fileName", fileName);
             o.put("createdAt", createdAt);
             return o;
@@ -105,6 +107,7 @@ public final class DownloadCoordinator {
             e.versionCode = o.optInt("versionCode");
             e.url = o.optString("url");
             e.sha256 = o.optString("sha256");
+            e.signerSha256 = o.optString("signerSha256");
             e.fileName = o.optString("fileName");
             e.createdAt = o.optLong("createdAt");
             return e;
@@ -204,6 +207,7 @@ public final class DownloadCoordinator {
         entry.versionCode = item.versionCode;
         entry.url = item.apkUrl;
         entry.sha256 = item.sha256 == null ? "" : item.sha256;
+        entry.signerSha256 = item.signerSha256 == null ? "" : item.signerSha256;
         entry.fileName = fileName;
         entry.createdAt = System.currentTimeMillis();
         entry.status = DownloadManager.STATUS_PENDING;
@@ -318,12 +322,24 @@ public final class DownloadCoordinator {
                     PackageManager pm = app.getPackageManager();
                     if (Build.VERSION.SDK_INT >= 33) {
                         packageInfo = pm.getPackageArchiveInfo(
-                            apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(0));
+                            apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES));
                     } else {
-                        packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
+                        packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES);
                     }
                     if (packageInfo == null || !current.packageName.equals(packageInfo.packageName)) {
                         throw new Exception("اسم الحزمة داخل APK لا يطابق المتجر، تم منع التثبيت");
+                    }
+                    if(!current.signerSha256.isEmpty()) {
+                        android.content.pm.Signature[] signatures = Build.VERSION.SDK_INT >= 28 ?
+                            (packageInfo.signingInfo == null ? null : packageInfo.signingInfo.getApkContentsSigners()) : packageInfo.signatures;
+                        boolean match=false;
+                        if(signatures!=null && signatures.length==1) {
+                            byte[] certificate=MessageDigest.getInstance("SHA-256").digest(signatures[0].toByteArray());
+                            StringBuilder fingerprint=new StringBuilder();
+                            for(byte b:certificate) fingerprint.append(String.format(Locale.ROOT,"%02x",b&255));
+                            match=fingerprint.toString().equalsIgnoreCase(current.signerSha256);
+                        }
+                        if(!match) throw new Exception("توقيع APK لا يطابق بصمة المطوّر");
                     }
                     long code = Build.VERSION.SDK_INT >= 28 ?
                         packageInfo.getLongVersionCode() : packageInfo.versionCode;
