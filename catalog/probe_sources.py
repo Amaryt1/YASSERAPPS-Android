@@ -6,8 +6,8 @@ from review_metadata import candidates as review_candidates,factual_rows
 AGENT="YASSERAPPS-Catalog"
 MAX_BYTES=2*1024*1024
 MAX_SITEMAP_BYTES=50*1024*1024
-MAX_CHILD_MAPS=12
-MAX_REVIEW_PAGES=8
+MAX_CHILD_MAPS=40
+MAX_REVIEW_PAGES=24
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 def host(url):
@@ -119,6 +119,7 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
             except (ValueError,ET.ParseError):info["status"]="invalid_document"
         result["documents"].append(info)
     counts["sitemapPageUrls"]=len(page_urls)
+    result["pageIndex"]=sorted(page_urls)[:82000]
     # Bounded sample of robots-allowed pages for internal review.
     # A robots allowance does not establish a license or direct APK permission.
     sample=[];checked=0
@@ -144,5 +145,5 @@ def main():
         rows=list(pool.map(lambda s:inspect(s["name"],s["probeHome"],seed=s.get("probeSeed")),cfg["sources"]))
     out={"generatedAt":int(time.time()*1000),"mode":"capability_probe_only","sources":rows}
     path=Path("catalog/source-probe-report.json");path.write_text(json.dumps(out,indent=2))
-    print(json.dumps(out,indent=2))
+    print(json.dumps(dict(out,sources=[{k:v for k,v in row.items() if k!="pageIndex"} for row in rows]),indent=2))
 if __name__=="__main__":main()

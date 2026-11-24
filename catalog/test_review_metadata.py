@@ -13,6 +13,9 @@ class ReviewTest(unittest.TestCase):
         self.assertEqual(factual_rows(html,"Fixture","https://x.invalid/app")[0]["explicitApkUrl"],"https://x.invalid/public/download?id=1")
         self.assertEqual(advertised_links('<a href="https://other.invalid/file.apk">Download</a><a href="/original.apk">Download original APK</a>',"https://x.invalid/app"),[])
         self.assertNotIn("explicitApkUrl",factual_rows(html+'<a href="/another">Download APK</a>',"Fixture","https://x.invalid/app")[0])
+    def test_mod_claim_from_page_title(self):
+        html='<meta property="og:title" content="Example MOD APK"><script type="application/ld+json">{"@type":"MobileApplication","name":"Example"}</script>'
+        self.assertTrue(factual_rows(html,"Fixture","https://x.invalid/app")[0]["modClaim"])
     def test_rows(self):
         html='<script type="application/ld+json">{"@graph":[{"@type":"MobileApplication","name":"Fixture","softwareVersion":"2.0","image":"https://x.invalid/image.png"},{"@type":"Article","name":"Not app"}]}</script>'
         rows=factual_rows(html,"Fixture","https://x.invalid/app")

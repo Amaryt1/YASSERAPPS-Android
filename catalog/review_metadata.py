@@ -60,8 +60,11 @@ def factual_rows(html,source,url):
         image=item.get("image")
         if isinstance(image,dict):image=image.get("url")
         if isinstance(image,str) and urlsplit(image).scheme=="https":row["imageUrl"]=image[:2048]
-        # Only an explicit modified-release title is a MOD candidate.
-        if re.search(r"\bmod(?:ded)?\s+apk\b|\bmodded\b",name,re.I):
+        # Inspect the page title metadata too; structured application names often omit MOD.
+        og=item.get("openGraph",{})
+        title=og.get("og:title","") if isinstance(og,dict) else ""
+        if not isinstance(title,str):title=""
+        if re.search(r"\bmod(?:ded)?\s+apk\b|\bmodded\b",name+" "+title,re.I):
             row["modClaim"]=True
             raw=item.get("downloadUrl")
             if isinstance(raw,str):
