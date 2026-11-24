@@ -8,13 +8,13 @@ on:
     paths:
       - 'catalog/generate_live_catalog.py'
       - 'catalog/build_api.py'
-      - 'catalog/approved-feeds/**'
+      - 'catalog/approved-mod-feeds/**'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
   contents: write
 concurrency:
   group: yasserapps-server-catalog
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -33,7 +33,6 @@ jobs:
         run: python3 -m py_compile catalog/generate_live_catalog.py
       - name: Generate and measure new catalogue records
         run: |
-          if [ ! -f catalog/generated/full-index.json ]; then cp catalog/generated/index.json catalog/generated/full-index.json; fi
           python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500
       - name: Validate generated catalogue
         run: |
@@ -41,9 +40,9 @@ jobs:
           import json
           from pathlib import Path
           d=json.loads(Path('catalog/generated/full-index.json').read_text())
-          assert d['schemaVersion']==1 and 0<len(d['apps'])<=50000
+          assert d['schemaVersion']==1 and d['modOnly'] is True and 0<=len(d['apps'])<=80000
           assert len({a['id'] for a in d['apps']})==len(d['apps'])
-          assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
+          assert all(a['modified'] is True and a['discoveryOnly'] and not a['apkUrl'] and a['modEvidenceUrl'] and a['permissionUrl'] for a in d['apps'])
           assert d['report']['total']==len(d['apps'])
           assert Path('catalog/generated/full-index.json').stat().st_size<64*1024*1024
           print(json.dumps(d['report'],indent=2))
