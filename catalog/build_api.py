@@ -65,7 +65,7 @@ if preview_path.exists() and "LiteAPKs" in source_apis:
     preview=json.loads(preview_path.read_text())
     records=preview["records"]
     assert all(r["installable"] is False and r["status"]=="pending_verified_release" for r in records)
-    write("sources/liteapks/preview.json",{"schemaVersion":1,"source":"LiteAPKs","total":len(records),"discoveredPageUrls":preview["discoveredPageUrls"],"installable":False,"records":records})
+    write("sources/liteapks/preview.json",{"schemaVersion":1,"source":"LiteAPKs","total":len(records),"discoveredPageUrls":preview["discoveredPageUrls"],"reviewedPages":preview.get("reviewedPages",0),"remainingPages":preview.get("remainingPages"),"lastStatus":preview.get("lastStatus","unknown"),"installable":False,"records":records})
     source_apis["LiteAPKs"]["preview"]="sources/liteapks/preview.json"
     source_apis["LiteAPKs"]["previewTotal"]=len(records)
 write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":all(r["discoveryOnly"] for r in rows),"installableMetadata":sum(not r["discoveryOnly"] for r in rows),"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"xml":"catalog.xml","sourceApis":source_apis,"counts":dict(Counter(r["sourceName"] for r in rows))})

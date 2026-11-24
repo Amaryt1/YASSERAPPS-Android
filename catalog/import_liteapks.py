@@ -66,6 +66,6 @@ def main():
     state["lastAttempted"]=attempted
     state["remaining"]=len(set(state["urls"])-done)
     write(STATE,state)
-    write(PREVIEW,dict(source="LiteAPKs",discoveredPageUrls=state["discoveredPageUrls"],reviewedPages=len(done),ownerReportedPermission=True,authorizationConfirmed=False,publishedInstallable=0,records=sorted(records.values(),key=lambda x:x["pageUrl"])))
+    write(PREVIEW,dict(source="LiteAPKs",discoveredPageUrls=state["discoveredPageUrls"],reviewedPages=len(done),remainingPages=state["remaining"],lastStatus=status,ownerReportedPermission=True,authorizationConfirmed=False,publishedInstallable=0,records=sorted(records.values(),key=lambda x:x["pageUrl"])))
     print("LITE_IMPORT",json.dumps(dict(attempted=attempted,reviewed=len(done),previews=len(records),remaining=state["remaining"],status=status)))
 if __name__=="__main__":main()

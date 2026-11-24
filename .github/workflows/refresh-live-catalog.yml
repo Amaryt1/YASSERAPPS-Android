@@ -43,7 +43,18 @@ jobs:
       - name: Import next LiteAPKs metadata batch
         run: |
           python3 -m unittest discover -s catalog -p test_import_liteapks.py
-          python3 catalog/import_liteapks.py --limit 150 --seconds 180
+          python3 catalog/import_liteapks.py --limit 500 --seconds 540
+      - name: Summarize source import progress
+        run: |
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path('catalog/liteapks-import-state.json')
+          if p.exists():
+              s=json.loads(p.read_text())
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+                  f.write("LiteAPKs reviewed: "+str(len(s["done"]))+"; remaining: "+str(s["remaining"])+"; status: "+s["lastStatus"]+"\n")
+          PY
       - name: Generate and measure new catalogue records
         env:
           YASSER_FEED_HAPPYMOD_TOKEN: ${{ secrets.YASSER_FEED_HAPPYMOD_TOKEN }}
