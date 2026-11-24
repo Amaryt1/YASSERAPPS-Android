@@ -112,7 +112,7 @@ public final class MainActivity extends Activity {
     };
     private FrameLayout screen;
     private String page = "home";
-    private String category = "app";
+    private String category = "all";
     private boolean loading = true;
     private String warning;
     private Catalog.App detailApp;
@@ -379,26 +379,33 @@ public final class MainActivity extends Activity {
 
     private void tabs(LinearLayout root) {
         LinearLayout row = linear(false);
-        for (String type : new String[]{"app", "game", "updates"}) {
+        // RTL: "All" comes first on the right, followed by Apps, Games, Updates.
+        for (String type : new String[]{"all", "app", "game", "updates"}) {
             boolean active = category.equals(type);
-            String label = type.equals("app") ? "التطبيقات" : type.equals("game") ? "الألعاب" : "التحديثات";
-            String glyphName = type.equals("app") ? "grid" : type.equals("game") ? "game" : "refresh";
+            String label = type.equals("all") ? "الكل" :
+                type.equals("app") ? "التطبيقات" :
+                type.equals("game") ? "الألعاب" : "التحديثات";
+            String glyphName = type.equals("all") ? "grid" :
+                type.equals("app") ? "grid" :
+                type.equals("game") ? "game" : "refresh";
             LinearLayout button = linear(false);
             button.setGravity(Gravity.CENTER);
-            button.setBackground(shape(active ? GREEN : Color.rgb(16,18,19), 16,
-                active ? GREEN : Color.rgb(65,67,68)));
+            button.setBackground(shape(active ? GREEN : Color.rgb(16, 18, 19), 13,
+                active ? GREEN : Color.rgb(65, 67, 68)));
             StoreGlyph icon = new StoreGlyph(this, glyphName, active ? Color.BLACK : WHITE);
-            button.addView(icon, lp(23, 23));
-            padx(button, 7);
-            TextView text = text(label, 14, active ? Color.BLACK : WHITE, true);
-            button.addView(text);
+            button.addView(icon, lp(17, 17));
+            padx(button, 3);
+            TextView caption = text(label, 11, active ? Color.BLACK : WHITE, true);
+            caption.setSingleLine(true);
+            caption.setGravity(Gravity.CENTER);
+            button.addView(caption);
             button.setOnClickListener(v -> {
                 category = type;
-                if (type.equals("updates")) showUpdates();
+                if ("updates".equals(type)) showUpdates();
                 else showHome();
             });
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
-            params.setMargins(dp(3), 0, dp(3), 0);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(47), 1);
+            params.setMargins(dp(2), 0, dp(2), 0);
             row.addView(button, params);
         }
         root.addView(row);
@@ -416,26 +423,30 @@ public final class MainActivity extends Activity {
     private List<Catalog.App> matching(String kind) {
         ArrayList<Catalog.App> list = new ArrayList<>();
         for (Catalog.App app : apps) {
-            if ("updates".equals(kind)) {
+            if ("all".equals(kind)) list.add(app);
+            else if ("updates".equals(kind)) {
                 if (installedAndNewer(app)) list.add(app);
-            } else if (("game".equals(kind)) == app.isGame()) list.add(app);
+            } else if ("game".equals(kind) && app.isGame()) list.add(app);
+            else if ("app".equals(kind) && !app.isGame()) list.add(app);
         }
         return list;
     }
 
     public void showHome() {
         page = "home";
-        if ("updates".equals(category)) category = "app";
+        if ("updates".equals(category)) category = "all";
         LinearLayout content = verticalContent();
         header(content);
         tabs(content);
-        if ("app".equals(category)) {
+        if ("all".equals(category)) {
             heroCard(content);
             gap(content, 14);
             section(content, "أحدث التطبيقات", matching("app"), false);
             gap(content, 17);
             section(content, "أحدث الألعاب", matching("game"), true);
-        } else {
+        } else if ("app".equals(category)) {
+            section(content, "أحدث التطبيقات", matching("app"), false);
+        } else if ("game".equals(category)) {
             section(content, "أحدث الألعاب", matching("game"), false);
         }
         render(content, true);
@@ -561,7 +572,7 @@ public final class MainActivity extends Activity {
         gap(root,7);
         if(entries.isEmpty()){
             String message=loading ? "جاري تحميل محتوى المتجر..." :
-                name.contains("الألعاب")?"ماكو ألعاب منشورة حاليًا.":"ماكو تطبيقات منشورة حاليًا.";
+                name.contains("الألعاب") ? "لا توجد ألعاب منشورة حاليًا." : "لا توجد تطبيقات منشورة حاليًا.";
             if(warning!=null) message=warning;
             panelText(root,message);
             return;
@@ -686,19 +697,18 @@ public final class MainActivity extends Activity {
         field.setSingleLine(true);
         field.setTextColor(WHITE);
         field.setHintTextColor(SUBTEXT);
-        field.setHint("ابحث عن تطبيق أو لعبة...");
+        field.setHint("بحث");
         field.setPadding(dp(16), 0, dp(16), 0);
         field.setBackground(shape(PANEL2, 20, Color.rgb(53, 67, 52)));
         field.setTextDirection(View.TEXT_DIRECTION_RTL);
         c.addView(field, lp(-1, 55));
-        gap(c, 19);
+        gap(c, 13);
         LinearLayout results = linear(true);
         c.addView(results, lp(-1, -2));
         Runnable update = () -> {
             results.removeAllViews();
             String query = field.getText().toString().trim().toLowerCase(Locale.ROOT);
             if (query.isEmpty()) {
-                panelText(results, "ابحث داخل تطبيقات وألعاب YASSERAPPS المتوفرة فقط.");
                 return;
             }
             int matches = 0;
@@ -711,7 +721,7 @@ public final class MainActivity extends Activity {
                     matches++;
                 }
             }
-            if (matches == 0) panelText(results, "ماكو نتائج داخل المتجر لهذا البحث.");
+            if (matches == 0) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
         };
         field.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -1157,11 +1167,11 @@ public final class MainActivity extends Activity {
         brandPanel.addView(ribbon, new FrameLayout.LayoutParams(-1, -1));
         content.addView(brandPanel, lp(-1, 94));
         gap(content, 9);
-        content.addView(text("التنزيل يستمر بالنظام حتى لو قفلت المتجر، والتثبيت بموافقتك.", 12, SUBTEXT, false));
+        content.addView(text("تستمر التنزيلات عند إغلاق المتجر، ويكتمل التثبيت بموافقتك.", 12, SUBTEXT, false));
         gap(content, 17);
         List<DownloadCoordinator.Entry> records = downloadCoordinator.all();
         if (records.isEmpty()) {
-            panelText(content, "ما عندك تحميلات بعد. من تختار تطبيق أو لعبة، راح يظهر تقدم التحميل هنا.");
+            panelText(content, "لا توجد تنزيلات حاليًا.\nعند بدء تنزيل تطبيق أو لعبة، سيظهر تقدم التنزيل هنا.");
         } else for (DownloadCoordinator.Entry entry : records) {
             LinearLayout card = linear(true);
             card.setPadding(dp(13), dp(13), dp(13), dp(14));
@@ -1354,16 +1364,17 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.1.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
-            + "يدعم سجل التحميلات، متابعة التقدم، إعادة المحاولة، والفحص الأمني قبل التثبيت.");
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.0\n"
+            + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
+            + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
-        c.addView(text("الحماية: التثبيت يطلب موافقتك • لا يطلب توكن GitHub", 12, SUBTEXT, false));
+
         render(c, true);
     }
 
     @Override public void onBackPressed() {
         if ("home".equals(page)) super.onBackPressed();
-        else { category = "app"; showHome(); }
+        else { category = "all"; showHome(); }
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
