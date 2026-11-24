@@ -64,7 +64,16 @@ def read_source(cfg,fetch=fetch_json,sleep=time.sleep):
         if not isinstance(items,list): raise ValueError("Invalid provider JSON records")
         for row in items:
             if not isinstance(row,dict): continue
-            if fields: row={key:lookup(row,path) for key,path in fields.items()}
+            if fields:
+                row={key:lookup(row,path) for key,path in fields.items()}
+                # XML text fields have no native integer/boolean types.
+                # Convert exact explicit values only; never infer version or MOD status.
+                for key in ("versionCode","sizeBytes"):
+                    value=row.get(key)
+                    if isinstance(value,str) and re.fullmatch(r"[0-9]{1,12}",value):row[key]=int(value)
+                if isinstance(row.get("modified"),str):
+                    value=row["modified"].strip().lower()
+                    if value in ("true","false"):row["modified"]=value=="true"
             rows.append({key:value for key,value in row.items() if value is not None})
             if len(rows)>MAX_ROWS: raise ValueError("Provider exceeds catalog capacity")
         next_url=lookup(obj,next_path) if next_path else None
