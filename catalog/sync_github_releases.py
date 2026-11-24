@@ -50,7 +50,7 @@ def metadata(entry,repo):
     tree=api("repos/"+name+"/git/trees/"+urllib.parse.quote(branch,safe="")+"?recursive=1")
     paths={x["path"] for x in tree.get("tree",[]) if x.get("type")=="blob"}
     prefix="fastlane/metadata/android/";ar=prefix+"ar/";en=prefix+"en-US/"
-    ref=tree["sha"]
+    ref=api("repos/"+name+"/commits/"+urllib.parse.quote(branch,safe=""))["sha"]
     def raw(p):return "https://raw.githubusercontent.com/"+name+"/"+ref+"/"+urllib.parse.quote(p,safe="/")
     result={"descriptionAr":entry["descriptionAr"],"translationOrigin":"editorial_arabic","screenshots":[]}
     for locale in (ar,en):
@@ -85,9 +85,8 @@ def main():
             if old.get("signerSha256") and old["signerSha256"]!=binary_fields["signerSha256"]:raise ValueError("Signer changed; review required")
             meta=metadata(e,repo)
             item=dict(id=e["id"],name=e["name"],category=e["category"],modified=True,modDescription=meta["descriptionAr"],modEvidenceUrl=repo["html_url"],publisherUrl=release["html_url"],license=e["license"],translationOrigin=meta["translationOrigin"],iconUrl=meta.get("iconUrl",""),screenshots=meta["screenshots"],**binary_fields)
-            data=dict(source="GitHub Releases",permissionUrl=repo["html_url"]+"/blob/"+repo["default_branch"]+"/LICENSE",reviewedPublicLicense=True,apps=[item])
-            # Repository API established the actual license; use its official license endpoint as evidence.
-            data["permissionUrl"]=repo["html_url"]
+            license_doc=api("repos/"+e["repository"]+"/license")
+            data=dict(source="GitHub Releases",permissionUrl=license_doc["html_url"],reviewedPublicLicense=True,apps=[item])
             target.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n")
             print("GITHUB_RELEASE_OK",e["id"],item["version"],meta["translationOrigin"],len(item["screenshots"]))
         except Exception as exc:

@@ -142,7 +142,7 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
 def main():
     cfg=json.loads(Path("catalog/mod-source-candidates.json").read_text())
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-        rows=list(pool.map(lambda s:inspect(s["name"],s["probeHome"],seed=s.get("probeSeed")),cfg["sources"]))
+        rows=list(pool.map(lambda s:inspect(s["name"],s["probeHome"],seed=s.get("probeSeed")),[s for s in cfg["sources"] if s.get("probeHome")]))
     out={"generatedAt":int(time.time()*1000),"mode":"capability_probe_only","sources":rows}
     path=Path("catalog/source-probe-report.json");path.write_text(json.dumps(out,indent=2))
     print(json.dumps(dict(out,sources=[{k:v for k,v in row.items() if k!="pageIndex"} for row in rows]),indent=2))
