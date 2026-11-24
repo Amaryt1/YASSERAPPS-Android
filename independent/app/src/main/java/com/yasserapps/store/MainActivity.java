@@ -416,6 +416,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean installedAndNewer(Catalog.App app) {
+        if(app.discoveryOnly)return false;
         try {
             PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
             long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
