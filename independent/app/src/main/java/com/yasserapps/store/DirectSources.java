@@ -60,7 +60,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.1");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.2");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
@@ -332,6 +332,11 @@ final class DirectSources {
 
     // CC BY 4.0 discovery data, not a signed F-Droid index. Only original
     // publisher release assets matching the independently published SHA-256 are accepted.
+    static Catalog.App latestAptoide(Context context,Catalog.App app) throws Exception {
+        if(!"Aptoide".equals(app.sourceName)||!app.packageName.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+"))return null;
+        JSONObject data=fetchJson(context,"https://ws75.aptoide.com/api/7/app/getMeta/package_name="+app.packageName,2*1024*1024);
+        return AptoideFeed.latestDetail(app,data);
+    }
     private static JSONObject fetchJson(Context context,String address,int limit) throws Exception {
         File file=File.createTempFile("gamefeed-", ".json",context.getCacheDir());
         try {
