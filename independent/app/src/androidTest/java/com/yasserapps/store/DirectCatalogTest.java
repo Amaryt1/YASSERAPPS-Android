@@ -14,7 +14,7 @@ public final class DirectCatalogTest extends Instrumentation {
             File root=getTargetContext().getFilesDir();
             int total=0, games=0;
             for(String id:new String[]{"fdroid","izzyondroid"}) {
-                List<Catalog.App> apps=DirectSources.verifyFixture(id,new File(root,id+".jar"),new File(root,id+".json"));
+                List<Catalog.App> apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json"));
                 if(apps.isEmpty()) throw new AssertionError("Empty "+id);
                 for(Catalog.App a:apps) {
                     if(a.isGame()) games++;
