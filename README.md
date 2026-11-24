@@ -1,2 +1,2 @@
-# Studio V0.4
-Multi-source read-only indicator scan, preview of branded channel invitation, opt-in developer window profile editor. Requires the target to implement assets/yasserapps-window-profile.json contract. The optionalUpdateEnabled flag must be honored by the target's optional update code. No automatic code removal or mandatory membership verification. Existing manual tools retained. Unit tests exercise the profile on this project's own APK. Device testing pending.
+# Studio V0.5
+Two main actions: channel appearance and optional update settings, with local focused read-only indicators when unsupported. Optional logo stored as PNG in developer-supported profile. No AI model connected, automatic removal of arbitrary third-party windows not implemented. Target must implement profile and its logo setting. All changes isolated from store main.
