@@ -776,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(app.discoveryOnly?(installedAndNewer(app)?"تحديث بالمصدر":"المصدر"):installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -867,7 +867,7 @@ public final class MainActivity extends Activity {
         c.addView(check, lp(-1, 49));
         gap(c, 10);
         c.addView(text(
-            "يقارن المتجر إصدارات التطبيقات المتاحة مع المثبتة على جهازك. تحديث بالمصدر يعني فتح صفحة الناشر؛ التثبيت المباشر يتطلب ملفاً مفحوصاً وتوقيعاً متوافقاً.",
+            "يقارن المتجر إصدارات التطبيقات المتاحة مع المثبتة على جهازك. يطلب أندرويد موافقتك عند التثبيت.",
             12, SUBTEXT, false
         ));
         gap(c, 17);
@@ -986,12 +986,13 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly ? (installedAndNewer(app)?"تحديث بالمصدر":"فتح المصدر") : previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
-            if(app.discoveryOnly) { openPublisher(app.publisherUrl); return; }
+            if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
+            if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -1012,7 +1013,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly) { gap(content,8); content.addView(text("هذا إدخال من المصدر، وليس APK مفحوصاً للتثبيت المباشر.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -1292,6 +1293,24 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private boolean resolvingInstall;
+    private void resolveAptoideInstall(Catalog.App item){
+        if(resolvingInstall)return;
+        resolvingInstall=true;
+        Toast.makeText(this,"جاري التحقق من أحدث إصدار...",Toast.LENGTH_SHORT).show();
+        Catalog.enrich(this,item,fresh->main.post(()->{
+            resolvingInstall=false;
+            if(isFinishing()||isDestroyed()||!activityVisible)return;
+            if(fresh==null||fresh.discoveryOnly||!AptoideFeed.directEligible(fresh)){
+                Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار أو يحتاج ملفات إضافية",Toast.LENGTH_LONG).show();
+                return;
+            }
+            for(int i=0;i<apps.size();i++)if(apps.get(i).id.equals(fresh.id)){apps.set(i,fresh);break;}
+            DownloadCoordinator.Entry old=downloadCoordinator.latestFor(fresh);
+            if(old!=null&&old.complete())installFromHistory(old);
+            else download(fresh);
+        }));
+    }
     private void download(Catalog.App app) {
         if (Build.VERSION.SDK_INT <= 28 &&
             checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -1569,7 +1588,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.2\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.3\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
