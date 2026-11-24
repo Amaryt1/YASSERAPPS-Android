@@ -104,6 +104,12 @@ def main():
         cursors=dict(prior_cursors)
         stats={}
         start=time.monotonic()
+        cooldown_key=source+":retryAfter"
+        def pause_source(code):
+            # Respect access restrictions and rate limiting across scheduled runs.
+            cursors[cooldown_key]=int(time.time())+(3600 if code==403 else 900)
+        if int(cursors.get(cooldown_key,0))>int(time.time()):
+            return rows,cursors,{source:{"status":"cooldown","retryAfter":cursors[cooldown_key]}}
         def save(row):
             if not row: return
             old=rows.get(row["id"])
@@ -127,7 +133,7 @@ def main():
                     nxt=int(d.get("next",-1)); cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
                 except urllib.error.HTTPError as e:
                     print("APTOIDE_HTTP",group,e.code,flush=True)
-                    if e.code in (403,429): break
+                    if e.code in (403,429): pause_source(e.code); break
                     paused.add(group)
                 except Exception as e:
                     print("APTOIDE_FAILED",group,type(e).__name__,flush=True); paused.add(group)
@@ -144,6 +150,11 @@ def main():
                     try: stamp=int(parsedate_to_datetime(item.findtext("pubDate","")).timestamp()*1000)
                     except Exception: stamp=0
                     save(entry("APKMirror","apkmirror:"+urllib.parse.urlsplit(u).path,title,u,summary=clean(item.findtext("description",""),180),updatedAt=stamp))
+            except urllib.error.HTTPError as e:
+                print("RSS_HTTP",e.code,flush=True)
+                if e.code in (403,429):
+                    pause_source(e.code)
+                    return rows,cursors,{source:{"status":"cooldown","http":e.code}}
             except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
         charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates"],"TapTap":["https://www.taptap.io/top/"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
         if source in charts:
@@ -173,7 +184,7 @@ def main():
                         if nav and nav not in known and len(known)<2000: known.append(nav)
                 except urllib.error.HTTPError as e:
                     print("CHART_HTTP",source,e.code,flush=True)
-                    if e.code in (403,429): blocked=True; break
+                    if e.code in (403,429): pause_source(e.code); blocked=True; break
                 except Exception as e: print("CHART_FAILED",source,type(e).__name__,flush=True)
                 time.sleep(1)
             cursors[source+":pages"]=known
@@ -182,15 +193,23 @@ def main():
             cursors[source+":listings"]=candidates
             pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
             if blocked: candidates=[]
-            for i in range(min(100,len(candidates))):
+            # Spend most requests on new listings, with a small rotating refresh
+            # budget for older entries. Keep the persistent candidate queue.
+            rotated=candidates[pos:]+candidates[:pos]
+            indexed={row.get("publisherUrl") for row in rows.values()}
+            unseen=[u for u in rotated if u not in indexed]
+            existing=[u for u in rotated if u in indexed]
+            selected=unseen[:90]+existing[:max(0,100-min(90,len(unseen)))]
+            if len(selected)<100: selected+=unseen[90:90+100-len(selected)]
+            for u in selected:
                 if time.monotonic()-start>=210: break
-                u=candidates[(pos+i)%len(candidates)]; checked+=1
+                checked+=1
                 try:
                     row=chart(source,u)
                     if row: save(row); accepted+=1
                 except urllib.error.HTTPError as e:
                     print("CHART_HTTP",source,e.code,flush=True)
-                    if e.code in (403,429): break
+                    if e.code in (403,429): pause_source(e.code); break
                 except Exception as e: print("CHART_DETAIL_FAILED",source,type(e).__name__,flush=True)
                 time.sleep(1.2)
             if candidates: cursors[source]=(pos+checked)%len(candidates)
@@ -224,6 +243,8 @@ def main():
         for key in (("games","applications") if source=="Aptoide" else (source,source+":pages",source+":navpos",source+":listings")):
             if key in source_cursors:
                 cursors[key]=source_cursors[key]
+        if source+":retryAfter" in source_cursors:
+            cursors[source+":retryAfter"]=source_cursors[source+":retryAfter"]
         stats.update(source_stats)
     # Preserve prior entries and distribute remaining capacity across sources.
     for batch in zip_longest(*additions):
