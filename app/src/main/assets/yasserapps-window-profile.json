@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "contract": "optional-dialog-v1",
+  "optionalUpdateEnabled": true,
+  "brand": "YASSERAPPS",
+  "title": "تابع قناتنا",
+  "body": "تابع أخبار التطبيقات والتحديثات من قناتنا.",
+  "channelUrl": "https://t.me/YasserAppsIQ",
+  "buttonText": "فتح القناة",
+  "accent": "#39FF7A",
+  "background": "#101310"
+}

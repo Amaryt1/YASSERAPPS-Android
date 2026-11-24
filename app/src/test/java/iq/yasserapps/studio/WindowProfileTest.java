@@ -1,0 +1,5 @@
+package iq.yasserapps.studio;
+import org.junit.Test;import static org.junit.Assert.*;import java.io.*;import java.util.zip.*;import org.json.*;
+public class WindowProfileTest{
+ @Test public void profileChangesOnlySettings()throws Exception{File src=new File("build/outputs/apk/debug/app-debug.apk"),dst=File.createTempFile("profile-test",".apk");try{String hash=ApkEngine.sha256(src);JSONObject p=WindowProfile.load(src);JSONObject n=WindowProfile.edit(p,false,"Test","New title","New body","https://t.me/TestChannel","Open","#00FF00","#101010");WindowProfile.rewrite(src,dst,n);assertEquals(hash,ApkEngine.sha256(src));assertFalse(WindowProfile.load(dst).getBoolean("optionalUpdateEnabled"));assertEquals("New title",WindowProfile.load(dst).getString("title"));assertTrue(WindowInventory.inspect(src).contains("DEX"));try(ZipFile a=new ZipFile(src);ZipFile b=new ZipFile(dst)){assertEquals(a.getEntry("classes.dex").getCrc(),b.getEntry("classes.dex").getCrc());}n.put("mandatoryUpdate",false);try{WindowProfile.rewrite(src,dst,n);fail("protected key accepted");}catch(IOException expected){}}finally{dst.delete();}}
+}

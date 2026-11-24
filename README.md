@@ -1,2 +1,2 @@
-# YASSERAPPS Studio V0.3
-Offline APK inspection, signature verification, text asset editing, targeted DEX const-string editing for authorized apps, local re-signing. Runtime behavior and on-device signing require device testing. No license/access-control bypass, no changes to store main.
+# Studio V0.4
+Multi-source read-only indicator scan, preview of branded channel invitation, opt-in developer window profile editor. Requires the target to implement assets/yasserapps-window-profile.json contract. The optionalUpdateEnabled flag must be honored by the target's optional update code. No automatic code removal or mandatory membership verification. Existing manual tools retained. Unit tests exercise the profile on this project's own APK. Device testing pending.

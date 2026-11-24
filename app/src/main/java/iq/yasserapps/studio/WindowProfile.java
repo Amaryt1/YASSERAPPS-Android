@@ -1,0 +1,12 @@
+package iq.yasserapps.studio;
+import java.io.*;import java.nio.charset.StandardCharsets;import java.util.*;import java.util.regex.*;import org.json.*;
+public final class WindowProfile {
+ public static final String PATH="assets/yasserapps-window-profile.json";
+ static final Set<String> EDITABLE=new HashSet<>(Arrays.asList("optionalUpdateEnabled","brand","title","body","channelUrl","buttonText","accent","background"));
+ public static JSONObject parse(String s)throws Exception{JSONObject o=new JSONObject(s);if(o.optInt("schema")!=1||!"optional-dialog-v1".equals(o.optString("contract"))||!(o.opt("optionalUpdateEnabled") instanceof Boolean))throw new IOException("Unsupported window profile");validate(o);return o;}
+ static void validate(JSONObject o)throws Exception{for(String k:Arrays.asList("brand","title","body","buttonText")){String v=o.getString(k);if(v.trim().isEmpty()||v.length()>(k.equals("body")?600:80))throw new IOException("Invalid "+k);}
+ if(!o.getString("channelUrl").matches("https://t\\.me/[A-Za-z0-9_+\\-]{3,100}"))throw new IOException("Telegram link must be https://t.me/...");for(String k:Arrays.asList("accent","background"))if(!o.getString(k).matches("#[A-Fa-f0-9]{6}"))throw new IOException("Invalid HEX color");}
+ public static JSONObject load(File f)throws Exception{return parse(ApkEngine.asset(f,PATH));}
+ public static JSONObject edit(JSONObject orig,boolean optional,String brand,String title,String body,String url,String button,String accent,String bg)throws Exception{JSONObject n=parse(orig.toString());n.put("optionalUpdateEnabled",optional);n.put("brand",brand);n.put("title",title);n.put("body",body);n.put("channelUrl",url);n.put("buttonText",button);n.put("accent",accent);n.put("background",bg);validate(n);return n;}
+ public static void rewrite(File src,File dst,JSONObject n)throws Exception{JSONObject original=load(src);n=parse(n.toString());Set<String> keys=new HashSet<>();original.keys().forEachRemaining(keys::add);n.keys().forEachRemaining(keys::add);for(String k:keys)if(!EDITABLE.contains(k)&&(!original.has(k)||!n.has(k)||!String.valueOf(original.get(k)).equals(String.valueOf(n.get(k)))))throw new IOException("Protected setting changed: "+k);ApkEngine.scan(src);ApkEngine.repack(src,dst,PATH,n.toString(2).getBytes(StandardCharsets.UTF_8));load(dst);}
+}
