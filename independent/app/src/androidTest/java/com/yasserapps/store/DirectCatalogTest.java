@@ -61,7 +61,12 @@ public final class DirectCatalogTest extends Instrumentation {
             if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Mismatched release accepted");
             detail.getJSONObject("file").put("md5sum",md5).put("malware",new org.json.JSONObject().put("rank","UNKNOWN"));
             if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Unknown security verdict accepted");
-            android.util.Log.i("YASSERAPPS_CATALOG","PASS Aptoide detail checks and metadata-only boundary");
+            org.json.JSONObject listResponse=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(listing)));
+            List<Catalog.App> unchecked=AptoideFeed.discover(listResponse,"games");
+            if(unchecked.size()!=1||!unchecked.get(0).discoveryOnly||!unchecked.get(0).apkUrl.isEmpty()||!AptoideFeed.parse(listResponse,"games").isEmpty())throw new AssertionError("Unchecked entries must remain discovery-only");
+            listing.getJSONObject("file").put("malware",new org.json.JSONObject().put("rank","WARN"));
+            if(!AptoideFeed.discover(listResponse,"games").isEmpty())throw new AssertionError("Explicit non-trusted listing rejected");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS Aptoide detail checks and bulk discovery-only boundary");
             // Featured cards must update when a newer release arrives.
             Catalog.App first=new Catalog.App(); first.packageName="test.first"; first.iconUrl="https://example.org/first.png"; first.updatedAt=10; first.versionCode=1;
             Catalog.App second=new Catalog.App(); second.packageName="test.second"; second.iconUrl="https://example.org/second.png"; second.updatedAt=20; second.versionCode=1;
