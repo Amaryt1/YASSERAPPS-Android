@@ -149,9 +149,6 @@ def main():
                 return rows,cursors,{source:{"status":"awaiting_authorized_export","retained":len(rows)}}
         if int(cursors.get(cooldown_key,0))>int(time.time()):
             return rows,cursors,{source:{"status":"cooldown","retryAfter":cursors[cooldown_key]}}
-        if source=="Aptoide" and len(rows)>=17000:
-            # Keep existing entries but reserve remaining capacity for other providers.
-            return rows,cursors,{source:{"status":"growth_paused_for_source_balance","retained":len(rows)}}
         if source=="Aptoide":
             groups=("games","applications"); counts={g:0 for g in groups}; paused=set()
             for n in range(args.max_pages):
