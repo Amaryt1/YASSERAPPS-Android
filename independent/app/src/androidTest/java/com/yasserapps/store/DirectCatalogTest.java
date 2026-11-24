@@ -64,6 +64,14 @@ public final class DirectCatalogTest extends Instrumentation {
             if(first.needsFiles()) throw new AssertionError("Ordinary APK must not show files button");
             if(PortFeeds.publisherLink("https://github.com.evil.example/example/port")) throw new AssertionError("Unsafe publisher link");
             android.util.Log.i("YASSERAPPS_CATALOG","PASS featured recency and port requirements");
+            // Exercise large-catalog pagination without storing upstream content or using keys.
+            java.util.List<LargeCatalogPager.Listing> large=LargeCatalogPager.collect((category,offset,limit)->{
+                org.json.JSONArray rows=new org.json.JSONArray();
+                for(int i=0;i<limit;i++) rows.put(new org.json.JSONObject().put("package","test.large.app"+(offset+i)).put("name","Fixture "+(offset+i)).put("file",new org.json.JSONObject().put("vercode",1).put("filesize",100).put("malware",new org.json.JSONObject().put("rank","TRUSTED"))));
+                return new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",rows).put("next",offset+limit).put("total",5000));
+            },"games",50,100);
+            if(large.size()!=5000)throw new AssertionError("Large-catalog pagination");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS synthetic 5000-entry pagination (not live apps)");
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);
