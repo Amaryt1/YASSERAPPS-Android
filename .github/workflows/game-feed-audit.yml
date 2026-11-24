@@ -1,9 +1,9 @@
 name: Audit larger game discovery feeds
 on:
   push:
-    branches: [feature/game-feeds-10.7.0]
+    branches: [feature/ports-11.0.0]
   pull_request:
-    branches: [feature/games-10.6.0]
+    branches: [feature/game-feeds-10.7.0]
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,6 +51,17 @@ jobs:
                       if re.search(r'"(?:arm64-v8a|armeabi-v7a)"',text): counts["records_with_ARM_abi"]+=1
                       if row.get("android",{}).get("supported") is True if isinstance(row.get("android"),dict) else False: counts["android_supported"]+=1
                   print("GAME_FEED_AUDIT",name,"records",len(records),"fields",dict(fields),"signals",dict(counts))
+                  if name=="Recompa":
+                      # Audit field names and structural shape only; no copied catalog snapshot.
+                      def shape(x,depth=0):
+                          if depth>4: return type(x).__name__
+                          if isinstance(x,dict): return {k:shape(v,depth+1) for k,v in x.items()}
+                          if isinstance(x,list): return [shape(x[0],depth+1)] if x else []
+                          return type(x).__name__
+                      print("RECOMPA_ROOT_FIELDS",list(data.keys()) if isinstance(data,dict) else type(data).__name__)
+                      for key in ("assets","downloads","requirements","forks"):
+                          sample=next((r.get(key) for r in records if r.get(key)),None)
+                          print("RECOMPA_SCHEMA",key,json.dumps(shape(sample)))
                   print("NOTE: signals are discovery candidates, not verified playable or authorized APKs")
               except Exception as e:
                   print("GAME_FEED_UNAVAILABLE",name,type(e).__name__,str(e))
