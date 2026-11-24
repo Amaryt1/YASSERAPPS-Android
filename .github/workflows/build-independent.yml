@@ -2,6 +2,11 @@ name: Build Independent YASSERAPPS APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'independent/**'
+      - 'scripts/embed_catalog_media.py'
+      - '.github/workflows/build-independent.yml'
   push:
     branches: [main]
     paths:
@@ -65,3 +70,18 @@ jobs:
           path: independent/app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: error
+
+      - name: Enable emulator virtualization for catalog regression
+        if: github.event_name == 'pull_request'
+        run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+
+      - name: Verify Android receives the published catalog
+        if: github.event_name == 'pull_request'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash independent/scripts/live-catalog-smoke.sh

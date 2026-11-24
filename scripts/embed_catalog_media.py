@@ -34,9 +34,12 @@ for app in apps:
             media_urls.append(shot)
             critical_urls.add(shot)
 
+# Keep mandatory featured media first, then fill remaining slots with icons.
 media_urls = list(dict.fromkeys(media_urls))
-if len(media_urls) > 35:
-    raise SystemExit("Too many bundled media files")
+if len(critical_urls) > 35:
+    raise SystemExit("Too many mandatory featured media files")
+media_urls = ([u for u in media_urls if u in critical_urls] +
+              [u for u in media_urls if u not in critical_urls])[:35]
 aggregate_bytes = 0
 
 for url in media_urls:
@@ -62,9 +65,9 @@ for url in media_urls:
                     content.startswith(b"\xff\xd8\xff") or
                     content.startswith(b"RIFF") and content[8:12] == b"WEBP"):
                 raise ValueError("Image format is not PNG, JPEG or WEBP")
-        aggregate_bytes += len(content)
-        if aggregate_bytes > 18_000_000:
+        if aggregate_bytes + len(content) > 18_000_000:
             raise ValueError("Offline artwork would exceed 18MB cap")
+        aggregate_bytes += len(content)
         target.write_bytes(content)
         print("BUNDLED", len(content), "bytes:", url)
     except Exception as error:
