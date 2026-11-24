@@ -419,7 +419,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean installedAndNewer(Catalog.App app) {
-        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName))return false;
+        if(app.discoveryOnly)return false;
         try {
             PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
             long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
@@ -776,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -894,7 +894,7 @@ public final class MainActivity extends Activity {
 
     private final Map<String,Long> detailChecks=new HashMap<>();
     private void showDetail(Catalog.App app) {
-        if("Aptoide".equals(app.sourceName)){
+        if(!app.modified&&"Aptoide".equals(app.sourceName)){
             long now=android.os.SystemClock.elapsedRealtime();
             Long last=detailChecks.get(app.packageName);
             if(last==null||now-last>300000L){
@@ -986,12 +986,12 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
-            if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
+            if(!app.modified&&"Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
             if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
@@ -1013,7 +1013,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {

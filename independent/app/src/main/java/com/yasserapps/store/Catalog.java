@@ -57,7 +57,12 @@ public final class Catalog {
         a.modified=obj.optBoolean("modified");
         a.modEvidenceUrl=obj.optString("modEvidenceUrl");a.permissionUrl=obj.optString("permissionUrl");
         if(a.modified){
-            if(!a.discoveryOnly||!a.apkUrl.isEmpty()||!safeHttps(a.publisherUrl)||!safeHttps(a.modEvidenceUrl)||!safeHttps(a.permissionUrl))throw new IllegalArgumentException("Invalid MOD metadata");
+            if(!safeHttps(a.publisherUrl)||!safeHttps(a.modEvidenceUrl)||!safeHttps(a.permissionUrl))throw new IllegalArgumentException("Invalid MOD metadata");
+            if(a.discoveryOnly){
+                if(!a.apkUrl.isEmpty())throw new IllegalArgumentException("Unverified MOD download");
+            }else{
+                if(!safeHttps(a.apkUrl)||!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||!a.signerSha256.matches("(?i)[a-f0-9]{64}")||a.sizeBytes<=0||a.versionCode<1)throw new IllegalArgumentException("Unverified MOD binary");
+            }
         }else{
         if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)||("APKMirror".equals(a.sourceName)&&MirrorFeed.listingLink(a.publisherUrl))||PublicChartFeed.listingLink(a.sourceName,a.publisherUrl)) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||(!a.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(a))||a.versionCode<1))
             throw new IllegalArgumentException("Invalid cached entry");
