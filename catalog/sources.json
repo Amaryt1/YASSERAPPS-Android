@@ -216,10 +216,11 @@
   "largeCatalogCandidates": [
     {
       "id": "aptoide",
-      "status": "partner-authorization-required",
+      "status": "public-catalog-metadata-integration-testing",
       "documentation": "https://partners-center-be.aptoide.com/partners_api_doc/en",
-      "mode": "metadata-pagination",
-      "enabled": false
+      "mode": "metadata-only",
+      "enabled": true,
+      "endpoint": "https://ws75.aptoide.com/api/7/apps/get"
     },
     {
       "id": "apkpure",
