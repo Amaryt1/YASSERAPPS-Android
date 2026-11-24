@@ -370,7 +370,7 @@ public final class MainActivity extends Activity {
         row.setPadding(dp(18), dp(6), dp(17), dp(6));
         row.setBackground(shape(PANEL2, 22, Color.rgb(42, 60, 44)));
         row.addView(text("⌕", 26, GREEN, true), lp(34, 43));
-        TextView hint = text("ابحث عن تطبيق أو لعبة...", 14, SUBTEXT, false);
+        TextView hint = text("بحث", 14, SUBTEXT, false);
         row.addView(hint, new LinearLayout.LayoutParams(0, dp(43), 1));
         row.setOnClickListener(v -> showSearch());
         root.addView(row, lp(-1, 54));
@@ -736,7 +736,7 @@ public final class MainActivity extends Activity {
         page = "updates";
         category = "updates";
         LinearLayout c = verticalContent();
-        backBar(c, "تحديثات التطبيقات", () -> { category = "app"; showHome(); });
+        backBar(c, "تحديثات التطبيقات", () -> { category = "all"; showHome(); });
         TextView check = action("فحص تحديثات المتجر الآن", true, () -> {
             Toast.makeText(this, "جاري جلب أحدث إصدارات المتجر", Toast.LENGTH_SHORT).show();
             refresh();
@@ -751,7 +751,7 @@ public final class MainActivity extends Activity {
         List<Catalog.App> updates = matching("updates");
         if (updates.isEmpty()) panelText(c, loading ?
             "جاري التحقق من الإصدارات..." :
-            "ماكو تحديثات مكتشفة حاليًا. بعض التطبيقات قد تكون غير مرئية للنظام بسبب إعدادات أندرويد.");
+            "لا توجد تحديثات متاحة حاليًا. قد لا يتمكن النظام من عرض بعض التطبيقات المثبتة.");
         for (Catalog.App app : updates) {
             card(c, app);
             gap(c, 10);
