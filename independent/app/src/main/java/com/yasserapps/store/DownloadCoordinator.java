@@ -168,12 +168,13 @@ public final class DownloadCoordinator {
 
     /** DownloadManager persists and resumes transfers independently of the Activity. */
     public synchronized Entry start(Catalog.App item) throws Exception {
+        if(!item.modified||item.discoveryOnly||!item.sha256.matches("(?i)[a-f0-9]{64}")||!item.signerSha256.matches("(?i)[a-f0-9]{64}"))throw new SecurityException("لا توجد بيانات تحقق للنسخة المعدلة");
         if(!item.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(item))throw new SecurityException("بيانات تحقق الإصدار غير متاحة");
         if (item.discoveryOnly) throw new IllegalArgumentException("هذا المشروع ليس APK متحققاً منه");
         if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
         ArrayList<Entry> entries = load();
         for (Entry old : entries) {
-            if (old.packageName.equals(item.packageName) && old.versionCode == item.versionCode) {
+            if (sameRelease(old,item)) {
                 refresh(old);
                 if (old.active() || old.complete()) return old;
             }
@@ -269,9 +270,16 @@ public final class DownloadCoordinator {
         return null;
     }
 
+    private static boolean sameRelease(Entry entry,Catalog.App item) {
+        return entry.appId.equals(item.id) && entry.packageName.equals(item.packageName)
+            && entry.versionCode == item.versionCode
+            && !item.sha256.isEmpty() && entry.sha256.equalsIgnoreCase(item.sha256)
+            && entry.signerSha256.equalsIgnoreCase(item.signerSha256);
+    }
+
     public synchronized Entry latestFor(Catalog.App app) {
         for (Entry entry : all()) {
-            if (entry.packageName.equals(app.packageName) && entry.versionCode == app.versionCode) {
+            if (sameRelease(entry,app)) {
                 return entry;
             }
         }
