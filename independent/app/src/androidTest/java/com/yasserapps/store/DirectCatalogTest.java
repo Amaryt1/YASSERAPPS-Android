@@ -35,6 +35,17 @@ public final class DirectCatalogTest extends Instrumentation {
             if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Mismatched release accepted");
             detail.getJSONObject("file").put("md5sum",md5).put("malware",new org.json.JSONObject().put("rank","UNKNOWN"));
             if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Unknown security verdict accepted");
+            detail.getJSONObject("file").put("malware",new org.json.JSONObject().put("rank","TRUSTED")).put("path","https://pool.apk.aptoide.com/test/test.apk").put("signature",new org.json.JSONObject().put("sha1","0123456789abcdef0123456789abcdef01234567"));
+            detail.put("pay",org.json.JSONObject.NULL).put("aab",org.json.JSONObject.NULL).put("obb",org.json.JSONObject.NULL).put("soft_locks",new org.json.JSONArray());
+            detail.put("media",new org.json.JSONObject().put("description","Real app description").put("summary","Real summary"));
+            Catalog.App direct=AptoideFeed.latestDetail(checked,response);
+            if(direct==null||direct.discoveryOnly||!AptoideFeed.directEligible(direct)||!AptoideFeed.directEligible(Catalog.fromJson(Catalog.toJson(direct)))||!direct.description.equals("Real app description"))throw new AssertionError("Direct public APK and clean description");
+            detail.put("pay",new org.json.JSONObject().put("price",1));
+            if(!AptoideFeed.latestDetail(checked,response).discoveryOnly)throw new AssertionError("Paid release must not become direct");
+            File signed=new File(getTargetContext().getApplicationInfo().sourceDir);
+            com.android.apksig.ApkVerifier.Result verified=new com.android.apksig.ApkVerifier.Builder(signed).setMinCheckedPlatformVersion(26).build().verify();
+            if(!verified.isVerified()||!verified.isVerifiedUsingV2Scheme()&&!verified.isVerifiedUsingV3Scheme())throw new AssertionError("Real APK signing verifier");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS public APK eligibility, clean description and local signed APK verification");
             org.json.JSONObject listResponse=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(listing)));
             List<Catalog.App> unchecked=AptoideFeed.discover(listResponse,"games");
             if(unchecked.size()!=1||!unchecked.get(0).discoveryOnly||!unchecked.get(0).apkUrl.isEmpty()||!AptoideFeed.parse(listResponse,"games").isEmpty())throw new AssertionError("Unchecked entries must remain discovery-only");
