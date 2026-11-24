@@ -24,6 +24,13 @@ public final class DirectCatalogTest extends Instrumentation {
             org.json.JSONObject response=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("data",detail);
             Catalog.App checked=AptoideFeed.checkedDetail(listing,response,"games");
             if(checked==null||!checked.discoveryOnly||!checked.apkUrl.isEmpty())throw new AssertionError("Matching detail must remain metadata-only");
+            detail.getJSONObject("file").put("vercode",2).put("vername","2.0");
+            Catalog.App newest=AptoideFeed.latestDetail(checked,response);
+            if(newest==null||newest.versionCode!=2||!newest.discoveryOnly||!newest.apkUrl.isEmpty())throw new AssertionError("Latest source detail");
+            detail.put("package","wrong.market.app");
+            if(AptoideFeed.latestDetail(checked,response)!=null)throw new AssertionError("Wrong detail package");
+            detail.put("package","test.market.app");
+            detail.getJSONObject("file").put("vercode",1).put("vername","1.0");
             detail.getJSONObject("file").put("md5sum","fedcba9876543210fedcba9876543210");
             if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Mismatched release accepted");
             detail.getJSONObject("file").put("md5sum",md5).put("malware",new org.json.JSONObject().put("rank","UNKNOWN"));
