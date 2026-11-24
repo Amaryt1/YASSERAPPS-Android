@@ -8,7 +8,7 @@ on:
       - 'scripts/embed_catalog_media.py'
       - '.github/workflows/build-independent.yml'
   push:
-    branches: [main, feature/live-api-11.0.7, feature/expanded-catalog-11.0.8]
+    branches: [main, feature/live-api-11.0.7, feature/expanded-catalog-11.0.8, feature/mod-only-11.0.9]
     paths:
       - 'independent/**'
       - '.github/workflows/build-independent.yml'
@@ -49,17 +49,9 @@ jobs:
           set -euo pipefail
           mkdir -p independent/app/src/main/assets
           DEST=independent/app/src/main/assets/server-catalog.json
-          if ! curl -fsSL --retry 2 'https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json' -o "$DEST"; then
-            curl -fsSL 'https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/155f7bc4c0c7b61e4926299459a91c004683b3c5/catalog/generate_live_catalog.py' -o /tmp/yasser-catalog.py
-            python3 /tmp/yasser-catalog.py --output "$DEST" --min-new 500
-          fi
           python3 - "$DEST" <<'PY'
-          import json,sys
-          d=json.load(open(sys.argv[1]))
-          assert d['schemaVersion']==1 and 0<len(d['apps'])<=20000
-          assert len(d['apps'])==d['report']['total']
-          assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
-          print("EMBEDDED_CATALOG",json.dumps(d['report']))
+          import json,sys,time
+          json.dump({"schemaVersion":1,"modOnly":True,"generatedAt":int(time.time()*1000),"report":{"total":0},"apps":[]},open(sys.argv[1],"w"))
           PY
 
       - name: Compile independent APK

@@ -16,7 +16,8 @@ public final class Catalog {
         public String sourceName="", signerSha256="", license="", legacyMd5="", legacySignerSha1="";
         public int versionCode;
         public long sizeBytes, updatedAt;
-        public boolean featured, discoveryOnly;
+        public boolean featured, discoveryOnly, modified;
+        public String modEvidenceUrl="", permissionUrl="";
         public String originalPlatform="", gameFiles="", filesInstructions="", filesPath="", publisherUrl="", attribution="";
         public boolean needsFiles() { return "owned".equals(gameFiles)||"required".equals(gameFiles); }
         public ArrayList<String> screenshots = new ArrayList<>();
@@ -39,7 +40,7 @@ public final class Catalog {
             .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
             .put("legacyMd5",a.legacyMd5).put("legacySignerSha1",a.legacySignerSha1).put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt)
             .put("screenshots",new JSONArray(a.screenshots))
-            .put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
+            .put("modified",a.modified).put("modEvidenceUrl",a.modEvidenceUrl).put("permissionUrl",a.permissionUrl).put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
             .put("filesInstructions",a.filesInstructions).put("filesPath",a.filesPath).put("publisherUrl",a.publisherUrl).put("attribution",a.attribution);
     }
     static App fromJson(JSONObject obj) throws Exception {
@@ -53,18 +54,27 @@ public final class Catalog {
         a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
         a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
         a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");
+        a.modified=obj.optBoolean("modified");
+        a.modEvidenceUrl=obj.optString("modEvidenceUrl");a.permissionUrl=obj.optString("permissionUrl");
+        if(a.modified){
+            if(!a.discoveryOnly||!a.apkUrl.isEmpty()||!safeHttps(a.publisherUrl)||!safeHttps(a.modEvidenceUrl)||!safeHttps(a.permissionUrl))throw new IllegalArgumentException("Invalid MOD metadata");
+        }else{
         if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)||("APKMirror".equals(a.sourceName)&&MirrorFeed.listingLink(a.publisherUrl))||PublicChartFeed.listingLink(a.sourceName,a.publisherUrl)) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||(!a.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(a))||a.versionCode<1))
             throw new IllegalArgumentException("Invalid cached entry");
+        }
         JSONArray shots=obj.optJSONArray("screenshots");
         if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
         return a;
+    }
+    private static boolean safeHttps(String value){
+        try{java.net.URI u=new java.net.URI(value);return "https".equals(u.getScheme())&&u.getHost()!=null&&u.getUserInfo()==null;}catch(Exception e){return false;}
     }
     private static final ExecutorService DETAILS=Executors.newSingleThreadExecutor();
     static void enrich(Context context,App original,java.util.function.Consumer<App> callback) {
         Context app=context.getApplicationContext();
         DETAILS.execute(()->{
             App fresh=null;
-            try { fresh=DirectSources.latestAptoide(app,original); }
+            try { if(!original.modified)fresh=DirectSources.latestAptoide(app,original); }
             catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","DETAIL_LOOKUP_FAILED",e);}
             callback.accept(fresh);
         });

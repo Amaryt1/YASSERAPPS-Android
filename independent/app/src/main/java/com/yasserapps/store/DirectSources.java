@@ -22,12 +22,7 @@ final class DirectSources {
     private static final long MAX_CACHE_BYTES = 64L * 1024 * 1024;
     // Only the seven owner-selected providers may be activated in this release.
     // Aptoide is the only live, verified public listing interface so far.
-    private static final Source[] SOURCES = {
-        new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", ""),
-        new Source("apkmirror", "APKMirror", "https://www.apkmirror.com/feed/", ""),
-        new Source("uptodown","Uptodown","https://en.uptodown.com/android/apps/top",""),
-        new Source("taptap","TapTap","https://www.taptap.io/top/","")
-    };
+    private static final Source[] SOURCES = {};
     static final class Source {
         final String id, name, base, fingerprint;
         Source(String id, String name, String base, String fingerprint) {
@@ -63,7 +58,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.8");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.9");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
@@ -717,40 +712,60 @@ final class DirectSources {
         }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","SERVER_CATALOG_UNAVAILABLE",e);}
         return available;
     }
-    static void load(Context context,Catalog.Callback callback) {
-        Map<String,Snapshot> snapshots=new LinkedHashMap<>();
-        for(Source source:SOURCES) {
-            Snapshot cached=readCache(context,source);
-            if(cached!=null) snapshots.put(source.id,cached);
-        }
-        if(!snapshots.isEmpty()) callback.loaded(new Catalog.Result(merge(snapshots),null,false));
-        if(loadServer(context,snapshots,callback)){
-            List<Catalog.App> combined=merge(snapshots);
-            int downloadable=0;for(Catalog.App a:combined)if(!a.discoveryOnly)downloadable++;
-            for(Source source:SOURCES){Snapshot snap=snapshots.get(source.id);if(snap!=null)android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_SOURCE_OK "+source.id+" count="+snap.apps.size());}
-            android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+snapshots.size()+" downloadable="+downloadable+" discoveryPorts=0 marketplaceListings="+(combined.size()-downloadable));
-            callback.loaded(new Catalog.Result(combined,null,true));return;
-        }
-        int succeeded=0;
-        for(Source source:SOURCES) {
-            try {
-                Snapshot snapshot=update(context,source,snapshots.get(source.id),partial -> {
-                    Map<String,Snapshot> view=new LinkedHashMap<>(snapshots);
-                    view.put(source.id,new Snapshot(System.currentTimeMillis(),"",partial));
-                    android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_PREVIEW "+source.id+" count="+partial.size());
-                    callback.loaded(new Catalog.Result(merge(view),null,false));
-                });
-                snapshots.put(source.id,snapshot); succeeded++;
-                android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_SOURCE_OK "+source.id+" count="+snapshot.apps.size());
-                callback.loaded(new Catalog.Result(merge(snapshots),null,false));
-            } catch(Exception e) {
-                android.util.Log.w("YASSERAPPS_CATALOG","DIRECT_SOURCE_FAILED "+source.id+": "+e,e);
+    private static List<Catalog.App> readMods(InputStream stream)throws Exception {
+        List<Catalog.App> rows=new ArrayList<>(); Set<String> ids=new HashSet<>();
+        boolean modOnly=false; int schema=0, count=0; long stamp=0;
+        try(JsonReader r=new JsonReader(new InputStreamReader(stream,StandardCharsets.UTF_8))){
+            r.beginObject();
+            while(r.hasNext()){
+                String key=r.nextName();
+                if(key.equals("modOnly"))modOnly=r.nextBoolean();
+                else if(key.equals("schemaVersion"))schema=r.nextInt();
+                else if(key.equals("generatedAt"))stamp=r.nextLong();
+                else if(key.equals("apps")){
+                    r.beginArray();
+                    while(r.hasNext()){
+                        if(++count>80000)throw new IOException("MOD catalog limit");
+                        JSONObject item=(JSONObject)readValue(r,0);
+                        if(!item.optBoolean("modified"))throw new SecurityException("Non-MOD record");
+                        Catalog.App a=Catalog.fromJson(item);
+                        if(!ids.add(a.id))throw new IOException("Duplicate MOD record");
+                        rows.add(a);
+                    }
+                    r.endArray();
+                } else r.skipValue();
             }
+            r.endObject();
+            if(r.peek()!=JsonToken.END_DOCUMENT)throw new IOException("Trailing catalog");
         }
-        List<Catalog.App> combined=merge(snapshots);
-        String warning=succeeded==SOURCES.length?null:"تعذّر الاتصال ببعض المصادر، نعرض آخر محتوى متوفر.";
-        int downloadable=0, ports=0, marketplace=0; for(Catalog.App a:combined) { if(!a.discoveryOnly) downloadable++; else if("PortHub".equals(a.sourceName))ports++; else marketplace++; }
-        android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+succeeded+" downloadable="+downloadable+" discoveryPorts="+ports+" marketplaceListings="+marketplace);
-        callback.loaded(new Catalog.Result(combined,warning,true));
+        if(!modOnly||schema!=1||stamp<=0)throw new IOException("Not a MOD catalog");
+        return rows;
+    }
+    static void load(Context context,Catalog.Callback callback) {
+        // Never load legacy cached, bundled or direct-source entries.
+        File cache=new File(context.getFilesDir(),"mod-only-catalog-v1.json");
+        List<Catalog.App> rows=new ArrayList<>();
+        try {
+            if(cache.isFile()&&cache.length()<=64L*1024*1024){
+                try(InputStream in=new FileInputStream(cache)){rows=readMods(in);}
+                callback.loaded(new Catalog.Result(rows,null,false));
+            }
+        }catch(Exception invalid){cache.delete();}
+        File tmp=null;
+        try {
+            tmp=File.createTempFile("mod-only-", ".json",context.getCacheDir());
+            download("https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/full-index.json",tmp,64L*1024*1024,-1,null);
+            List<Catalog.App> fresh;
+            try(InputStream in=new BufferedInputStream(new FileInputStream(tmp))){fresh=readMods(in);}
+            AtomicFile safe=new AtomicFile(cache);
+            FileOutputStream out=safe.startWrite();
+            try(InputStream in=new FileInputStream(tmp)){
+                byte[] buf=new byte[65536];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);
+                safe.finishWrite(out);
+            }catch(Exception failure){safe.failWrite(out);throw failure;}
+            callback.loaded(new Catalog.Result(fresh,null,true));
+        }catch(Exception e){
+            callback.loaded(new Catalog.Result(rows,"تعذّر تحديث فهرس النسخ المعدلة.",true));
+        }finally{if(tmp!=null)tmp.delete();}
     }
 }
