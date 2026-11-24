@@ -8,17 +8,25 @@ adb shell run-as com.yasserapps.store mkdir -p files
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # These are temporary CI fixtures, not committed or packaged into the APK.
-for id in fdroid izzyondroid guardian microg; do
-  case "$id" in
-    fdroid) base=https://f-droid.org/repo ;;
-    izzyondroid) base=https://apt.izzysoft.de/fdroid/repo ;;
-    guardian) base=https://guardianproject.info/fdroid/repo ;;
-    microg) base=https://repo.microg.org/fdroid/repo ;;
-  esac
-  curl -fLsS --retry 2 --max-time 120 "$base/entry.jar" -o "$tmp/$id.jar"
-  path="$(unzip -p "$tmp/$id.jar" entry.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["index"]["name"].lstrip("/"))')"
-  curl -fLsS --retry 2 --max-time 300 "$base/$path" -o "$tmp/$id.json"
+while IFS=$'\t' read -r id base; do
+  echo "Checking signed repository $id"
+  status="$(curl -LsS --connect-timeout 10 --max-time 90 -w '%{http_code}' "$base/entry.jar" -o "$tmp/$id.jar" || true)"
+  if [ "$status" = 200 ]; then
+    if ! path="$(unzip -p "$tmp/$id.jar" entry.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["index"]["name"].lstrip("/"))')"; then
+      echo "FIXTURE_FETCH_FAILED $id invalid entry"; rm -f "$tmp/$id.jar"; continue
+    fi
+    if ! curl -fLsS --connect-timeout 10 --max-time 300 "$base/$path" -o "$tmp/$id.json"; then
+      echo "FIXTURE_FETCH_FAILED $id index"; rm -f "$tmp/$id.jar" "$tmp/$id.json"; continue
+    fi
+  elif [ "$status" = 404 ] || [ "$status" = 410 ]; then
+    if ! curl -fLsS --connect-timeout 10 --max-time 90 "$base/index-v1.jar" -o "$tmp/$id.jar"; then
+      echo "FIXTURE_FETCH_FAILED $id legacy index"; rm -f "$tmp/$id.jar"; continue
+    fi
+  else
+    echo "FIXTURE_FETCH_FAILED $id HTTP $status"; rm -f "$tmp/$id.jar"; continue
+  fi
   for ext in jar json; do
+    [ -f "$tmp/$id.$ext" ] || continue
     remote="/data/local/tmp/yasser-$id.$ext"
     adb push "$tmp/$id.$ext" "$remote"
     adb shell chmod 644 "$remote"
@@ -29,9 +37,10 @@ for id in fdroid izzyondroid guardian microg; do
     test "$actual" = "$expected"
     adb shell rm "$remote"
   done
-done
+done < <(python3 -c 'import json; [print(s["id"]+"\t"+s["baseUrl"]) for s in json.load(open("catalog/sources.json"))["sources"] if s["enabled"]]')
 adb shell am instrument -w com.yasserapps.store.test/com.yasserapps.store.DirectCatalogTest | tee "$tmp/result.txt"
 grep -F 'PASS signed direct sources on Android:' "$tmp/result.txt"
+adb logcat -d -s YASSERAPPS_CATALOG:V | grep -E 'FIXTURE_(SOURCE|FAILED)' || true
 adb shell run-as com.yasserapps.store rm -f files/fdroid.jar files/fdroid.json files/izzyondroid.jar files/izzyondroid.json files/guardian.jar files/guardian.json files/microg.jar files/microg.json
 # Confirm the actual home sections and category tabs from the verified cache.
 adb shell svc wifi disable
@@ -94,9 +103,20 @@ adb shell svc wifi enable
 adb shell svc data enable
 adb logcat -c
 adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
-for n in $(seq 1 36); do
+for n in $(seq 1 120); do
   adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/live.log"
-  if grep -q 'DIRECT_CATALOG total=.* sources=4' "$tmp/live.log"; then
+  if grep -q 'DIRECT_CATALOG total=.* sources=13 "$tmp/live.log"; then
+    cat "$tmp/live.log"
+    echo 'PASS direct live network for all thirteen sources'
+    exit 0
+  fi
+  if grep -q 'DIRECT_CATALOG total=.* sources=' "$tmp/live.log"; then break; fi
+  sleep 5
+done
+adb logcat -d -s YASSERAPPS_CATALOG:V
+echo 'FAIL: live source access was not established for all thirteen repositories.'
+exit 1
+ "$tmp/live.log"; then
     cat "$tmp/live.log"
     echo 'PASS direct live network for all four sources'
     exit 0
