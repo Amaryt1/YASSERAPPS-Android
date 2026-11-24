@@ -2,7 +2,7 @@
 No APK downloads, no publication, no assumed MOD status or permission.
 """
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit,urljoin
 from provider_formats import decode
 
 def candidates(urls):
@@ -28,5 +28,18 @@ def factual_rows(html,source,url):
         image=item.get("image")
         if isinstance(image,dict):image=image.get("url")
         if isinstance(image,str) and urlsplit(image).scheme=="https":row["imageUrl"]=image[:2048]
+        # Only an explicit modified-release title is a MOD candidate.
+        if re.search(r"\bmod(?:ded)?\s+apk\b|\bmodded\b",name,re.I):
+            row["modClaim"]=True
+            raw=item.get("downloadUrl")
+            if isinstance(raw,str):
+                link=urljoin(url,raw)
+                parsed=urlsplit(link)
+                if parsed.scheme=="https" and parsed.hostname==urlsplit(url).hostname and not parsed.username and not parsed.password and not parsed.fragment and parsed.path.lower().endswith(".apk"):
+                    row["explicitApkUrl"]=link
+            cats=str(item.get("applicationCategory","")).lower()
+            types=item.get("@type",[])
+            if "game" in cats or "VideoGame" in types:row["category"]="game"
+            elif "application" in cats or "app" in cats:row["category"]="app"
         rows.append(row)
     return rows

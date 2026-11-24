@@ -8,7 +8,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -28,7 +28,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     },
     {
       "name": "MODDROID",
@@ -36,7 +38,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -56,7 +58,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     },
     {
       "name": "APKMODY",
@@ -64,7 +68,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -84,7 +88,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     },
     {
       "name": "APKDONE",
@@ -92,7 +98,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -112,7 +118,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     },
     {
       "name": "APKVision",
@@ -120,7 +128,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -140,7 +148,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     },
     {
       "name": "JoJoy",
@@ -148,7 +158,7 @@
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
       "authorizationConfirmed": false,
       "itemsPath": "apps",
       "nextPath": "next",
@@ -168,7 +178,9 @@
         "open-graph",
         "public-json"
       ],
-      "probeOnly": true
+      "probeOnly": true,
+      "ownerReportedPermission": true,
+      "permissionStatus": "reported_by_project_owner_2026-11-24"
     }
   ]
 }
