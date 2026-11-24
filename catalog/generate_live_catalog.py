@@ -159,7 +159,7 @@ def main():
                     pause_source(e.code)
                     return rows,cursors,{source:{"status":"cooldown","http":e.code}}
             except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
-        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/games","https://en.uptodown.com/android/games/newreleases","https://en.uptodown.com/android/newreleases"],"TapTap":["https://www.taptap.io/top/","https://www.taptap.io/top/?page=2"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
+        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/games","https://en.uptodown.com/android/games/newreleases","https://en.uptodown.com/android/newreleases"],"TapTap":["https://www.taptap.io/top/"]+["https://www.taptap.io/tag/"+tag for tag in ("editor_choice","arcade","strategy","casual","action","sports","racing")],"APKMirror":["https://www.apkmirror.com/uploads/","https://www.apkmirror.com/categories/"]}
         if source in charts:
             pages=charts[source]
             urls={}
@@ -169,12 +169,12 @@ def main():
                 if not p or p.fragment: return ""
                 if source=="APKMirror" and p.hostname=="www.apkmirror.com" and re.fullmatch(r"/uploads/page/[1-9][0-9]{0,5}/?",p.path) and not p.query: return url
                 if source=="Uptodown" and p.hostname=="en.uptodown.com" and re.fullmatch(r"/android/(?:apps|games|latest-updates|newreleases)(?:/[a-z0-9-]{1,70}){0,3}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
-                if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/top(?:/[a-zA-Z0-9_-]{1,70}){0,2}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
+                if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/(?:top(?:/[a-zA-Z0-9_-]{1,70}){0,2}|tag/[a-zA-Z0-9_-]{1,70})/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
                 return ""
             known=list(dict.fromkeys(pages+[u for u in cursors.get(source+":pages",[]) if navigation(u)]))[:2000]
             navpos=int(cursors.get(source+":navpos",0))%max(1,len(known))
             # Refresh seeds and rotate through saved category/pagination links.
-            batch=list(dict.fromkeys(pages+[known[(navpos+i)%len(known)] for i in range(min(5,len(known)))]))
+            batch=list(dict.fromkeys([known[(navpos+i)%len(known)] for i in range(min(8,len(known)))]))
             blocked=False
             for url in batch:
                 if time.monotonic()-start>=210: break
@@ -191,7 +191,7 @@ def main():
                 except Exception as e: print("CHART_FAILED",source,type(e).__name__,flush=True)
                 time.sleep(1)
             cursors[source+":pages"]=known
-            cursors[source+":navpos"]=(navpos+5)%max(1,len(known))
+            cursors[source+":navpos"]=(navpos+8)%max(1,len(known))
             candidates=list(dict.fromkeys([u for u in cursors.get(source+":listings",[]) if link(source,u)]+list(urls)))[:10000]
             cursors[source+":listings"]=candidates
             pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
