@@ -4,51 +4,87 @@
   "sources": [
     {
       "name": "HappyMod",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     },
     {
       "name": "MODDROID",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     },
     {
       "name": "APKMODY",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     },
     {
       "name": "APKDONE",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     },
     {
       "name": "APKVision",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     },
     {
       "name": "JoJoy",
-      "status": "candidate",
+      "status": "awaiting_feed",
       "enabled": false,
       "apiUrl": null,
       "permissionUrl": null,
-      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+      "reason": "Awaiting provider export URL and scope of permission; preliminary approval reported by owner.",
+      "authorizationConfirmed": false,
+      "itemsPath": "apps",
+      "nextPath": "next",
+      "fields": {},
+      "delaySeconds": 1,
+      "tokenEnv": ""
     }
   ]
 }

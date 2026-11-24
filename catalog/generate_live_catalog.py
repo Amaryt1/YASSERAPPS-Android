@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Only explicitly approved modified Android releases. No ordinary listings."""
 import argparse, json, re, time
+from provider_sync import load_remote
 from pathlib import Path
 from urllib.parse import urlsplit
 LIMIT=82000
@@ -47,6 +48,19 @@ def main():
         for item in d.get("apps",[]):
             r=accept(item,source,permission)
             if r is not None: rows[r["id"]]=r
+    for source,permission,items in load_remote(ROOT/"mod-source-candidates.json"):
+        for item in items:
+            row=accept(item,source,permission)
+            if row is not None: rows[row["id"]]=row
+    # Identical APK bytes are one record, even if listed by multiple sources.
+    seen_hashes=set()
+    unique={}
+    for key,row in sorted(rows.items()):
+        digest=row["sha256"]
+        if digest and digest in seen_hashes: continue
+        if digest: seen_hashes.add(digest)
+        unique[key]=row
+    rows=unique
     if len(rows)>LIMIT: raise ValueError("Capacity exceeded; do not silently drop sources")
     counts={}
     for r in rows.values(): counts[r["sourceName"]]=counts.get(r["sourceName"],0)+1

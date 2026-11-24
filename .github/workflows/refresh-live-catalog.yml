@@ -8,6 +8,9 @@ on:
     paths:
       - 'catalog/generate_live_catalog.py'
       - 'catalog/build_api.py'
+      - 'catalog/provider_sync.py'
+      - 'catalog/test_provider_sync.py'
+      - 'catalog/mod-source-candidates.json'
       - 'catalog/approved-mod-feeds/**'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
@@ -30,8 +33,17 @@ jobs:
           echo "Refresh trigger: $TRIGGER"
           echo "Refresh trigger: $TRIGGER" >> "$GITHUB_STEP_SUMMARY"
       - name: Check Python syntax
-        run: python3 -m py_compile catalog/generate_live_catalog.py
+        run: |
+          python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py
+          python3 -m unittest discover -s catalog -p test_provider_sync.py
       - name: Generate and measure new catalogue records
+        env:
+          YASSER_FEED_HAPPYMOD_TOKEN: ${{ secrets.YASSER_FEED_HAPPYMOD_TOKEN }}
+          YASSER_FEED_MODDROID_TOKEN: ${{ secrets.YASSER_FEED_MODDROID_TOKEN }}
+          YASSER_FEED_APKMODY_TOKEN: ${{ secrets.YASSER_FEED_APKMODY_TOKEN }}
+          YASSER_FEED_APKDONE_TOKEN: ${{ secrets.YASSER_FEED_APKDONE_TOKEN }}
+          YASSER_FEED_APKVISION_TOKEN: ${{ secrets.YASSER_FEED_APKVISION_TOKEN }}
+          YASSER_FEED_JOJOY_TOKEN: ${{ secrets.YASSER_FEED_JOJOY_TOKEN }}
         run: |
           python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500
       - name: Validate generated catalogue
