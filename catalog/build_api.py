@@ -29,8 +29,10 @@ def xml_catalog(path,source,items,status):
     doc=ET.Element("catalog",{"schemaVersion":"1","modOnly":"true","source":source,"status":status,"generatedAt":str(d["generatedAt"]),"total":str(len(items))})
     for row in sorted(items,key=lambda r:r["id"]):
         entry=ET.SubElement(doc,"app",{"id":row["id"],"category":row["category"],"modified":"true","discoveryOnly":str(row["discoveryOnly"]).lower()})
-        for key in ("name","packageName","version","versionCode","iconUrl","summary","description","publisherUrl","apkUrl","sha256","signerSha256","modEvidenceUrl","permissionUrl","sizeBytes"):
+        for key in ("name","packageName","version","versionCode","iconUrl","bannerUrl","summary","description","publisherUrl","apkUrl","sha256","signerSha256","modEvidenceUrl","permissionUrl","sizeBytes"):
             ET.SubElement(entry,key).text=str(row.get(key,""))
+        images=ET.SubElement(entry,"screenshots")
+        for url in row.get("screenshots",[]): ET.SubElement(images,"url").text=url
     target=root/path
     target.parent.mkdir(parents=True,exist_ok=True)
     ET.ElementTree(doc).write(target,encoding="utf-8",xml_declaration=True)

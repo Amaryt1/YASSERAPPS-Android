@@ -22,13 +22,18 @@ def accept(item,source,permission):
     icon=item.get("iconUrl","")
     if icon and not https(icon): return None
     if not re.search(r"[\u0600-\u06ff]",item["modDescription"]): return None
+    banner=item.get("bannerUrl","")
+    if banner and not https(banner): return None
+    raw_screens=item.get("screenshots",[])
+    if not isinstance(raw_screens,list): return None
+    screenshots=list(dict.fromkeys(s for s in raw_screens if isinstance(s,str) and len(s)<=2048 and https(s)))[:12]
     apk=item.get("apkUrl","")
     sha=item.get("sha256","")
     signer=item.get("signerSha256","")
     size=item.get("sizeBytes",0)
     direct=bool(apk) and https(apk) and urlsplit(apk).path.lower().endswith(".apk") and isinstance(sha,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",sha)) and isinstance(signer,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",signer)) and type(size)==int and 0<size<=8*1024**3
     if apk and not direct: return None
-    return {"id":source.lower()+"."+item["id"],"name":item["name"][:200],"packageName":item["packageName"],"category":item["category"],"version":item["version"][:80],"versionCode":code,"sizeBytes":size if direct else 0,"apkUrl":apk if direct else "","iconUrl":icon,"bannerUrl":"","screenshots":[],"summary":item["modDescription"][:500],"description":item["modDescription"][:4000],"sha256":sha.lower() if direct else "","signerSha256":signer.lower() if direct else "","sourceName":source,"publisherUrl":item["publisherUrl"],"modified":True,"modEvidenceUrl":item["modEvidenceUrl"],"permissionUrl":permission,"updatedAt":int(time.time()*1000),"discoveryOnly":not direct,"license":str(item.get("license",""))[:200]}
+    return {"id":source.lower()+"."+item["id"],"name":item["name"][:200],"packageName":item["packageName"],"category":item["category"],"version":item["version"][:80],"versionCode":code,"sizeBytes":size if direct else 0,"apkUrl":apk if direct else "","iconUrl":icon,"bannerUrl":banner,"screenshots":screenshots,"summary":item["modDescription"][:500],"description":item["modDescription"][:4000],"sha256":sha.lower() if direct else "","signerSha256":signer.lower() if direct else "","sourceName":source,"publisherUrl":item["publisherUrl"],"modified":True,"modEvidenceUrl":item["modEvidenceUrl"],"permissionUrl":permission,"updatedAt":int(time.time()*1000),"discoveryOnly":not direct,"license":str(item.get("license",""))[:200]}
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--output",default=str(ROOT/"generated/full-index.json"))
