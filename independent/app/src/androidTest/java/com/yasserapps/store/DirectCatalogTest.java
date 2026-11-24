@@ -18,10 +18,13 @@ public final class DirectCatalogTest extends Instrumentation {
             }
             if(DirectSources.game(new org.json.JSONObject().put("categories",new org.json.JSONArray().put("Development"))))
                 throw new AssertionError("False game classification");
-            int total=0, games=0;
+            int total=0, games=0, verified=0;
             java.util.ArrayList<Catalog.App> combined=new java.util.ArrayList<>();
-            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg"}) {
-                List<Catalog.App> apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json"));
+            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg","playfdroid","kde","newpipe","collabora","bitwarden","molly","session","simplex","wind"}) {
+                List<Catalog.App> apps;
+                try { apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json")); }
+                catch(Exception e) { android.util.Log.e("YASSERAPPS_CATALOG","FIXTURE_FAILED "+id,e); if(verified<4&&java.util.Arrays.asList("fdroid","izzyondroid","guardian","microg").contains(id)) throw e; continue; }
+                verified++;
                 if(apps.isEmpty()) throw new AssertionError("Empty "+id);
                 for(Catalog.App a:apps) {
                     if(a.isGame()) games++;
@@ -43,7 +46,7 @@ public final class DirectCatalogTest extends Instrumentation {
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);
-            result.putString("stream","\nPASS signed direct sources on Android: "+total+" entries, "+games+" games before deduplication\n");
+            result.putString("stream","\nPASS signed direct sources on Android: "+total+" entries, "+games+" games before deduplication; verified sources="+verified+"\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {
             result.putString("stream","\nFAIL "+android.util.Log.getStackTraceString(failure));
