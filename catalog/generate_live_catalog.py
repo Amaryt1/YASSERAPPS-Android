@@ -115,6 +115,9 @@ def main():
             old=rows.get(row["id"])
             if old is None and len(rows)>=LIMIT: return
             if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
+        if source=="Aptoide" and len(rows)>=17000:
+            # Keep existing entries but reserve remaining capacity for other providers.
+            return rows,cursors,{source:{"status":"growth_paused_for_source_balance","retained":len(rows)}}
         if source=="Aptoide":
             groups=("games","applications"); counts={g:0 for g in groups}; paused=set()
             for n in range(args.max_pages):
@@ -156,7 +159,7 @@ def main():
                     pause_source(e.code)
                     return rows,cursors,{source:{"status":"cooldown","http":e.code}}
             except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
-        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates"],"TapTap":["https://www.taptap.io/top/"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
+        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/games","https://en.uptodown.com/android/games/newreleases","https://en.uptodown.com/android/newreleases"],"TapTap":["https://www.taptap.io/top/","https://www.taptap.io/top/?page=2"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
         if source in charts:
             pages=charts[source]
             urls={}
@@ -165,7 +168,7 @@ def main():
                 p=uri(url)
                 if not p or p.fragment: return ""
                 if source=="APKMirror" and p.hostname=="www.apkmirror.com" and re.fullmatch(r"/uploads/page/[1-9][0-9]{0,5}/?",p.path) and not p.query: return url
-                if source=="Uptodown" and p.hostname=="en.uptodown.com" and re.fullmatch(r"/android/(?:apps|games|latest-updates)(?:/[a-z0-9-]{1,70}){0,2}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
+                if source=="Uptodown" and p.hostname=="en.uptodown.com" and re.fullmatch(r"/android/(?:apps|games|latest-updates|newreleases)(?:/[a-z0-9-]{1,70}){0,3}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
                 if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/top(?:/[a-zA-Z0-9_-]{1,70}){0,2}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
                 return ""
             known=list(dict.fromkeys(pages+[u for u in cursors.get(source+":pages",[]) if navigation(u)]))[:2000]
