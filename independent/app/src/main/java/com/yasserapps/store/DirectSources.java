@@ -63,7 +63,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.7");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.8");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
@@ -628,7 +628,7 @@ final class DirectSources {
                 else if(key.equals("apps")){
                     r.beginArray();
                     while(r.hasNext()){
-                        if(++count>20000)throw new IOException("Server catalogue limit");
+                        if(++count>50000)throw new IOException("Server catalogue limit");
                         Catalog.App a=Catalog.fromJson((JSONObject)readValue(r,0));
                         // A public catalogue only supplies listings. Resolve APKs from the official source on demand.
                         if(!a.discoveryOnly||!a.apkUrl.isEmpty())throw new SecurityException("Unexpected server download");
@@ -696,8 +696,17 @@ final class DirectSources {
                     return true;
                 }
             }catch(Exception ex){android.util.Log.i("YASSERAPPS_CATALOG","API_MANIFEST_UNAVAILABLE");}
-            JSONObject root=fetchJson(context,base+"generated/index.json",25*1024*1024);
-            Map<String,Snapshot> remote=serverSnapshots(context,new ByteArrayInputStream(root.toString().getBytes(StandardCharsets.UTF_8)));
+            // Stream the bounded complete snapshot from a temporary file rather
+            // than constructing a second in-memory JSONObject and JSON string.
+            Map<String,Snapshot> remote;
+            File full=File.createTempFile("server-catalog-", ".json",context.getCacheDir());
+            try {
+                try { download(base+"generated/full-index.json",full,64L*1024*1024,-1,null); }
+                catch(FileNotFoundException missing) { download(base+"generated/index.json",full,25L*1024*1024,-1,null); }
+                try(InputStream in=new BufferedInputStream(new FileInputStream(full))) {
+                    remote=serverSnapshots(context,in);
+                }
+            } finally { full.delete(); }
             mergeServer(snapshots,remote);
             for(Source source:SOURCES){
                 Snapshot snap=snapshots.get(source.id);

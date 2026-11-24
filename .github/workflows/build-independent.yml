@@ -8,7 +8,7 @@ on:
       - 'scripts/embed_catalog_media.py'
       - '.github/workflows/build-independent.yml'
   push:
-    branches: [main, feature/live-api-11.0.7]
+    branches: [main, feature/live-api-11.0.7, feature/expanded-catalog-11.0.8]
     paths:
       - 'independent/**'
       - '.github/workflows/build-independent.yml'
