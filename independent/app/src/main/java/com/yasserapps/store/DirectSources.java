@@ -440,12 +440,12 @@ final class DirectSources {
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
             int accepted=0,attempted=0,rejected=0,listed=0,pages=0;
             long deadline=android.os.SystemClock.elapsedRealtime()+100000L;
-            // At most 20 pages, and two explicit detail checks per group. No crawling every APK.
+            // Up to 20 pages of 50 per group (2,000 records total), with a time bound.
             for(String group:new String[]{"games","applications"}) {
                 int offset=0;
-                for(int page=0;page<10;page++) {
+                for(int page=0;page<20;page++) {
                     if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
-                    JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=100/offset="+offset+"/mature=false/sort=downloads",4*1024*1024);
+                    JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=50/offset="+offset+"/mature=false/sort=downloads",4*1024*1024);
                     pages++;
                     JSONObject datalist=data.getJSONObject("datalist");
                     JSONArray rows=datalist.getJSONArray("list");
