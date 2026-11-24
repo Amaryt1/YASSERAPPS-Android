@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse,json,shutil
+import argparse,json,shutil,re
 from pathlib import Path
 from collections import Counter
 p=argparse.ArgumentParser()
@@ -9,7 +9,7 @@ args=p.parse_args()
 d=json.loads(Path(args.input).read_text())
 rows=d["apps"]
 assert d["modOnly"] is True and len(rows)<=80000
-assert all(r["modified"] is True and r["discoveryOnly"] and not r["apkUrl"] and r["modEvidenceUrl"] and r["permissionUrl"] for r in rows)
+assert all(r["modified"] is True and r["modEvidenceUrl"] and r["permissionUrl"] and ((r["discoveryOnly"] and not r["apkUrl"]) or (not r["discoveryOnly"] and r["apkUrl"] and re.fullmatch(r"[0-9a-f]{64}",r["sha256"]) and re.fullmatch(r"[0-9a-f]{64}",r["signerSha256"]))) for r in rows)
 assert len({r["id"] for r in rows})==len(rows)==d["report"]["total"]
 root=Path("catalog/api/v1")
 if root.exists(): shutil.rmtree(root)
@@ -26,7 +26,7 @@ def pages(name,items):
     return {"total":len(items),"pages":n,"first":f"{name}/1.json" if n else None}
 groups={"all":pages("all",rows)}
 for cat in ("app","game"): groups[cat]=pages(cat,[r for r in rows if r["category"]==cat])
-write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":True,"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"counts":dict(Counter(r["sourceName"] for r in rows))})
+write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":all(r["discoveryOnly"] for r in rows),"installableMetadata":sum(not r["discoveryOnly"] for r in rows),"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"counts":dict(Counter(r["sourceName"] for r in rows))})
 if args.legacy_output:
     # Retired clients cannot safely display the new format.
     Path(args.legacy_output).write_text(json.dumps({"schemaVersion":1,"modOnly":True,"generatedAt":d["generatedAt"],"report":{"total":0,"counts":{}},"apps":[]}))

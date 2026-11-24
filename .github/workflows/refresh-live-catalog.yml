@@ -37,19 +37,19 @@ jobs:
       - name: Validate generated catalogue
         run: |
           python3 - <<'PY'
-          import json
+          import json,re
           from pathlib import Path
           d=json.loads(Path('catalog/generated/full-index.json').read_text())
           assert d['schemaVersion']==1 and d['modOnly'] is True and 0<=len(d['apps'])<=80000
           assert len({a['id'] for a in d['apps']})==len(d['apps'])
-          assert all(a['modified'] is True and a['discoveryOnly'] and not a['apkUrl'] and a['modEvidenceUrl'] and a['permissionUrl'] for a in d['apps'])
+          assert all(a['modified'] is True and a['modEvidenceUrl'] and a['permissionUrl'] and ((a['discoveryOnly'] and not a['apkUrl']) or (not a['discoveryOnly'] and a['apkUrl'] and re.fullmatch(r'[0-9a-f]{64}',a['sha256']) and re.fullmatch(r'[0-9a-f]{64}',a['signerSha256']))) for a in d['apps'])
           assert d['report']['total']==len(d['apps'])
           assert Path('catalog/generated/full-index.json').stat().st_size<64*1024*1024
           print(json.dumps(d['report'],indent=2))
           PY
       - name: Build and test paginated JSON API
         run: python3 catalog/build_api.py --input catalog/generated/full-index.json --legacy-output catalog/generated/index.json
-      - name: Publish metadata only
+      - name: Publish reviewed MOD catalog
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

@@ -20,7 +20,14 @@ def accept(item,source,permission):
     if type(code)!=int or code<1: return None
     icon=item.get("iconUrl","")
     if icon and not https(icon): return None
-    return {"id":source.lower()+"."+item["id"],"name":item["name"][:200],"packageName":item["packageName"],"category":item["category"],"version":item["version"][:80],"versionCode":code,"sizeBytes":0,"apkUrl":"","iconUrl":icon,"bannerUrl":"","screenshots":[],"summary":item["modDescription"][:500],"description":item["modDescription"][:4000],"sha256":"","signerSha256":"","sourceName":source,"publisherUrl":item["publisherUrl"],"modified":True,"modEvidenceUrl":item["modEvidenceUrl"],"permissionUrl":permission,"updatedAt":int(time.time()*1000),"discoveryOnly":True,"license":str(item.get("license",""))[:200]}
+    if not re.search(r"[\u0600-\u06ff]",item["modDescription"]): return None
+    apk=item.get("apkUrl","")
+    sha=item.get("sha256","")
+    signer=item.get("signerSha256","")
+    size=item.get("sizeBytes",0)
+    direct=bool(apk) and https(apk) and urlsplit(apk).path.lower().endswith(".apk") and isinstance(sha,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",sha)) and isinstance(signer,str) and bool(re.fullmatch(r"[a-fA-F0-9]{64}",signer)) and type(size)==int and 0<size<=8*1024**3
+    if apk and not direct: return None
+    return {"id":source.lower()+"."+item["id"],"name":item["name"][:200],"packageName":item["packageName"],"category":item["category"],"version":item["version"][:80],"versionCode":code,"sizeBytes":size if direct else 0,"apkUrl":apk if direct else "","iconUrl":icon,"bannerUrl":"","screenshots":[],"summary":item["modDescription"][:500],"description":item["modDescription"][:4000],"sha256":sha.lower() if direct else "","signerSha256":signer.lower() if direct else "","sourceName":source,"publisherUrl":item["publisherUrl"],"modified":True,"modEvidenceUrl":item["modEvidenceUrl"],"permissionUrl":permission,"updatedAt":int(time.time()*1000),"discoveryOnly":not direct,"license":str(item.get("license",""))[:200]}
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--output",default=str(ROOT/"generated/full-index.json"))
@@ -46,6 +53,7 @@ def main():
     new=len(set(rows)-old)
     report={"total":len(rows),"new":new,"counts":counts,"targetNew":args.min_new,"targetMet":new>=args.min_new}
     out.parent.mkdir(parents=True,exist_ok=True)
+    report["installableMetadata"]=sum(not r["discoveryOnly"] for r in rows.values())
     out.write_text(json.dumps({"schemaVersion":1,"modOnly":True,"generatedAt":int(time.time()*1000),"report":report,"apps":list(rows.values())},ensure_ascii=False,separators=(",",":")))
     print("CATALOG_RESULT",json.dumps(report))
 if __name__=="__main__": main()
