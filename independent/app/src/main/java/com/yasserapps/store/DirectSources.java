@@ -309,7 +309,16 @@ final class DirectSources {
             meta.put("license",a.optString("license"));
             meta.put("lastUpdated",a.optLong("lastUpdated",0));
             String icon=a.optString("icon");
-            if(!icon.isEmpty()) meta.put("icon",new JSONObject().put("name","icons/"+icon));
+            if(!icon.isEmpty()) meta.put("icon",new JSONObject().put("en-US",new JSONObject().put("name","icons/"+icon)));
+            String locale="en-US";
+            if(local!=null) { for(String key:new String[]{"ar","ar-SA","en-US","en"}) if(local.has(key)){locale=key;break;} }
+            JSONArray photos=l.optJSONArray("phoneScreenshots");
+            if(photos!=null) {
+                JSONArray shots=new JSONArray();
+                for(int k=0;k<Math.min(12,photos.length());k++)
+                    shots.put(new JSONObject().put("name",pkg+"/"+locale+"/phoneScreenshots/"+photos.getString(k)));
+                meta.put("screenshots",new JSONObject().put("phone",new JSONObject().put(locale,shots)));
+            }
             JSONObject versions=new JSONObject();
             int suggested=a.optInt("suggestedVersionCode",0);
             for(int j=0;j<releases.length();j++) {
