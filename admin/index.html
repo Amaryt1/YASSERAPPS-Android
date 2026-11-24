@@ -72,7 +72,7 @@ function validate(o){
  if(!validHttp(o.iconUrl))throw Error("رابط الأيقونة غير صالح");
  if(o.bannerUrl&&!validHttp(o.bannerUrl))throw Error("رابط البانر غير صالح");
  if(o.screenshots.length>12||o.screenshots.some(x=>!validHttp(x)))throw Error("لقطات الشاشة غير صحيحة");
- if(o.name.length<1||o.name.length>100||o.version.length<1)throw Error("اسم التطبيق أو الإصدار مفقود");
+ if(o.featured&&!o.bannerUrl&&!o.screenshots.length)throw Error("التطبيق المميز لازم إله بانر أو صور حقيقية منه، مو شعار المتجر"); if(o.name.length<1||o.name.length>100||o.version.length<1)throw Error("اسم التطبيق أو الإصدار مفقود");
 }
 el("editor").addEventListener("submit",evt=>{evt.preventDefault();try{const o=value();validate(o);built=JSON.stringify(o,null,2);el("json").textContent=built;alertStatus("✓ JSON جاهز. انسخه إلى إدارة الكتالوج في GitHub Actions.");}catch(e){alertStatus(e.message,true);}});
 el("copy").onclick=async()=>{if(!built){alertStatus("ولّد JSON أولًا",true);return;}try{await navigator.clipboard.writeText(built);alertStatus("✓ تم نسخ JSON");}catch{alertStatus("استخدم تحديد النص ونسخه يدويًا",true);}};
