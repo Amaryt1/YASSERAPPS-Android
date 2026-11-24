@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "kind": "live-source-directory",
+  "catalogStorage": "device-only",
+  "refresh": {
+    "pageSize": 50,
+    "foregroundGrowthMinutes": 15,
+    "steadyStateHours": 6,
+    "targetUniquePackages": 20000
+  },
+  "sources": [
+    {
+      "id": "aptoide",
+      "name": "Aptoide",
+      "status": "live-metadata",
+      "format": "aptoide-v7",
+      "feeds": {
+        "games": "https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=50/offset=0/mature=false/sort=downloads",
+        "applications": "https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=50/offset=0/mature=false/sort=downloads"
+      },
+      "pagination": {
+        "next": "datalist.next",
+        "items": "datalist.list",
+        "total": "datalist.total",
+        "offsetParameter": "offset"
+      },
+      "detailEndpoint": "https://ws75.aptoide.com/api/7/app/getMeta/package_name={package}",
+      "directInstall": false
+    },
+    {
+      "id": "apkpure",
+      "name": "APKPure",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    },
+    {
+      "id": "liteapks",
+      "name": "LiteAPKs",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    },
+    {
+      "id": "taptap",
+      "name": "TapTap",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    },
+    {
+      "id": "aurora",
+      "name": "Aurora",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    },
+    {
+      "id": "uptodown",
+      "name": "Uptodown",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    },
+    {
+      "id": "apkmirror",
+      "name": "APKMirror",
+      "status": "pending-authorized-feed",
+      "feeds": null,
+      "directInstall": false
+    }
+  ]
+}
