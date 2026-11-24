@@ -69,6 +69,9 @@ jobs:
             independent-emulator-logcat.txt
             independent-pid.txt
             independent-home.png
+            independent-all.png
+            independent-apps.png
+            independent-games.png
             independent-downloads.png
             independent-settings.png
             independent-search.png
