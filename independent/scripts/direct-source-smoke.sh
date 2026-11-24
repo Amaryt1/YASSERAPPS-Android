@@ -42,7 +42,7 @@ for source_row in "${source_rows[@]}"; do
     adb shell rm "$remote"
   done
 done
-test "$checked" -eq 13 || { echo "FAIL: only $checked of 13 source candidates processed"; exit 1; }
+test "$checked" -eq 15 || { echo "FAIL: only $checked of 15 source candidates processed"; exit 1; }
 adb shell am instrument -w com.yasserapps.store.test/com.yasserapps.store.DirectCatalogTest | tee "$tmp/result.txt"
 grep -F 'PASS signed direct sources on Android:' "$tmp/result.txt"
 adb logcat -d -s YASSERAPPS_CATALOG:V | grep -E 'FIXTURE_(SOURCE|FAILED)' || true
@@ -103,7 +103,7 @@ tap_tab 'الألعاب'
 adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=[1-9][0-9]*'
 echo 'PASS verified source entries in home and category tabs'
 adb shell am force-stop com.yasserapps.store
-# Separate live-device check: require all 13 direct network connections.
+# Separate live-device check: require all 15 direct network connections.
 adb shell svc wifi enable
 adb shell svc data enable
 sleep 3
@@ -111,14 +111,14 @@ adb logcat -c
 adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
 for n in $(seq 1 120); do
   adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/live.log"
-  if grep -Eq 'DIRECT_CATALOG total=[0-9]+ sources=13' "$tmp/live.log"; then
+  if grep -Eq 'DIRECT_CATALOG total=[0-9]+ sources=15' "$tmp/live.log"; then
     cat "$tmp/live.log"
-    echo 'PASS direct live network for all thirteen sources'
+    echo 'PASS direct live network for all fifteen sources'
     exit 0
   fi
   if grep -q 'DIRECT_CATALOG total=.* sources=' "$tmp/live.log"; then break; fi
   sleep 5
 done
 adb logcat -d -s YASSERAPPS_CATALOG:V
-echo 'FAIL: live source access was not established for all thirteen repositories.'
+echo 'FAIL: live source access was not established for all fifteen repositories.'
 exit 1

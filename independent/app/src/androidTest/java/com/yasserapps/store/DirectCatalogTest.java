@@ -20,25 +20,26 @@ public final class DirectCatalogTest extends Instrumentation {
                 throw new AssertionError("False game classification");
             int total=0, games=0, verified=0;
             java.util.ArrayList<Catalog.App> combined=new java.util.ArrayList<>();
-            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg","playfdroid","kde","newpipe","collabora","bitwarden","molly","session","simplex","wind"}) {
+            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg","playfdroid","kde","newpipe","collabora","bitwarden","molly","session","simplex","wind","modernapps","rmgames"}) {
                 List<Catalog.App> apps;
                 try { apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json")); }
                 catch(Exception e) { android.util.Log.e("YASSERAPPS_CATALOG","FIXTURE_FAILED "+id,e); if(verified<4&&java.util.Arrays.asList("fdroid","izzyondroid","guardian","microg").contains(id)) throw e; continue; }
                 verified++;
+                int sourceGames=0;
                 if(apps.isEmpty()) throw new AssertionError("Empty "+id);
                 for(Catalog.App a:apps) {
-                    if(a.isGame()) games++;
+                    if(a.isGame()) { games++; sourceGames++; }
                     if(!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}"))
                         throw new AssertionError("Invalid APK metadata");
                     Catalog.App copy=Catalog.fromJson(Catalog.toJson(a));
                     if(copy.versionCode!=a.versionCode||!copy.apkUrl.equals(a.apkUrl))
                         throw new AssertionError("Cache conversion failed");
                 }
-                android.util.Log.i("YASSERAPPS_CATALOG","FIXTURE_SOURCE "+id+" count="+apps.size());
+                android.util.Log.i("YASSERAPPS_CATALOG","FIXTURE_SOURCE "+id+" count="+apps.size()+" games="+sourceGames);
                 total+=apps.size();
                 combined.addAll(apps);
             }
-            if(games<50||total<100) throw new AssertionError("Unexpected counts: "+total+"/"+games);
+            if(verified!=15||games<50||total<100) throw new AssertionError("Unexpected counts: "+total+"/"+games);
             java.util.Map<String,Catalog.App> unique=new java.util.LinkedHashMap<>();
             for(Catalog.App a:combined) unique.putIfAbsent(a.packageName,a);
             List<Catalog.App> featured=FeaturedApps.choose(new java.util.ArrayList<>(unique.values()));
