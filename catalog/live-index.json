@@ -48,12 +48,15 @@
     {
       "id": "taptap",
       "name": "TapTap",
-      "status": "structured-public-chart-audit",
-      "feeds": null,
+      "status": "public-chart-metadata-testing",
+      "feeds": {
+        "charts": "https://www.taptap.io/top/"
+      },
       "directInstall": false,
       "publicChartUrls": [
         "https://www.taptap.io/top/"
-      ]
+      ],
+      "format": "public-html"
     },
     {
       "id": "aurora",
@@ -66,14 +69,17 @@
     {
       "id": "uptodown",
       "name": "Uptodown",
-      "status": "structured-public-chart-audit",
-      "feeds": null,
+      "status": "public-chart-metadata-testing",
+      "feeds": {
+        "charts": "https://en.uptodown.com/android/apps/top"
+      },
       "directInstall": false,
       "publicChartUrls": [
         "https://en.uptodown.com/android/apps/top",
         "https://en.uptodown.com/android/games/top",
         "https://en.uptodown.com/android/latest-updates"
-      ]
+      ],
+      "format": "public-html"
     },
     {
       "id": "apkmirror",
