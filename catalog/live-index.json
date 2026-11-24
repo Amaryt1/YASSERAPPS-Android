@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "live-source-directory",
-  "catalogStorage": "device-only",
+  "catalogStorage": "server-generated-metadata-with-bundled-snapshot",
   "refresh": {
     "pageSize": 50,
     "foregroundGrowthMinutes": 15,
@@ -9,7 +9,10 @@
     "targetUniquePackages": 20000,
     "publicChartBatchLimit": 40,
     "publicChartTargetPerSource": 2000,
-    "aptoidePagesPerCycle": 70
+    "aptoidePagesPerCycle": 70,
+    "serverSchedule": "23 */2 * * *",
+    "minimumNewTarget": 500,
+    "deviceRequired": false
   },
   "sources": [
     {
@@ -100,5 +103,6 @@
       "directInstall": false,
       "format": "rss2"
     }
-  ]
+  ],
+  "catalogUrl": "https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json"
 }
