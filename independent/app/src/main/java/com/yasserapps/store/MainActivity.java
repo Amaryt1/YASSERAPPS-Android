@@ -80,6 +80,7 @@ public final class MainActivity extends Activity {
     private final java.util.Set<Long> handledDownloads = new java.util.HashSet<>();
     private final Map<Long, long[]> speedSamples = new HashMap<>();
     private boolean activityVisible = false;
+    private DownloadCoordinator.Entry pendingInstallAfterPermission;
     private static final int REQUEST_DOWNLOAD_NOTICES = 4283;
     private final Runnable completionWatch = new Runnable() {
         @Override public void run() {
@@ -125,7 +126,7 @@ public final class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(0);
         showHome();
         if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(getIntent().getAction())) {
-            showDownloads();
+            openDownloadNotification(getIntent());
         }
         refresh();
         StoreUpdates.schedule(this);
@@ -136,7 +137,19 @@ public final class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         if ("com.yasserapps.store.SHOW_UPDATE".equals(intent.getAction())) checkStoreUpdate(true);
-        else if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(intent.getAction())) showDownloads();
+        else if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(intent.getAction()))
+            openDownloadNotification(intent);
+    }
+
+    private void openDownloadNotification(Intent intent) {
+        showDownloads();
+        long id = intent.getLongExtra("download_id", -1L);
+        if (id > 0L) main.postDelayed(() -> {
+            DownloadCoordinator.Entry entry = downloadCoordinator.find(id);
+            if (entry != null && entry.complete() && !isFinishing()) {
+                installFromHistory(entry);
+            }
+        }, 500);
     }
 
     private void checkStoreUpdate(boolean interactive) {
@@ -1039,9 +1052,9 @@ public final class MainActivity extends Activity {
         try {
             DownloadCoordinator.Entry entry = downloadCoordinator.start(app);
             if (entry.complete()) {
-                Toast.makeText(this, "هذا الإصدار محمّل مسبقًا، تقدر تثبّته من التنزيلات", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "هذا الإصدار موجود بالتنزيلات وجاهز للتثبيت", Toast.LENGTH_LONG).show();
             } else if (entry.active()) {
-                Toast.makeText(this, "بدأ التحميل أو هو مستمر بالنظام", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "جاري التنزيل من YASSERAPPS • عند اكتماله تنفتح شاشة التثبيت", Toast.LENGTH_LONG).show();
             } else {
                 Toast.makeText(this, "راجع حالة التحميل في التنزيلات", Toast.LENGTH_SHORT).show();
             }
@@ -1069,7 +1082,8 @@ public final class MainActivity extends Activity {
                 return;
             }
             if (!DownloadCoordinator.allowedToInstall(this)) {
-                Toast.makeText(this, "فعّل التثبيت من YASSERAPPS، ثم ارجع واضغط تثبيت مجددًا", Toast.LENGTH_LONG).show();
+                pendingInstallAfterPermission = entry;
+                Toast.makeText(this, "فعّل إذن التثبيت لـ YASSERAPPS، وبعد الرجوع تنفتح شاشة أندرويد", Toast.LENGTH_LONG).show();
                 try { startActivity(DownloadCoordinator.permissionIntent(this)); }
                 catch (Exception e) {
                     Toast.makeText(this, "تعذّر فتح إعدادات صلاحية التثبيت", Toast.LENGTH_LONG).show();
@@ -1187,7 +1201,12 @@ public final class MainActivity extends Activity {
                     String eta = remaining < 0 ? "" : remaining < 60 ?
                         " • المتبقي " + remaining + " ث" :
                         " • المتبقي " + (remaining / 60 + 1) + " د";
-                    TextView rate = text("السرعة " + size(speed) + "/ث" + eta,
+                    String speedText = speed >= 1024 * 1024 ?
+                    String.format(Locale.ROOT, "%.1f MB", speed / 1048576.0) :
+                    speed >= 1024 ?
+                    String.format(Locale.ROOT, "%.0f KB", speed / 1024.0) :
+                    speed + " B";
+                TextView rate = text("السرعة " + speedText + "/ث" + eta,
                         12, GREEN, false);
                     card.addView(rate);
                 }
@@ -1355,6 +1374,12 @@ public final class MainActivity extends Activity {
         super.onResume();
         activityVisible = true;
         if (downloadCoordinator != null) {
+            if (pendingInstallAfterPermission != null &&
+                DownloadCoordinator.allowedToInstall(this)) {
+                DownloadCoordinator.Entry ready = pendingInstallAfterPermission;
+                pendingInstallAfterPermission = null;
+                main.postDelayed(() -> installFromHistory(ready), 250);
+            }
             for (DownloadCoordinator.Entry item : downloadCoordinator.all()) {
                 if (item.active() && !handledDownloads.contains(item.id)) armedDownloads.add(item.id);
             }
