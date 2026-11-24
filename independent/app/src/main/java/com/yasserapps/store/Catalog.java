@@ -13,7 +13,7 @@ public final class Catalog {
     public static class App {
         public String id="", name="", packageName="", category="app", version="";
         public String apkUrl="", iconUrl="", bannerUrl="", summary="", description="", changelog="", sha256="";
-        public String sourceName="", signerSha256="", license="";
+        public String sourceName="", signerSha256="", license="", legacyMd5="", legacySignerSha1="";
         public int versionCode;
         public long sizeBytes, updatedAt;
         public boolean featured, discoveryOnly;
@@ -37,7 +37,7 @@ public final class Catalog {
             .put("apkUrl",a.apkUrl).put("iconUrl",a.iconUrl).put("bannerUrl",a.bannerUrl)
             .put("summary",a.summary).put("description",a.description).put("changelog",a.changelog)
             .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
-            .put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt)
+            .put("legacyMd5",a.legacyMd5).put("legacySignerSha1",a.legacySignerSha1).put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt)
             .put("screenshots",new JSONArray(a.screenshots))
             .put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
             .put("filesInstructions",a.filesInstructions).put("filesPath",a.filesPath).put("publisherUrl",a.publisherUrl).put("attribution",a.attribution);
@@ -49,11 +49,11 @@ public final class Catalog {
         a.apkUrl=obj.getString("apkUrl"); a.iconUrl=obj.optString("iconUrl"); a.bannerUrl=obj.optString("bannerUrl");
         a.summary=obj.optString("summary"); a.description=obj.optString("description"); a.changelog=obj.optString("changelog");
         a.sha256=obj.getString("sha256"); a.sizeBytes=obj.getLong("sizeBytes"); a.sourceName=obj.getString("sourceName");
-        a.signerSha256=obj.getString("signerSha256"); a.license=obj.optString("license"); a.updatedAt=obj.optLong("updatedAt");
+        a.legacyMd5=obj.optString("legacyMd5"); a.legacySignerSha1=obj.optString("legacySignerSha1"); a.signerSha256=obj.getString("signerSha256"); a.license=obj.optString("license"); a.updatedAt=obj.optLong("updatedAt");
         a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
         a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
         a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");
-        if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)||("APKMirror".equals(a.sourceName)&&MirrorFeed.listingLink(a.publisherUrl))) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||a.versionCode<1))
+        if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)||("APKMirror".equals(a.sourceName)&&MirrorFeed.listingLink(a.publisherUrl))) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||(!a.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(a))||a.versionCode<1))
             throw new IllegalArgumentException("Invalid cached entry");
         JSONArray shots=obj.optJSONArray("screenshots");
         if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
