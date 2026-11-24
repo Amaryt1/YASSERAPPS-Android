@@ -31,6 +31,7 @@ final class MirrorFeed {
     static List<Catalog.App> parse(InputStream in)throws Exception{
         XmlPullParser p=Xml.newPullParser();
         p.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL,false);
+        p.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES,true);
         p.setInput(in,"UTF-8");
         Map<String,Catalog.App> result=new LinkedHashMap<>();
         String title="",link="",description="",date="",icon="";
