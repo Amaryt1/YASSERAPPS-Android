@@ -44,6 +44,10 @@ public final class DirectCatalogTest extends Instrumentation {
             for(Catalog.App a:combined) unique.putIfAbsent(a.packageName,a);
             List<Catalog.App> featured=FeaturedApps.choose(new java.util.ArrayList<>(unique.values()));
             if(featured.size()!=10) throw new AssertionError("Expected ten featured recommendations");
+            org.json.JSONObject sample=new org.json.JSONObject().put("package","test.market.app").put("name","Market fixture").put("uname","market-fixture").put("file",new org.json.JSONObject().put("vercode",1).put("vername","1.0").put("filesize",1000).put("malware",new org.json.JSONObject().put("rank","TRUSTED")));
+            List<Catalog.App> market=AptoideFeed.parse(new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(sample))),"games");
+            if(market.size()!=1||!market.get(0).discoveryOnly||!market.get(0).apkUrl.isEmpty()||!market.get(0).isGame())throw new AssertionError("Aptoide metadata boundary");
+            if(!Catalog.fromJson(Catalog.toJson(market.get(0))).discoveryOnly||AptoideFeed.listingLink("https://x.en.aptoide.com.evil.example/app"))throw new AssertionError("Aptoide cache or URL validation");
             // Featured cards must update when a newer release arrives.
             Catalog.App first=new Catalog.App(); first.packageName="test.first"; first.iconUrl="https://example.org/first.png"; first.updatedAt=10; first.versionCode=1;
             Catalog.App second=new Catalog.App(); second.packageName="test.second"; second.iconUrl="https://example.org/second.png"; second.updatedAt=20; second.versionCode=1;
