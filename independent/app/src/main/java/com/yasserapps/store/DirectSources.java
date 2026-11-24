@@ -675,7 +675,28 @@ final class DirectSources {
             callback.loaded(new Catalog.Result(merge(snapshots),null,false));
         }catch(Exception e){android.util.Log.i("YASSERAPPS_CATALOG","SERVER_SEED_UNAVAILABLE");}
         try{
-            JSONObject root=fetchJson(context,"https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json",25*1024*1024);
+            // The public API manifest is a cheap freshness check. Full snapshot
+            // remains the compatible bulk transport and avoids dozens of page requests.
+            final String base="https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/";
+            try {
+                JSONObject manifest=fetchJson(context,base+"api/v1/index.json",128*1024);
+                long generation=manifest.getLong("generatedAt");
+                JSONObject counts=manifest.getJSONObject("counts");
+                boolean current=manifest.getInt("schemaVersion")==1 && manifest.optBoolean("metadataOnly") && generation>0;
+                int total=0;
+                for(Source source:SOURCES){
+                    int expected=counts.optInt(source.name,0);
+                    Snapshot local=snapshots.get(source.id);
+                    total+=expected;
+                    if(expected==0){if(local!=null&&!local.apps.isEmpty())current=false;}
+                    else if(local==null||local.timestamp!=generation||local.apps.size()!=expected)current=false;
+                }
+                if(current&&total>0&&total==manifest.getInt("total")){
+                    android.util.Log.i("YASSERAPPS_CATALOG","API_CATALOG_CURRENT total="+total);
+                    return true;
+                }
+            }catch(Exception ex){android.util.Log.i("YASSERAPPS_CATALOG","API_MANIFEST_UNAVAILABLE");}
+            JSONObject root=fetchJson(context,base+"generated/index.json",25*1024*1024);
             Map<String,Snapshot> remote=serverSnapshots(context,new ByteArrayInputStream(root.toString().getBytes(StandardCharsets.UTF_8)));
             mergeServer(snapshots,remote);
             for(Source source:SOURCES){

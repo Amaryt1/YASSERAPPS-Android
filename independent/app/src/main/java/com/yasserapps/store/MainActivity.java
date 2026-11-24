@@ -1099,7 +1099,7 @@ public final class MainActivity extends Activity {
     private boolean notifyRefresh;
     private long lastCatalogCheck;
     private Runnable activeSearchRefresh;
-    private static final long CATALOG_REFRESH_INTERVAL = 15L * 60L * 1000L;
+    private static final long CATALOG_REFRESH_INTERVAL = 5L * 60L * 1000L;
     private final Runnable catalogTicker = new Runnable() {
         @Override public void run() {
             if (!activityVisible || isFinishing()) return;
