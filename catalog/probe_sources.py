@@ -5,7 +5,7 @@ from pathlib import Path
 AGENT="YASSERAPPS-Catalog"
 MAX_BYTES=2*1024*1024
 MAX_SITEMAP_BYTES=50*1024*1024
-MAX_CHILD_MAPS=3
+MAX_CHILD_MAPS=12
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 def host(url):
@@ -59,6 +59,7 @@ def parse_xml(text):
                 locs.append(loc.text.strip())
     return kind,len(entries),locs
 def inspect(name,home,fetch=get):
+    if name=="JoJoy":return {"source":name,"status":"written_consent_required","published":0}
     domain=host(home);origin="https://"+domain
     result={"source":name,"home":home,"robots":"unchecked","html":"unchecked","discovered":{"sitemaps":0,"rss":0,"atom":0,"json":0,"htmlLinks":0,"jsonLd":0,"openGraph":0,"sitemapPageUrls":0,"sitemapChildFiles":0},"documents":[],"published":0}
     status,txt=fetch(origin+"/robots.txt",domain);result["robots"]=status

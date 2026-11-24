@@ -1,5 +1,6 @@
 """Read only explicitly configured, authorized HTTPS provider JSON feeds."""
 import json, os, re, time, urllib.request, urllib.error, urllib.parse
+from provider_formats import decode
 from pathlib import Path
 
 MAX_PAGE_BYTES=8*1024*1024
@@ -21,14 +22,14 @@ def lookup(obj,path):
         obj=obj.get(part)
     return obj
 
-def fetch_json(url,token):
-    headers={"Accept":"application/json","User-Agent":"YASSERAPPS-Catalog/2.0"}
+def fetch_json(url,token,kind="json"):
+    headers={"Accept":{"json":"application/json","xml":"application/xml","rss":"application/rss+xml","atom":"application/atom+xml","html-jsonld":"text/html"}[kind],"User-Agent":"YASSERAPPS-Catalog/2.0"}
     if token: headers["Authorization"]="Bearer "+token
     req=urllib.request.Request(url,headers=headers)
     with urllib.request.build_opener(NoRedirect()).open(req,timeout=25) as resp:
         raw=resp.read(MAX_PAGE_BYTES+1)
         if len(raw)>MAX_PAGE_BYTES: raise ValueError("Provider page too large")
-    return json.loads(raw)
+    return decode(raw.decode("utf-8-sig"),kind)
 
 def read_source(cfg,fetch=fetch_json,sleep=time.sleep):
     name=cfg["name"]
@@ -49,13 +50,16 @@ def read_source(cfg,fetch=fetch_json,sleep=time.sleep):
     next_path=cfg.get("nextPath","next")
     delay=max(1.0,float(cfg.get("delaySeconds",1)))
     if delay>60: raise ValueError("Invalid provider delay")
+    kind=cfg.get("format","json")
+    if kind not in ("json","xml","rss","atom","html-jsonld"):raise ValueError("Unsupported feed format")
+    if kind!="json" and not fields:raise ValueError("Explicit mapping required for non-JSON feeds")
     current=first
     seen=set()
     rows=[]
     for page in range(MAX_PAGES):
         if origin(current)!=host or current in seen: raise ValueError("Invalid or repeated pagination link")
         seen.add(current)
-        obj=fetch(current,token)
+        obj=fetch(current,token,kind) if kind!="json" else fetch(current,token)
         items=lookup(obj,items_path)
         if not isinstance(items,list): raise ValueError("Invalid provider JSON records")
         for row in items:

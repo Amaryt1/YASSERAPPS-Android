@@ -9,6 +9,7 @@ on:
       - 'catalog/generate_live_catalog.py'
       - 'catalog/build_api.py'
       - 'catalog/provider_sync.py'
+      - 'catalog/provider_formats.py'
       - 'catalog/test_provider_sync.py'
       - 'catalog/mod-source-candidates.json'
       - 'catalog/approved-mod-feeds/**'
@@ -34,7 +35,7 @@ jobs:
           echo "Refresh trigger: $TRIGGER" >> "$GITHUB_STEP_SUMMARY"
       - name: Check Python syntax
         run: |
-          python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py
+          python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
       - name: Generate and measure new catalogue records
         env:

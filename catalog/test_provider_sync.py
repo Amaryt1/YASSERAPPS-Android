@@ -1,6 +1,7 @@
 import unittest
 from provider_sync import read_source
 from generate_live_catalog import accept
+from provider_formats import decode
 
 class FeedTest(unittest.TestCase):
     def config(self):
@@ -8,6 +9,19 @@ class FeedTest(unittest.TestCase):
     def test_pagination_mapping(self):
         pages={"https://example.invalid/page1":{"apps":[{"key":"a","title":"First"}],"next":"/page2"},"https://example.invalid/page2":{"apps":[{"key":"b","title":"Second"}],"next":None}}
         self.assertEqual(read_source(self.config(),lambda u,t:pages[u],lambda n:None),[{"id":"a","name":"First"},{"id":"b","name":"Second"}])
+    def test_xml_rss_atom_html(self):
+        self.assertEqual(decode('<catalog><app><name>Example</name></app></catalog>',"xml")["apps"][0]["name"],"Example")
+        self.assertEqual(decode('<rss><channel><item><title>Example</title></item></channel></rss>',"rss")["apps"][0]["title"],"Example")
+        self.assertEqual(decode('<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Example</title></entry><link rel="next" href="/p2"/></feed>',"atom")["next"],"/p2")
+        html='<meta property="og:image" content="https://example.invalid/i.png"><script type="application/ld+json">{"@graph":[{"@type":"MobileApplication","name":"Example"},{"@type":"Article","name":"Not app"}]}</script>'
+        rows=decode(html,"html-jsonld")["apps"]
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["name"],"Example")
+        self.assertEqual(rows[0]["openGraph"]["og:image"],"https://example.invalid/i.png")
+        with self.assertRaises(ValueError):decode('<!DOCTYPE root><root/>',"xml")
+    def test_rss_uses_mapping(self):
+        cfg=dict(self.config(),format="rss",fields={"name":"title"})
+        self.assertEqual(read_source(cfg,lambda u,t,k:decode("<rss><channel><item><title>Example</title></item></channel></rss>",k),lambda n:None),[{"name":"Example"}])
     def test_disabled(self):
         self.assertEqual(read_source({"name":"Fixture","enabled":False}),[])
     def test_permission(self):
