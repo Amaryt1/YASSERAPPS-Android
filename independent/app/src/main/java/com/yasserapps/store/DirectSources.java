@@ -725,7 +725,7 @@ final class DirectSources {
                 else if(key.equals("apps")){
                     r.beginArray();
                     while(r.hasNext()){
-                        if(++count>80000)throw new IOException("MOD catalog limit");
+                        if(++count>82000)throw new IOException("MOD catalog limit");
                         JSONObject item=(JSONObject)readValue(r,0);
                         if(!item.optBoolean("modified"))throw new SecurityException("Non-MOD record");
                         Catalog.App a=Catalog.fromJson(item);
