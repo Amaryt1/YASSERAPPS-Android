@@ -192,7 +192,7 @@ public final class DownloadCoordinator {
         } else {
             req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
         }
-        req.setAllowedOverMetered(!wifiOnly());
+        req.setAllowedOverMetered(true); // Wi-Fi and mobile data are both supported.
         req.setAllowedOverRoaming(false);
         req.setDestinationInExternalFilesDir(app, Environment.DIRECTORY_DOWNLOADS, fileName);
         Entry entry = new Entry();
