@@ -16,7 +16,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "happymod",
-      "localApi": "sources/happymod/index.json"
+      "localApi": "sources/happymod/index.json",
+      "probeHome": "https://www.happymod.to/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     },
     {
       "name": "MODDROID",
@@ -32,7 +44,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "moddroid",
-      "localApi": "sources/moddroid/index.json"
+      "localApi": "sources/moddroid/index.json",
+      "probeHome": "https://moddroid.com/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     },
     {
       "name": "APKMODY",
@@ -48,7 +72,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "apkmody",
-      "localApi": "sources/apkmody/index.json"
+      "localApi": "sources/apkmody/index.json",
+      "probeHome": "https://apkmody.org/en/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     },
     {
       "name": "APKDONE",
@@ -64,7 +100,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "apkdone",
-      "localApi": "sources/apkdone/index.json"
+      "localApi": "sources/apkdone/index.json",
+      "probeHome": "https://apkdone.com/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     },
     {
       "name": "APKVision",
@@ -80,7 +128,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "apkvision",
-      "localApi": "sources/apkvision/index.json"
+      "localApi": "sources/apkvision/index.json",
+      "probeHome": "https://apkvision.org/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     },
     {
       "name": "JoJoy",
@@ -96,7 +156,19 @@
       "delaySeconds": 1,
       "tokenEnv": "",
       "slug": "jojoy",
-      "localApi": "sources/jojoy/index.json"
+      "localApi": "sources/jojoy/index.json",
+      "probeHome": "https://www.jojoy.app/",
+      "discoveryMethods": [
+        "robots",
+        "sitemap",
+        "rss",
+        "atom",
+        "html",
+        "json-ld",
+        "open-graph",
+        "public-json"
+      ],
+      "probeOnly": true
     }
   ]
 }
