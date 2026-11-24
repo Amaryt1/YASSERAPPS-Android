@@ -103,7 +103,7 @@ tap_tab 'الألعاب'
 adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=[1-9][0-9]*'
 echo 'PASS verified source entries in home and category tabs'
 adb shell am force-stop com.yasserapps.store
-# Separate live-device check: require all 16 direct network connections.
+# Separate live-device check: require 15 signed repositories, 2113 and PortHub discovery.
 adb shell svc wifi enable
 adb shell svc data enable
 sleep 3
@@ -111,14 +111,14 @@ adb logcat -c
 adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
 for n in $(seq 1 120); do
   adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/live.log"
-  if grep -Eq 'DIRECT_CATALOG total=[0-9]+ sources=16' "$tmp/live.log"; then
+  if grep -Eq 'DIRECT_CATALOG total=[0-9]+ sources=17 ' "$tmp/live.log"; then
     cat "$tmp/live.log"
-    echo 'PASS direct live network for 15 signed repositories and verified game discovery'
+    echo 'PASS live connection for all 17 configured sources'
     exit 0
   fi
   if grep -q 'DIRECT_CATALOG total=.* sources=' "$tmp/live.log"; then break; fi
   sleep 5
 done
 adb logcat -d -s YASSERAPPS_CATALOG:V
-echo 'FAIL: live source access was not established for all fifteen signed repositories and game discovery.'
+echo 'FAIL: live source access was not established for all fifteen signed repositories, 2113 and PortHub discovery.'
 exit 1
