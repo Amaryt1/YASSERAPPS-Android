@@ -59,6 +59,16 @@ public final class Catalog {
         if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
         return a;
     }
+    private static final ExecutorService DETAILS=Executors.newSingleThreadExecutor();
+    static void enrich(Context context,App original,java.util.function.Consumer<App> callback) {
+        Context app=context.getApplicationContext();
+        DETAILS.execute(()->{
+            App fresh=null;
+            try { fresh=DirectSources.latestAptoide(app,original); }
+            catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","DETAIL_LOOKUP_FAILED",e);}
+            callback.accept(fresh);
+        });
+    }
     public static void load(Context context,Callback callback) {
         Context app=context.getApplicationContext();
         IO.execute(() -> DirectSources.load(app,callback));
