@@ -11,6 +11,13 @@ public final class DirectCatalogTest extends Instrumentation {
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
+            if(!DownloadCoordinator.isVerifiedModDownloadUrl("https://example.invalid/download?id=123")
+                || !DownloadCoordinator.isVerifiedModDownloadUrl("https://example.invalid/file.apk")
+                || DownloadCoordinator.isVerifiedModDownloadUrl("http://example.invalid/download")
+                || DownloadCoordinator.isVerifiedModDownloadUrl("https://user@example.invalid/download")
+                || DownloadCoordinator.isVerifiedModDownloadUrl("https://example.invalid/file.xapk")
+                || DownloadCoordinator.isVerifiedModDownloadUrl("https://example.invalid:8443/download"))
+                throw new AssertionError("Verified MOD download URL validation");
             org.json.JSONObject sample=new org.json.JSONObject().put("package","test.market.app").put("name","Market fixture").put("uname","market-fixture").put("file",new org.json.JSONObject().put("vercode",1).put("vername","1.0").put("filesize",1000).put("malware",new org.json.JSONObject().put("rank","TRUSTED")));
             List<Catalog.App> market=AptoideFeed.parse(new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(sample))),"games");
             if(market.size()!=1||!market.get(0).discoveryOnly||!market.get(0).apkUrl.isEmpty()||!market.get(0).isGame())throw new AssertionError("Aptoide metadata boundary");

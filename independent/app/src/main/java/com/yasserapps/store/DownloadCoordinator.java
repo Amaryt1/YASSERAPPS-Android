@@ -171,7 +171,7 @@ public final class DownloadCoordinator {
         if(!item.modified||item.discoveryOnly||!item.sha256.matches("(?i)[a-f0-9]{64}")||!item.signerSha256.matches("(?i)[a-f0-9]{64}"))throw new SecurityException("لا توجد بيانات تحقق للنسخة المعدلة");
         if(!item.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(item))throw new SecurityException("بيانات تحقق الإصدار غير متاحة");
         if (item.discoveryOnly) throw new IllegalArgumentException("هذا المشروع ليس APK متحققاً منه");
-        if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
+        if (!isVerifiedModDownloadUrl(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
         ArrayList<Entry> entries = load();
         for (Entry old : entries) {
             if (sameRelease(old,item)) {
@@ -180,8 +180,7 @@ public final class DownloadCoordinator {
             }
         }
         String clean = item.packageName.replaceAll("[^A-Za-z0-9_.-]", "_");
-        String rawPath = new URI(item.apkUrl).getPath().toLowerCase(Locale.ROOT);
-        String extension = rawPath.substring(rawPath.lastIndexOf('.'));
+        String extension = ".apk";
         String fileName = clean + "_" + item.versionCode + "_" +
             System.currentTimeMillis() + extension;
         DownloadManager.Request req = new DownloadManager.Request(Uri.parse(item.apkUrl));
@@ -221,6 +220,19 @@ public final class DownloadCoordinator {
         entries.add(0, entry);
         save(entries);
         return entry;
+    }
+
+    // A verified single APK can be served by an extensionless HTTPS endpoint.
+    // The expected SHA-256, signer, package and version remain mandatory.
+    public static boolean isVerifiedModDownloadUrl(String link) {
+        if (link == null || link.length() > 4096) return false;
+        try {
+            URI u = new URI(link);
+            return "https".equalsIgnoreCase(u.getScheme()) && u.getHost()!=null
+                && u.getUserInfo()==null && u.getFragment()==null
+                && (u.getPort()==-1 || u.getPort()==443)
+                && !SplitPackageInstaller.isBundle(link);
+        } catch(Exception e) { return false; }
     }
 
     public static boolean isDirectApk(String link) {
