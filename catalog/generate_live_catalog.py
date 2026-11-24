@@ -50,11 +50,14 @@ def main():
     if out.exists():
         old={r["id"] for r in json.loads(out.read_text()).get("apps",[]) if r.get("modified") is True}
     rows={}
+    registry=json.loads((ROOT/"mod-source-candidates.json").read_text())
+    active_names={s["name"].casefold() for s in registry["sources"]} if registry.get("onlyRegisteredSources") else None
     for file in sorted((ROOT/"approved-mod-feeds").glob("*.json")):
         if file.stat().st_size>64*1024*1024: raise ValueError("Export exceeds limit")
         d=json.loads(file.read_text())
         source=d.get("source","")
         permission=d.get("permissionUrl","")
+        if active_names is not None and source.casefold() not in active_names: continue
         if (d.get("reviewedByOwner") is not True and d.get("reviewedPublicLicense") is not True) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}",source) or not https(permission): raise ValueError("Unapproved source")
         for item in d.get("apps",[]):
             r=accept(item,source,permission)

@@ -60,7 +60,7 @@ def parse_xml(text):
             if loc.tag.rsplit("}",1)[-1]=="loc" and loc.text:
                 locs.append(loc.text.strip())
     return kind,len(entries),locs
-def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES):
+def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
     if name=="JoJoy":return {"source":name,"status":"written_consent_required","published":0}
     domain=host(home);origin="https://"+domain
     result={"source":name,"home":home,"robots":"unchecked","html":"unchecked","discovered":{"sitemaps":0,"rss":0,"atom":0,"json":0,"htmlLinks":0,"jsonLd":0,"openGraph":0,"sitemapPageUrls":0,"sitemapChildFiles":0},"documents":[],"published":0}
@@ -123,7 +123,9 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES):
     # A robots allowance does not establish a license or direct APK permission.
     sample=[];checked=0
     if not blocked:
-        for url in review_candidates(page_urls)[:review_pages]:
+        urls=review_candidates(page_urls)
+        if seed and same(seed) and rp.can_fetch(AGENT,seed):urls=[seed]+[u for u in urls if u!=seed]
+        for url in urls[:review_pages]:
             if not rp.can_fetch(AGENT,url):continue
             time.sleep(delay)
             status,content=fetch(url,domain)
@@ -139,7 +141,7 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES):
 def main():
     cfg=json.loads(Path("catalog/mod-source-candidates.json").read_text())
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-        rows=list(pool.map(lambda s:inspect(s["name"],s["probeHome"]),cfg["sources"]))
+        rows=list(pool.map(lambda s:inspect(s["name"],s["probeHome"],seed=s.get("probeSeed")),cfg["sources"]))
     out={"generatedAt":int(time.time()*1000),"mode":"capability_probe_only","sources":rows}
     path=Path("catalog/source-probe-report.json");path.write_text(json.dumps(out,indent=2))
     print(json.dumps(out,indent=2))
