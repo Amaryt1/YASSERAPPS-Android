@@ -776,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(app.discoveryOnly?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly&&!app.modified?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -986,13 +986,13 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly ? (app.modified?"تثبيت من المصدر":"غير متاح") : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
             if(!app.modified&&"Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
-            if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
+            if(app.discoveryOnly) { if(app.modified)openModPublisher(app); else Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -1013,7 +1013,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly) { gap(content,8); content.addView(text(app.modified?"يفتح زر التثبيت صفحة الإصدار لدى المصدر لإكمال التنزيل والتثبيت.":"التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -1062,6 +1062,17 @@ public final class MainActivity extends Activity {
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
         render(content,false);
+    }
+
+    private void openModPublisher(Catalog.App app) {
+        try {
+            java.net.URI link=new java.net.URI(app.publisherUrl);
+            if(!app.modified||!"https".equals(link.getScheme())||link.getHost()==null||link.getUserInfo()!=null)
+                throw new SecurityException("Invalid MOD source");
+            startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(app.publisherUrl)));
+        } catch(Exception ex) {
+            Toast.makeText(this,"تعذّر فتح صفحة تثبيت النسخة المعدلة",Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void openPublisher(String url) {
