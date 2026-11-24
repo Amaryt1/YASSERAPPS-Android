@@ -113,7 +113,7 @@ public final class MainActivity extends Activity {
     private FrameLayout screen;
     private String page = "home";
     private String category = "all";
-    private static final int CATALOG_PAGE_SIZE = 40;
+    private static final int CATALOG_PAGE_SIZE = 50;
     private String listTitle = "";
     private String listKind = "all";
     private boolean loading = true;
