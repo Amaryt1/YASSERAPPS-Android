@@ -2,6 +2,15 @@
 set -euo pipefail
 test -s apk/app-debug.apk
 adb install -r apk/app-debug.apk
+# Hidden DownloadManager notifications need the Android normal permission.
+# Fail the smoke test if the OS didn't grant it; otherwise an OEM might
+# display the generic system download notification alongside YASSERAPPS.
+adb shell dumpsys package com.yasserapps.store > independent-package-permissions.txt
+if ! grep -E 'android.permission.DOWNLOAD_WITHOUT_NOTIFICATION: granted=true' independent-package-permissions.txt; then
+  echo 'FAIL: Android did not grant DOWNLOAD_WITHOUT_NOTIFICATION'
+  grep -i 'download_without_notification' independent-package-permissions.txt || true
+  exit 1
+fi
 adb logcat -c
 adb shell monkey -p com.yasserapps.store -c android.intent.category.LAUNCHER 1
 sleep 8
@@ -44,4 +53,4 @@ if grep -q 'FATAL EXCEPTION' independent-emulator-logcat.txt; then
   grep -A 30 -B 6 'FATAL EXCEPTION' independent-emulator-logcat.txt | tail -80
   exit 1
 fi
-echo 'PASS: YASSERAPPS V8 home, downloads, settings, search, and updates smoke test finished without fatal exception.'
+echo 'PASS: YASSERAPPS store opens without fatal exception and suppress-system-download permission is granted.'
