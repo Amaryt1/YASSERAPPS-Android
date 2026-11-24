@@ -8,7 +8,7 @@ p.add_argument("--legacy-output")
 args=p.parse_args()
 d=json.loads(Path(args.input).read_text())
 rows=d["apps"]
-assert d["modOnly"] is True and len(rows)<=80000
+assert d["modOnly"] is True and len(rows)<=82000
 assert all(r["modified"] is True and r["modEvidenceUrl"] and r["permissionUrl"] and ((r["discoveryOnly"] and not r["apkUrl"]) or (not r["discoveryOnly"] and r["apkUrl"] and re.fullmatch(r"[0-9a-f]{64}",r["sha256"]) and re.fullmatch(r"[0-9a-f]{64}",r["signerSha256"]))) for r in rows)
 assert len({r["id"] for r in rows})==len(rows)==d["report"]["total"]
 root=Path("catalog/api/v1")

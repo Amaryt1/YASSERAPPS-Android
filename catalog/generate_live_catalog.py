@@ -3,7 +3,7 @@
 import argparse, json, re, time
 from pathlib import Path
 from urllib.parse import urlsplit
-LIMIT=80000
+LIMIT=82000
 ROOT=Path(__file__).resolve().parent
 def https(s):
     try:

@@ -1,0 +1,54 @@
+{
+  "targetRecords": 82000,
+  "scope": "modified_android_releases_only",
+  "sources": [
+    {
+      "name": "HappyMod",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    },
+    {
+      "name": "MODDROID",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    },
+    {
+      "name": "APKMODY",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    },
+    {
+      "name": "APKDONE",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    },
+    {
+      "name": "APKVision",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    },
+    {
+      "name": "JoJoy",
+      "status": "candidate",
+      "enabled": false,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "No verified authorized bulk catalog feed; enable only after confirmation."
+    }
+  ]
+}

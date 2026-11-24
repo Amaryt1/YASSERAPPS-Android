@@ -40,7 +40,7 @@ jobs:
           import json,re
           from pathlib import Path
           d=json.loads(Path('catalog/generated/full-index.json').read_text())
-          assert d['schemaVersion']==1 and d['modOnly'] is True and 0<=len(d['apps'])<=80000
+          assert d['schemaVersion']==1 and d['modOnly'] is True and 0<=len(d['apps'])<=82000
           assert len({a['id'] for a in d['apps']})==len(d['apps'])
           assert all(a['modified'] is True and a['modEvidenceUrl'] and a['permissionUrl'] and ((a['discoveryOnly'] and not a['apkUrl']) or (not a['discoveryOnly'] and a['apkUrl'] and re.fullmatch(r'[0-9a-f]{64}',a['sha256']) and re.fullmatch(r'[0-9a-f]{64}',a['signerSha256']))) for a in d['apps'])
           assert d['report']['total']==len(d['apps'])
