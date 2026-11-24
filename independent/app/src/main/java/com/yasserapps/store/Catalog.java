@@ -179,7 +179,8 @@ public final class Catalog {
             if (!initial.isEmpty()) callback.loaded(new Result(initial, null, false));
             String[] endpoints = {ADDRESS, API_ADDRESS};
             String[] accepts = {"application/json", "application/vnd.github.raw+json"};
-            for (int i = 0; i < endpoints.length; i++) {
+            for (int attempt = 0; attempt < 3; attempt++) {
+                for (int i = 0; i < endpoints.length; i++) {
                 try {
                     String data = readLive(endpoints[i], accepts[i]);
                     List<App> apps = parse(data);
@@ -197,7 +198,12 @@ public final class Catalog {
                     callback.loaded(new Result(apps, null, true));
                     return;
                 } catch (Exception e) {
-                    android.util.Log.w("YASSERAPPS_CATALOG", "Catalog endpoint " + i + " failed", e);
+                    android.util.Log.w("YASSERAPPS_CATALOG", "Catalog endpoint " + i + " failed: " + e.getClass().getSimpleName() + ": " + e.getMessage(), e);
+                }
+            }
+                if (attempt < 2) {
+                    try { Thread.sleep(2000L * (attempt + 1)); }
+                    catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
                 }
             }
             android.util.Log.w("YASSERAPPS_CATALOG", "LIVE_CATALOG_FAILED cached=" + initial.size());
