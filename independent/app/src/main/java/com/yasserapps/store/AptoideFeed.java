@@ -18,6 +18,15 @@ final class AptoideFeed {
                 u.getPort()==-1&&u.getUserInfo()==null&&u.getQuery()==null&&u.getFragment()==null&&"/app".equals(u.getPath());
         } catch(Exception e) { return false; }
     }
+    static boolean officialApk(String value){
+        try{
+            URI u=new URI(value);
+            return "https".equals(u.getScheme())&&"pool.apk.aptoide.com".equals(u.getHost())&&u.getPort()==-1&&u.getUserInfo()==null&&u.getQuery()==null&&u.getFragment()==null&&u.getPath().endsWith(".apk");
+        }catch(Exception e){return false;}
+    }
+    static boolean directEligible(Catalog.App a){
+        return "Aptoide".equals(a.sourceName)&&officialApk(a.apkUrl)&&a.legacyMd5.matches("(?i)[0-9a-f]{32}")&&a.legacySignerSha1.matches("(?i)[0-9a-f]{40}")&&a.versionCode>0&&a.sizeBytes>0;
+    }
     static boolean safeImage(String value) {
         try {
             URI u=new URI(value);
@@ -59,13 +68,29 @@ final class AptoideFeed {
             if(!desc.isEmpty()) {
                 desc=android.text.Html.fromHtml(desc,android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
                 if(desc.length()>12000)desc=desc.substring(0,12000);
-                a.description=desc+"\n\n"+a.description;
+                a.description=desc;
             }
+            String summary=android.text.Html.fromHtml(media.optString("summary"),android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
+            if(!summary.isEmpty())a.summary=summary.substring(0,Math.min(200,summary.length()));
+            else if(!a.description.isEmpty())a.summary=a.description.substring(0,Math.min(180,a.description.length()));
+            a.changelog=android.text.Html.fromHtml(media.optString("news"),android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
             JSONArray shots=media.optJSONArray("screenshots");
             if(shots!=null) for(int i=0;i<Math.min(shots.length(),12);i++) {
                 JSONObject shot=shots.optJSONObject(i);
                 if(shot!=null&&safeImage(shot.optString("url")))a.screenshots.add(shot.optString("url"));
             }
+        }
+        JSONObject f=detail.getJSONObject("file"),signature=f.optJSONObject("signature");
+        // Explicit public single-APK releases only, no paid/split/OBB/locked content.
+        if(detail.has("pay")&&detail.isNull("pay")&&detail.has("obb")&&detail.isNull("obb")
+            &&detail.has("aab")&&detail.isNull("aab")&&detail.has("soft_locks")
+            &&detail.optJSONArray("soft_locks")!=null&&detail.optJSONArray("soft_locks").length()==0
+            &&signature!=null&&f.optString("path").length()<=2048){
+            a.apkUrl=f.optString("path");
+            a.legacyMd5=f.optString("md5sum");
+            a.legacySignerSha1=signature.optString("sha1").replace(":","");
+            if(directEligible(a))a.discoveryOnly=false;
+            else{a.apkUrl="";a.legacyMd5="";a.legacySignerSha1="";}
         }
         return a;
     }
@@ -97,8 +122,8 @@ final class AptoideFeed {
             a.category="games".equals(category)?"game":"app"; a.versionCode=code; a.version=f.optString("vername");
             a.sizeBytes=size; a.sourceName="Aptoide"; a.discoveryOnly=true;
             a.publisherUrl=link; a.attribution="Aptoide";
-            a.summary=malware==null?"Aptoide • بيانات غير مفحوصة":"Aptoide • فحص بيانات الإصدار";
-            a.description=(malware==null?"لم تُفحص حالة أمان هذا الإصدار بعد. ":"حالة الإصدار في المصدر TRUSTED، وليست ضماناً مستقلاً للأمان. ")+"افتح صفحة المصدر لمعرفة التوافق والتنزيل. لا يتوفر تثبيت مباشر قبل التحقق من بصمة APK وتوقيعه.";
+            a.summary="";
+            a.description="";
             String icon=r.optString("icon"),graphic=r.optString("graphic");
             if(safeImage(icon))a.iconUrl=icon;
             if(safeImage(graphic))a.bannerUrl=graphic;
