@@ -8,7 +8,10 @@ adb shell run-as com.yasserapps.store mkdir -p files
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # These are temporary CI fixtures, not committed or packaged into the APK.
-while IFS=
+checked=0
+mapfile -t source_rows < <(python3 -c 'import json; [print(s["id"]+" "+s["baseUrl"]) for s in json.load(open("catalog/sources.json"))["sources"] if s["enabled"]]')
+for source_row in "${source_rows[@]}"; do
+  read -r id base <<< "$source_row"
   echo "Checking signed repository $id"
   checked=$((checked+1))
   status="$(curl -LsS --connect-timeout 10 --max-time 90 -w '%{http_code}' "$base/entry.jar" -o "$tmp/$id.jar" || true)"
@@ -38,7 +41,7 @@ while IFS=
     test "$actual" = "$expected"
     adb shell rm "$remote"
   done
-done 3< <(python3 -c 'import json; [print(s["id"]+"\t"+s["baseUrl"]) for s in json.load(open("catalog/sources.json"))["sources"] if s["enabled"]]')
+done
 test "$checked" -eq 13 || { echo "FAIL: only $checked of 13 source candidates processed"; exit 1; }
 adb shell am instrument -w com.yasserapps.store.test/com.yasserapps.store.DirectCatalogTest | tee "$tmp/result.txt"
 grep -F 'PASS signed direct sources on Android:' "$tmp/result.txt"
