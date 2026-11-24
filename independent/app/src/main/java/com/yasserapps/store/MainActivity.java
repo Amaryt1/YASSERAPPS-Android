@@ -1377,7 +1377,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.1\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
