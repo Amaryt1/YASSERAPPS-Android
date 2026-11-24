@@ -212,5 +212,50 @@
       "status": "audit-only",
       "reason": "CC BY 4.0 official source directory; requires independent Android APK verification."
     }
+  ],
+  "largeCatalogCandidates": [
+    {
+      "id": "aptoide",
+      "status": "partner-authorization-required",
+      "documentation": "https://partners-center-be.aptoide.com/partners_api_doc/en",
+      "mode": "metadata-pagination",
+      "enabled": false
+    },
+    {
+      "id": "apkpure",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://apkpure.net/",
+      "enabled": false
+    },
+    {
+      "id": "liteapks",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://liteapks.com/",
+      "enabled": false
+    },
+    {
+      "id": "taptap",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://www.taptap.io/",
+      "enabled": false
+    },
+    {
+      "id": "aurora",
+      "status": "Aurora OSS is not a full Google Play catalog API",
+      "website": "https://auroraoss.com/",
+      "enabled": false
+    },
+    {
+      "id": "uptodown",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://en.uptodown.com/android",
+      "enabled": false
+    },
+    {
+      "id": "apkmirror",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://www.apkmirror.com/",
+      "enabled": false
+    }
   ]
 }
