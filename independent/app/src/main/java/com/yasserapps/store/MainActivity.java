@@ -746,18 +746,16 @@ public final class MainActivity extends Activity {
             if (query.isEmpty()) {
                 return;
             }
-            int matches = 0;
+            ArrayList<Catalog.App> matches = new ArrayList<>();
             for (Catalog.App app : apps) {
                 if (app.name.toLowerCase(Locale.ROOT).contains(query) ||
                     app.summary.toLowerCase(Locale.ROOT).contains(query) ||
-                    app.packageName.toLowerCase(Locale.ROOT).contains(query)) {
-                    card(results, app);
-                    gap(results, 10);
-                    matches++;
-                }
+                    app.packageName.toLowerCase(Locale.ROOT).contains(query)) matches.add(app);
             }
-            if (matches == 0) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
+            if (matches.isEmpty()) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
+            else catalogList(results, "نتائج البحث", matches);
         };
+        activeSearchRefresh = update;
         field.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { update.run(); }
@@ -859,6 +857,8 @@ public final class MainActivity extends Activity {
         intro.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
         content.addView(intro);
         gap(content,18);
+        if (!app.sourceName.isEmpty()) detailSection(content, "المصدر", app.sourceName + (app.license.isEmpty() ? "" : " • " + app.license));
+
 
         LinearLayout specs=linear(false);
         TextView version=text("الإصدار "+app.version,12,WHITE,true);
@@ -952,17 +952,34 @@ public final class MainActivity extends Activity {
     }
 
     private int catalogRefreshGeneration;
+    private boolean refreshInFlight;
+    private boolean notifyRefresh;
+    private long lastCatalogCheck;
+    private Runnable activeSearchRefresh;
+    private static final long CATALOG_REFRESH_INTERVAL = 15L * 60L * 1000L;
+    private final Runnable catalogTicker = new Runnable() {
+        @Override public void run() {
+            if (!activityVisible || isFinishing()) return;
+            if (!refreshInFlight && android.os.SystemClock.elapsedRealtime() - lastCatalogCheck >= CATALOG_REFRESH_INTERVAL) refresh(false);
+            main.postDelayed(this, 60000);
+        }
+    };
 
     private void refresh() {
         refresh(false);
     }
 
     private void refresh(boolean showResult) {
+        notifyRefresh |= showResult;
+        if (refreshInFlight) return;
+        refreshInFlight = true;
+        lastCatalogCheck = android.os.SystemClock.elapsedRealtime();
         final int generation = ++catalogRefreshGeneration;
         loading = true;
         Catalog.load(this, result -> main.post(() -> {
             if (generation != catalogRefreshGeneration || isFinishing() || isDestroyed()) return;
             loading = !result.finalResult;
+            if (result.finalResult) refreshInFlight = false;
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
@@ -971,7 +988,15 @@ public final class MainActivity extends Activity {
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
-            if (showResult && result.finalResult) {
+            else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
+            else if ("detail".equals(page) && detailApp != null) {
+                for (Catalog.App current : apps) if (current.packageName.equals(detailApp.packageName)) {
+                    if (current.versionCode != detailApp.versionCode || !current.apkUrl.equals(detailApp.apkUrl)) showDetail(current);
+                    break;
+                }
+            }
+            if (notifyRefresh && result.finalResult) {
+                notifyRefresh = false;
                 String message = result.warning != null ? result.warning :
                     "تم تحديث المتجر: " + apps.size() + " تطبيقًا ولعبة";
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
@@ -1417,7 +1442,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.2\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.3.0\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
@@ -1461,6 +1486,8 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityVisible = true;
+        main.removeCallbacks(catalogTicker);
+        catalogTicker.run();
         if (downloadCoordinator != null) {
             if (pendingInstallAfterPermission != null &&
                 DownloadCoordinator.allowedToInstall(this)) {
@@ -1480,12 +1507,15 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         activityVisible = false;
+        main.removeCallbacks(catalogTicker);
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         super.onPause();
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(catalogTicker);
+        activeSearchRefresh = null;
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         images.shutdownNow();
