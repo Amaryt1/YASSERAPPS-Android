@@ -1,0 +1,5 @@
+package iq.yasserapps.studio;
+import org.junit.Test;import static org.junit.Assert.*;import java.io.*;import java.util.*;import java.util.zip.*;
+public class EngineTest {
+ @Test public void rewriteOwnApk()throws Exception{File src=new File("build/outputs/apk/debug/app-debug.apk");assertTrue(src.isFile());String hash=ApkEngine.sha256(src);File out=File.createTempFile("studio-test-",".apk");try{String a="YASSERAPPS_STUDIO_FIXTURE_030",b="YASSERAPPS_STUDIO_FIXTURE_CHANGED";List<DexTools.Hit> hits=DexTools.find(src,a);DexTools.Hit target=null;for(DexTools.Hit h:hits)if(h.method.startsWith("selfTestLiteral("))target=h;assertNotNull(target);DexTools.replace(src,out,target,a,b);assertEquals(hash,ApkEngine.sha256(src));assertFalse(DexTools.find(out,b).isEmpty());assertTrue(ApkEngine.scan(out).dex>0);try(ZipFile x=new ZipFile(src);ZipFile y=new ZipFile(out)){assertEquals(x.getEntry("AndroidManifest.xml").getCrc(),y.getEntry("AndroidManifest.xml").getCrc());}}finally{out.delete();}}
+}

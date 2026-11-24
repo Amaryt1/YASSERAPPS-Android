@@ -1,2 +1,2 @@
-# YASSERAPPS Studio V0.2 — isolated test build
-Independent Android package iq.yasserapps.studio. Offline APK inspection, text asset editing for authorized apps, local signing. DEX editing and runtime compatibility not implemented. No store/main branch changes.
+# YASSERAPPS Studio V0.3
+Offline APK inspection, signature verification, text asset editing, targeted DEX const-string editing for authorized apps, local re-signing. Runtime behavior and on-device signing require device testing. No license/access-control bypass, no changes to store main.
