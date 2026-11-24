@@ -26,3 +26,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+// Android SDK signing verifier: cryptographic APK v2/v3 validation.
+dependencies { implementation "com.android.tools.build:apksig:8.10.2" }
