@@ -24,6 +24,10 @@ jobs:
             "Uptodown":"https://en.uptodown.com/android",
             "APKMirror":"https://www.apkmirror.com/"
           }
+          from collections import Counter
+          import re
+          checks["Aptoide popular games"]="https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=30/offset=0/mature=false/sort=downloads"
+          checks["Aptoide popular applications"]="https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=30/offset=0/mature=false/sort=downloads"
           for name,url in checks.items():
               try:
                   req=urllib.request.Request(url,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
@@ -35,6 +39,18 @@ jobs:
                           rows=data.get("list",[])
                           trusted=[a for a in rows if a.get("file",{}).get("malware",{}).get("rank")=="TRUSTED"]
                           print("APTOIDE_SAMPLE",name,"status",obj.get("info",{}).get("status"),"reported_total",data.get("total"),"rows",len(rows),"trusted",len(trusted),"with_sha256",sum(bool(a.get("file",{}).get("sha256")) for a in trusted))
+                          print("APTOIDE_SHAPE",name,"row_keys",sorted(rows[0]) if rows else [],"file_keys",sorted(rows[0].get("file",{})) if rows else [],"ranks",dict(Counter(str(a.get("file",{}).get("malware",{}).get("rank","MISSING")) for a in rows)),"with_uname",sum(bool(a.get("uname")) for a in rows),"with_package",sum(bool(a.get("package")) for a in rows))
+                          if name.startswith("Aptoide popular"):
+                              for a in rows[:3]:
+                                  pkg=a.get("package","")
+                                  if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)+",pkg): continue
+                                  try:
+                                      req2=urllib.request.Request("https://ws75.aptoide.com/api/7/app/getMeta/package_name="+pkg,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
+                                      with urllib.request.urlopen(req2,timeout=10) as detail:
+                                          meta=json.loads(detail.read(2*1024*1024)).get("data",{})
+                                          print("APTOIDE_DETAIL",pkg,"keys",sorted(meta),"rank",meta.get("file",{}).get("malware",{}).get("rank","MISSING"),"same_version",meta.get("file",{}).get("vercode")==a.get("file",{}).get("vercode"))
+                                  except Exception as exc:
+                                      print("APTOIDE_DETAIL_FAILED",pkg,type(exc).__name__)
                       else:
                           print("WEBSITE_ONLY",name,"not a catalog or download integration")
               except urllib.error.HTTPError as e:
