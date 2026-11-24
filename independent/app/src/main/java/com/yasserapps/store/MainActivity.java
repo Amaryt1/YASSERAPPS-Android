@@ -972,6 +972,59 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void showCompletionBanner(DownloadCoordinator.Entry entry) {
+        if (screen == null || isFinishing()) return;
+        FrameLayout host = screen;
+        LinearLayout banner = linear(false);
+        banner.setGravity(Gravity.CENTER_VERTICAL);
+        banner.setBackground(shape(Color.rgb(18, 58, 13), 18, GREEN));
+        banner.setPadding(dp(13), dp(9), dp(13), dp(9));
+        banner.setElevation(dp(16));
+
+        ImageView graphic = new ImageView(this);
+        graphic.setImageResource(R.drawable.yasser_logo);
+        graphic.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        for (Catalog.App item : apps) {
+            if (entry.packageName.equals(item.packageName)) {
+                image(graphic, item.iconUrl);
+                break;
+            }
+        }
+        banner.addView(graphic, lp(53, 53));
+        padx(banner, 11);
+
+        LinearLayout content = linear(true);
+        content.addView(text("✓ اكتمل تنزيل " + entry.name, 15, WHITE, true));
+        gap(content, 3);
+        content.addView(text("من YASSERAPPS • جاري تجهيز شاشة التثبيت", 12,
+            Color.rgb(222, 244, 215), false));
+        banner.addView(content, new LinearLayout.LayoutParams(0, -2, 1));
+
+        FrameLayout.LayoutParams atTop = new FrameLayout.LayoutParams(
+            -1, dp(84), Gravity.TOP);
+        atTop.setMargins(dp(13), dp(16), dp(13), 0);
+        host.addView(banner, atTop);
+        banner.setAlpha(0f);
+        banner.animate().alpha(1f).setDuration(210).start();
+        main.postDelayed(() -> {
+            banner.animate().alpha(0f).setDuration(260).withEndAction(() -> {
+                if (banner.getParent() == host) host.removeView(banner);
+            }).start();
+        }, 2750);
+    }
+
+    private void requestBrandedDownloadNotices() {
+        if (Build.VERSION.SDK_INT < 33) return;
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+        android.content.SharedPreferences pref = getSharedPreferences("yasserapps_notifications", MODE_PRIVATE);
+        if (!pref.getBoolean("prompted_downloads_once", false)) {
+            pref.edit().putBoolean("prompted_downloads_once", true).apply();
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                REQUEST_DOWNLOAD_NOTICES);
+        }
+    }
+
     private void download(Catalog.App app) {
         if (Build.VERSION.SDK_INT <= 28 &&
             checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -992,7 +1045,13 @@ public final class MainActivity extends Activity {
             } else {
                 Toast.makeText(this, "راجع حالة التحميل في التنزيلات", Toast.LENGTH_SHORT).show();
             }
+            if (entry.active()) {
+                armedDownloads.add(entry.id);
+                main.removeCallbacks(completionWatch);
+                if (activityVisible) main.postDelayed(completionWatch, 650);
+            }
             showDownloads();
+            requestBrandedDownloadNotices();
         } catch (Exception ex) {
             Toast.makeText(this, "تعذّر بدء التحميل: " + ex.getMessage(), Toast.LENGTH_LONG).show();
         }
@@ -1001,7 +1060,8 @@ public final class MainActivity extends Activity {
     private void installFromHistory(DownloadCoordinator.Entry entry) {
         if (verifyingInstall) return;
         verifyingInstall = true;
-        Toast.makeText(this, "جاري فحص ملف APK قبل التثبيت", Toast.LENGTH_SHORT).show();
+        // SHA-256 and package metadata still get checked privately; no extra
+        // "check and install" step is required from the user.
         downloadCoordinator.verify(entry, (success, error, uri) -> {
             verifyingInstall = false;
             if (!success) {
@@ -1205,6 +1265,12 @@ public final class MainActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQUEST_DOWNLOAD_NOTICES) {
+            boolean allowed = results.length > 0 &&
+                results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            if (allowed) Toast.makeText(this, "تم تفعيل إشعارات YASSERAPPS", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (requestCode == REQUEST_UPDATE_NOTICES) {
             boolean yes = results.length > 0 &&
                 results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
