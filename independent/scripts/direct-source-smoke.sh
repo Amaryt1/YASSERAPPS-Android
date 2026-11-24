@@ -97,7 +97,7 @@ grep -F 'UI_FEATURED count=10 index=1' "$tmp/featured.log"
 echo 'PASS ten featured recommendations and next navigation'
 adb logcat -c
 tap_tab 'التطبيقات'
-adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=40'
+adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=50'
 adb logcat -c
 tap_tab 'الألعاب'
 adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=[1-9][0-9]*'
