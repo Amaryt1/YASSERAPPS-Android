@@ -515,7 +515,7 @@ public final class MainActivity extends Activity {
             name.setMaxLines(2);
             title.addView(name);
             gap(title,7);
-            TextView sub=text(FeaturedApps.displayCopy(selected.summary),12,WHITE,false);
+            TextView sub=text("الإصدار "+selected.version+" • "+FeaturedApps.displayCopy(selected.summary),12,WHITE,false);
             sub.setMaxLines(2);
             title.addView(sub);
             gap(title,12);
@@ -733,7 +733,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly?"المصدر":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -899,7 +899,7 @@ public final class MainActivity extends Activity {
         summary.setMaxLines(2);
         texts.addView(summary);
         gap(texts,11);
-        TextView platform=text(app.isGame()?"🎮 لعبة للأندرويد":"تطبيق للأندرويد",12,GREEN,true);
+        TextView platform=text(!app.originalPlatform.isEmpty()?"بورت • "+app.originalPlatform:app.isGame()?"🎮 لعبة للأندرويد":"تطبيق للأندرويد",12,GREEN,true);
         texts.addView(platform);
         intro.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
         content.addView(intro);
@@ -926,11 +926,12 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly ? "صفحة الإصدارات" : previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
+            if(app.discoveryOnly) { openPublisher(app.publisherUrl); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -940,12 +941,18 @@ public final class MainActivity extends Activity {
         LinearLayout altButton=linear(false);
         altButton.setGravity(Gravity.CENTER);
         altButton.setBackground(shape(Color.rgb(5,12,5),19,GREEN));
-        altButton.addView(new StoreGlyph(this,"share",GREEN),lp(22,22));
+        altButton.addView(new StoreGlyph(this,app.needsFiles()?"download":"share",GREEN),lp(22,22));
         padx(altButton,7);
-        altButton.addView(text("مشاركة",14,GREEN,true));
-        altButton.setOnClickListener(v -> shareApp(app));
+        altButton.addView(text(app.needsFiles()?"ملفات اللعبة":"مشاركة",13,GREEN,true));
+        altButton.setContentDescription(app.needsFiles()?"ملفات اللعبة":"مشاركة");
+        altButton.setOnClickListener(v -> { if(app.needsFiles()) showGameFiles(app); else shareApp(app); });
         buttons.addView(altButton,new LinearLayout.LayoutParams(0,dp(58),1));
         content.addView(buttons);
+        if(app.needsFiles()) {
+            gap(content,8);
+            content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
+        }
+        if(app.discoveryOnly) { gap(content,8); content.addView(text("هذا رابط مشروع، وليس APK مفحوصاً للتثبيت المباشر.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -985,15 +992,44 @@ public final class MainActivity extends Activity {
         detailSection(content,"سجل التحديثات  •  "+app.version,
             FeaturedApps.displayCopy(app.changelog).isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":FeaturedApps.displayCopy(app.changelog));
         gap(content,16);
+        if(!app.attribution.isEmpty()) {
+            TextView credit=text(app.attribution,11,SUBTEXT,false);
+            android.text.util.Linkify.addLinks(credit,android.text.util.Linkify.WEB_URLS);
+            content.addView(credit);
+            gap(content,8);
+        }
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
         render(content,false);
     }
 
+    private void openPublisher(String url) {
+        if(!PortFeeds.publisherLink(url)) {
+            Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
+        }
+        try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
+        catch(Exception ex) { Toast.makeText(this,"تعذّر فتح رابط المصدر",Toast.LENGTH_SHORT).show(); }
+    }
+
+    private void showGameFiles(Catalog.App app) {
+        if(!app.needsFiles())return;
+        StringBuilder info=new StringBuilder();
+        info.append("owned".equals(app.gameFiles)?"تحتاج نسخة أصلية تملكها من اللعبة.":"يحتاج هذا البورت ملفات إضافية.").append("\n\n");
+        if(!app.filesInstructions.isEmpty()) info.append(app.filesInstructions).append("\n\n");
+        else info.append("راجع تعليمات المشروع لمعرفة أسماء الملفات المطلوبة.\n\n");
+        if(!app.filesPath.isEmpty()) info.append("مسار الملفات حسب المصدر:\n").append(app.filesPath).append("\n\n");
+        info.append("ملفات الألعاب الأصلية غير مرفقة. استخدم نسختك القانونية أو الملفات التي ينشرها المطوّر بترخيص يسمح بالتنزيل.");
+        android.app.AlertDialog.Builder dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("ملفات اللعبة • "+app.name).setMessage(info.toString())
+            .setNegativeButton("إغلاق",null);
+        if(PortFeeds.publisherLink(app.publisherUrl)) dialog.setPositiveButton("فتح المصدر",(d,w)->openPublisher(app.publisherUrl));
+        dialog.show();
+    }
+
     private void shareApp(Catalog.App app) {
         Intent send=new Intent(Intent.ACTION_SEND);
         send.setType("text/plain");
-        send.putExtra(Intent.EXTRA_TEXT,app.name+"\n"+app.apkUrl);
+        send.putExtra(Intent.EXTRA_TEXT,app.name+"\n"+(app.discoveryOnly?app.publisherUrl:app.apkUrl));
         startActivity(Intent.createChooser(send,"مشاركة التطبيق"));
     }
 
@@ -1037,7 +1073,7 @@ public final class MainActivity extends Activity {
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
                 for (Catalog.App current : apps) if (current.packageName.equals(detailApp.packageName)) {
-                    if (current.versionCode != detailApp.versionCode || !current.apkUrl.equals(detailApp.apkUrl)) showDetail(current);
+                    if (current.versionCode != detailApp.versionCode || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
                     break;
                 }
             }
@@ -1473,7 +1509,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.7.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.0\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

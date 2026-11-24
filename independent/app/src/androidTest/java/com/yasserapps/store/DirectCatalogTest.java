@@ -44,6 +44,26 @@ public final class DirectCatalogTest extends Instrumentation {
             for(Catalog.App a:combined) unique.putIfAbsent(a.packageName,a);
             List<Catalog.App> featured=FeaturedApps.choose(new java.util.ArrayList<>(unique.values()));
             if(featured.size()!=10) throw new AssertionError("Expected ten featured recommendations");
+            // Featured cards must update when a newer release arrives.
+            Catalog.App first=new Catalog.App(); first.packageName="test.first"; first.iconUrl="https://example.org/first.png"; first.updatedAt=10; first.versionCode=1;
+            Catalog.App second=new Catalog.App(); second.packageName="test.second"; second.iconUrl="https://example.org/second.png"; second.updatedAt=20; second.versionCode=1;
+            if(FeaturedApps.choose(java.util.Arrays.asList(first,second)).get(0)!=second) throw new AssertionError("Featured release order");
+            first.updatedAt=30; first.versionCode=2;
+            if(FeaturedApps.choose(java.util.Arrays.asList(first,second)).get(0)!=first) throw new AssertionError("Featured refresh order");
+            org.json.JSONObject port=new org.json.JSONObject()
+                .put("id","test-port").put("title","Test port")
+                .put("platforms",new org.json.JSONArray().put("PS2"))
+                .put("android",new org.json.JSONObject().put("supported",true).put("requiresGameFiles","owned"))
+                .put("links",new org.json.JSONObject().put("repo","https://github.com/example/port"))
+                .put("downloads",new org.json.JSONArray().put(new org.json.JSONObject().put("kind","apk").put("url","https://github.com/example/port/releases/latest")))
+                .put("setup",new org.json.JSONObject().put("requiredFiles","Owned data").put("installPath","Document picker"));
+            List<Catalog.App> ports=PortFeeds.parsePortHub(new org.json.JSONObject().put("version",1).put("games",new org.json.JSONArray().put(port)));
+            if(ports.size()!=1||!ports.get(0).needsFiles()||!ports.get(0).discoveryOnly||!ports.get(0).apkUrl.isEmpty()) throw new AssertionError("Port data isolation");
+            Catalog.App cachedPort=Catalog.fromJson(Catalog.toJson(ports.get(0)));
+            if(!cachedPort.needsFiles()||!cachedPort.filesPath.equals("Document picker")||!cachedPort.discoveryOnly) throw new AssertionError("Port data cache");
+            if(first.needsFiles()) throw new AssertionError("Ordinary APK must not show files button");
+            if(PortFeeds.publisherLink("https://github.com.evil.example/example/port")) throw new AssertionError("Unsafe publisher link");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS featured recency and port requirements");
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);

@@ -165,6 +165,7 @@ public final class DownloadCoordinator {
 
     /** DownloadManager persists and resumes transfers independently of the Activity. */
     public synchronized Entry start(Catalog.App item) throws Exception {
+        if (item.discoveryOnly) throw new IllegalArgumentException("هذا المشروع ليس APK متحققاً منه");
         if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
         ArrayList<Entry> entries = load();
         for (Entry old : entries) {

@@ -10,28 +10,17 @@ import java.util.Locale;
 
 /** Editorial recommendations, not fabricated global download rankings. */
 final class FeaturedApps {
-    private static final String[] RECOMMENDED = {
-        "org.schabi.newpipe", "org.mozilla.fennec_fdroid", "org.videolan.vlc",
-        "com.aurora.store", "org.fdroid.fdroid", "net.osmand.plus",
-        "com.nextcloud.client", "org.localsend.localsend_app", "com.termux",
-        "com.fsck.k9", "net.thunderbird.android", "com.shatteredpixel.shatteredpixeldungeon",
-        "com.github.catfriend1.syncthingandroid", "com.simplemobiletools.gallery.pro",
-        "org.joinmastodon.android", "org.fossify.gallery", "org.fossify.filemanager",
-        "com.junkfood.seal", "com.github.libretube", "com.kunzisoft.keepass.libre",
-        "org.libreoffice.androidlibreoffice", "org.wikipedia", "com.ichi2.anki",
-        "org.tasks", "org.kde.kdeconnect_tp", "org.openstreetmap.josm",
-        "io.github.muntashirakon.AppManager", "com.duckduckgo.mobile.android"
-    };
+    // Latest actual upstream release/update timestamps, not editorial rankings.
     static List<Catalog.App> choose(List<Catalog.App> apps) {
-        Map<String,Integer> order=new HashMap<>();
-        for(int i=0;i<RECOMMENDED.length;i++) order.put(RECOMMENDED[i].toLowerCase(Locale.ROOT),i);
-        ArrayList<Catalog.App> candidates=new ArrayList<>();
-        for(Catalog.App a:apps) if(a.iconUrl!=null&&!a.iconUrl.isEmpty()) candidates.add(a);
-        candidates.sort(Comparator
-            .comparingInt((Catalog.App a)->order.getOrDefault(a.packageName.toLowerCase(Locale.ROOT),Integer.MAX_VALUE))
-            .thenComparingInt(a->(!a.bannerUrl.isEmpty()||!a.screenshots.isEmpty())?0:1)
-            .thenComparingInt(a->a.summary.isEmpty()?1:0)
-            .thenComparing(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed())
+        Map<String,Catalog.App> unique=new HashMap<>();
+        for(Catalog.App a:apps) {
+            if(a.discoveryOnly || a.updatedAt<=0 || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
+            Catalog.App old=unique.get(a.packageName);
+            if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(a.packageName,a);
+        }
+        ArrayList<Catalog.App> candidates=new ArrayList<>(unique.values());
+        candidates.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed()
+            .thenComparing(Comparator.comparingInt((Catalog.App a)->a.versionCode).reversed())
             .thenComparing(a->a.packageName));
         return new ArrayList<>(candidates.subList(0,Math.min(10,candidates.size())));
     }
