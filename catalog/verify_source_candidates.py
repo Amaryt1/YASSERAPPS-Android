@@ -7,6 +7,38 @@ from review_metadata import advertised_links
 ROOT=Path(__file__).resolve().parent
 REPO="https://github.com/Amaryt1/YASSERAPPS-Android/blob/main/catalog/source-permission-notice.md"
 MAX_APK=64*1024*1024
+class ResolutionError(Exception):pass
+def fetch_release(url,apk,rp,delay,open_url=None,sleep=time.sleep):
+    """Follow a short chain of unambiguous, publicly linked same-origin pages."""
+    domain=host(url);seen=set()
+    if open_url is None:open_url=urllib.request.build_opener(NoRedirect()).open
+    for hop in range(4):
+        if host(url)!=domain or url in seen:raise ResolutionError("invalid_or_repeated_link")
+        if not rp.can_fetch(AGENT,url):raise ResolutionError("robots_disallowed")
+        seen.add(url)
+        if hop:sleep(delay)
+        req=urllib.request.Request(url,headers={"User-Agent":AGENT+"/2.1","Accept":"application/vnd.android.package-archive, application/octet-stream, text/html"})
+        digest=hashlib.sha256();n=0
+        with open_url(req,timeout=25) as resp:
+            first=resp.read(4096)
+            if first.startswith(b"PK\x03\x04"):
+                if int(resp.headers.get("Content-Length","0"))>MAX_APK:raise ResolutionError("apk_too_large")
+                with apk.open("wb") as f:
+                    chunk=first
+                    while chunk:
+                        n+=len(chunk)
+                        if n>MAX_APK:raise ResolutionError("apk_too_large")
+                        digest.update(chunk);f.write(chunk);chunk=resp.read(65536)
+                return url,digest,n
+            if "html" not in resp.headers.get("Content-Type","").lower() and not re.search(br"<(?:!doctype|html|head|body|a)\b",first,re.I):
+                raise ResolutionError("not_apk_or_html")
+            rest=resp.read(2*1024*1024+1)
+            if len(rest)>2*1024*1024:raise ResolutionError("landing_page_too_large")
+            links=advertised_links((first+rest).decode("utf-8","replace"),url)
+            links=[x for x in links if x not in seen]
+            if len(links)!=1:raise ResolutionError("ambiguous_or_missing_public_download")
+            url=links[0]
+    raise ResolutionError("download_chain_limit")
 def verify(row,sdk):
     if not row.get("modClaim") or row.get("category") not in ("app","game") or not row.get("explicitApkUrl"):return None,"no_explicit_eligible_apk"
     url=row["explicitApkUrl"];domain=host(url)
@@ -20,18 +52,7 @@ def verify(row,sdk):
     try:
         with tempfile.TemporaryDirectory() as tmp:
             apk=Path(tmp)/"release.apk"
-            req=urllib.request.Request(url,headers={"User-Agent":AGENT+"/2.1","Accept":"application/vnd.android.package-archive, application/octet-stream"})
-            digest=hashlib.sha256();n=0
-            with urllib.request.build_opener(NoRedirect()).open(req,timeout=25) as resp,apk.open("wb") as f:
-                if int(resp.headers.get("Content-Length","0"))>MAX_APK:return None,"apk_too_large"
-                while True:
-                    buf=resp.read(65536)
-                    if not buf:break
-                    n+=len(buf)
-                    if n>MAX_APK:return None,"apk_too_large"
-                    digest.update(buf);f.write(buf)
-            with apk.open("rb") as f:
-                if f.read(4)!=b"PK\x03\x04":return None,"not_apk_archive_or_landing_page"
+            url,digest,n=fetch_release(url,apk,rp,delay)
             sig=subprocess.check_output([str(sdk/"apksigner"),"verify","--min-sdk-version","26","--verbose","--print-certs",str(apk)],text=True,stderr=subprocess.DEVNULL,timeout=60)
             cert=re.findall(r"Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]{64})",sig)
             if len(cert)!=1 or not re.search(r"Verified using v[23] scheme.*: true",sig):return None,"signature_not_verified"
@@ -40,6 +61,7 @@ def verify(row,sdk):
             if not m or not row.get("softwareVersion") or m[3]!=row["softwareVersion"]:return None,"version_mismatch"
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+",m[1]):return None,"invalid_package"
             return dict(id=digest.hexdigest()[:32],name=row["name"],packageName=m[1],version=m[3],versionCode=int(m[2]),category=row["category"],modified=True,modDescription="نسخة يصفها المصدر بأنها معدلة. مميزات التعديل التفصيلية غير متحققة.",modEvidenceUrl=row["pageUrl"],publisherUrl=row["pageUrl"],iconUrl=row.get("imageUrl",""),apkUrl=url,sizeBytes=n,sha256=digest.hexdigest(),signerSha256=cert[0].lower()),"verified_binary_identity"
+    except ResolutionError as e:return None,str(e)
     except Exception as e:return None,type(e).__name__
 def main():
     import os
