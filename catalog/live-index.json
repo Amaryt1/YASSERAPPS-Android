@@ -65,9 +65,12 @@
     {
       "id": "apkmirror",
       "name": "APKMirror",
-      "status": "pending-authorized-feed",
-      "feeds": null,
-      "directInstall": false
+      "status": "public-rss-integration-testing",
+      "feeds": {
+        "releases": "https://www.apkmirror.com/feed/"
+      },
+      "directInstall": false,
+      "format": "rss2"
     }
   ]
 }
