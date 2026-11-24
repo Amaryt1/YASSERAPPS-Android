@@ -16,7 +16,12 @@ jobs:
       - run: |
           python3 - <<'PY'
           import json,re
-          sources=json.load(open('catalog/sources.json'))['sources']
+          cfg=json.load(open('catalog/sources.json'))
+          assert cfg['sources']==[] and cfg['gameFeeds']==[] and cfg['discoveryCandidates']==[]
+          candidates=cfg['largeCatalogCandidates']
+          assert len(candidates)==7 and {s['id'] for s in candidates}=={'aptoide','apkpure','liteapks','taptap','aurora','uptodown','apkmirror'}
+          assert [s['id'] for s in candidates if s['enabled']]==['aptoide']
+          sources=cfg['sources']
           for source in sources:
               if source['enabled']:
                   assert source['mode']=='direct'
