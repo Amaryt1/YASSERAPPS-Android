@@ -12,7 +12,7 @@
     {
       "id": "aptoide",
       "name": "Aptoide",
-      "status": "live-metadata",
+      "status": "on-demand-public-apk-testing",
       "format": "aptoide-v7",
       "feeds": {
         "games": "https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=50/offset=0/mature=false/sort=downloads",
@@ -25,7 +25,7 @@
         "offsetParameter": "offset"
       },
       "detailEndpoint": "https://ws75.aptoide.com/api/7/app/getMeta/package_name={package}",
-      "directInstall": false
+      "directInstall": "eligible-single-apk-only"
     },
     {
       "id": "apkpure",
