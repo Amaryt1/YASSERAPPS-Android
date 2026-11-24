@@ -1064,7 +1064,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openPublisher(String url) {
-        if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)) {
+        if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)&&!MirrorFeed.listingLink(url)) {
             Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
         }
         try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
@@ -1132,7 +1132,7 @@ public final class MainActivity extends Activity {
             else if ("favorites".equals(page)) showFavorites();
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
-                for (Catalog.App current : apps) if (current.packageName.equals(detailApp.packageName)) {
+                for (Catalog.App current : apps) if (current.id.equals(detailApp.id)) {
                     if (current.versionCode != detailApp.versionCode || !current.description.equals(detailApp.description) || !current.iconUrl.equals(detailApp.iconUrl) || !current.publisherUrl.equals(detailApp.publisherUrl) || !current.version.equals(detailApp.version) || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
                     break;
                 }
