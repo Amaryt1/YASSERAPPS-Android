@@ -916,10 +916,18 @@ public final class MainActivity extends Activity {
         startActivity(Intent.createChooser(send,"مشاركة التطبيق"));
     }
 
+    private int catalogRefreshGeneration;
+
     private void refresh() {
+        refresh(false);
+    }
+
+    private void refresh(boolean showResult) {
+        final int generation = ++catalogRefreshGeneration;
         loading = true;
         Catalog.load(this, result -> main.post(() -> {
-            loading = false;
+            if (generation != catalogRefreshGeneration || isFinishing() || isDestroyed()) return;
+            loading = !result.finalResult;
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
@@ -927,6 +935,11 @@ public final class MainActivity extends Activity {
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
+            if (showResult && result.finalResult) {
+                String message = result.warning != null ? result.warning :
+                    "تم تحديث المتجر: " + apps.size() + " تطبيقًا ولعبة";
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            }
         }));
     }
 
@@ -1360,7 +1373,7 @@ public final class MainActivity extends Activity {
         gap(c, 11);
         TextView refresh = action("تحديث قائمة التطبيقات والألعاب", true, () -> {
             Toast.makeText(this, "جاري تحديث المتجر", Toast.LENGTH_SHORT).show();
-            refresh();
+            refresh(true);
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
