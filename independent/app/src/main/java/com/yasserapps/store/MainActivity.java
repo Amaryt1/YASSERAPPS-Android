@@ -419,7 +419,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean installedAndNewer(Catalog.App app) {
-        if(app.discoveryOnly)return false;
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName))return false;
         try {
             PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
             long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
@@ -776,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(app.discoveryOnly?"المصدر":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly?(installedAndNewer(app)?"تحديث بالمصدر":"المصدر"):installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -867,7 +867,7 @@ public final class MainActivity extends Activity {
         c.addView(check, lp(-1, 49));
         gap(c, 10);
         c.addView(text(
-            "يفحص المتجر إصدارات التطبيقات المنشورة عندنا والمتاحة للرؤية على جهازك، ولا يثبت أي تحديث دون موافقتك.",
+            "يقارن المتجر إصدارات التطبيقات المتاحة مع المثبتة على جهازك. تحديث بالمصدر يعني فتح صفحة الناشر؛ التثبيت المباشر يتطلب ملفاً مفحوصاً وتوقيعاً متوافقاً.",
             12, SUBTEXT, false
         ));
         gap(c, 17);
@@ -969,7 +969,7 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly ? "فتح المصدر" : previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly ? (installedAndNewer(app)?"تحديث بالمصدر":"فتح المصدر") : previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
@@ -1116,7 +1116,7 @@ public final class MainActivity extends Activity {
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
                 for (Catalog.App current : apps) if (current.packageName.equals(detailApp.packageName)) {
-                    if (current.versionCode != detailApp.versionCode || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
+                    if (current.versionCode != detailApp.versionCode || !current.description.equals(detailApp.description) || !current.iconUrl.equals(detailApp.iconUrl) || !current.publisherUrl.equals(detailApp.publisherUrl) || !current.version.equals(detailApp.version) || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
                     break;
                 }
             }
@@ -1552,7 +1552,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.1\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.2\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
