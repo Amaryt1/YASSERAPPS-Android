@@ -89,7 +89,7 @@ def chart(source,url):
     key="apkmirror:"+urllib.parse.urlsplit(url).path if source=="APKMirror" else source.lower()+":"+url
     return entry(source,key,name,url,category="game" if source=="TapTap" or "game" in str(data.get("applicationCategory","")).lower() else "app",version=clean(data.get("softwareVersion",""),80),iconUrl=icon,summary=desc,description=desc)
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--output",default="catalog/generated/index.json"); ap.add_argument("--min-new",type=int,default=500); ap.add_argument("--max-pages",type=int,default=60); args=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument("--output",default="catalog/generated/index.json"); ap.add_argument("--min-new",type=int,default=500); ap.add_argument("--max-pages",type=int,default=120); args=ap.parse_args()
     path=Path(args.output); prior=json.loads(path.read_text()) if path.exists() else {}
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from itertools import zip_longest
@@ -110,10 +110,11 @@ def main():
             if old is None and len(rows)>=LIMIT: return
             if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
         if source=="Aptoide":
-            groups=("games","applications"); counts={g:0 for g in groups}
+            groups=("games","applications"); counts={g:0 for g in groups}; paused=set()
             for n in range(args.max_pages):
-                if time.monotonic()-start>=150: break
+                if time.monotonic()-start>=210: break
                 group=groups[n%2]; offset=int(cursors.get(group,0))
+                if group in paused: continue
                 try:
                     r=json.loads(get("https://ws75.aptoide.com/api/7/apps/get/group_name="+group+"/limit=50/offset="+str(offset)+"/mature=false/sort=downloads"))
                     if r.get("info",{}).get("status")!="OK": raise ValueError("API status")
@@ -124,8 +125,14 @@ def main():
                         row=aptoide(x,group)
                         if row: save(row); counts[group]+=1
                     nxt=int(d.get("next",-1)); cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
-                except Exception as e: print("APTOIDE_FAILED",group,type(e).__name__,flush=True); break
-                if len(rows)>=LIMIT or time.monotonic()-start>180: break
+                except urllib.error.HTTPError as e:
+                    print("APTOIDE_HTTP",group,e.code,flush=True)
+                    if e.code in (403,429): break
+                    paused.add(group)
+                except Exception as e:
+                    print("APTOIDE_FAILED",group,type(e).__name__,flush=True); paused.add(group)
+                if len(paused)==len(groups): break
+                if len(rows)>=LIMIT or time.monotonic()-start>=210: break
                 time.sleep(0.8)
             stats["Aptoide"]=counts
         if source=="APKMirror":
@@ -142,18 +149,41 @@ def main():
         if source in charts:
             pages=charts[source]
             urls={}
-            for url in pages:
-                if time.monotonic()-start>=150: break
+            # Only follow actual navigation links on the same public source.
+            def navigation(url):
+                p=uri(url)
+                if not p or p.fragment: return ""
+                if source=="APKMirror" and p.hostname=="www.apkmirror.com" and re.fullmatch(r"/uploads/page/[1-9][0-9]{0,5}/?",p.path) and not p.query: return url
+                if source=="Uptodown" and p.hostname=="en.uptodown.com" and re.fullmatch(r"/android/(?:apps|games|latest-updates)(?:/[a-z0-9-]{1,70}){0,2}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
+                if source=="TapTap" and p.hostname=="www.taptap.io" and re.fullmatch(r"/top(?:/[a-zA-Z0-9_-]{1,70}){0,2}/?",p.path) and (not p.query or re.fullmatch(r"page=[1-9][0-9]{0,5}",p.query)): return url
+                return ""
+            known=list(dict.fromkeys(pages+[u for u in cursors.get(source+":pages",[]) if navigation(u)]))[:2000]
+            navpos=int(cursors.get(source+":navpos",0))%max(1,len(known))
+            # Refresh seeds and rotate through saved category/pagination links.
+            batch=list(dict.fromkeys(pages+[known[(navpos+i)%len(known)] for i in range(min(5,len(known)))]))
+            blocked=False
+            for url in batch:
+                if time.monotonic()-start>=210: break
                 try:
                     p=HTML(); p.feed(get(url).decode("utf-8","replace"))
                     for h in p.links:
                         valid=link(source,urllib.parse.urljoin(url,h))
                         if valid: urls[valid]=None
+                        nav=navigation(urllib.parse.urljoin(url,h))
+                        if nav and nav not in known and len(known)<2000: known.append(nav)
+                except urllib.error.HTTPError as e:
+                    print("CHART_HTTP",source,e.code,flush=True)
+                    if e.code in (403,429): blocked=True; break
                 except Exception as e: print("CHART_FAILED",source,type(e).__name__,flush=True)
                 time.sleep(1)
-            candidates=list(urls); pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
-            for i in range(min(25,len(candidates))):
-                if time.monotonic()-start>=150: break
+            cursors[source+":pages"]=known
+            cursors[source+":navpos"]=(navpos+5)%max(1,len(known))
+            candidates=list(dict.fromkeys([u for u in cursors.get(source+":listings",[]) if link(source,u)]+list(urls)))[:10000]
+            cursors[source+":listings"]=candidates
+            pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
+            if blocked: candidates=[]
+            for i in range(min(100,len(candidates))):
+                if time.monotonic()-start>=210: break
                 u=candidates[(pos+i)%len(candidates)]; checked+=1
                 try:
                     row=chart(source,u)
@@ -191,7 +221,7 @@ def main():
         for key,row in updated.items():
             if key in rows:
                 rows[key]=row
-        for key in (("games","applications") if source=="Aptoide" else (source,)):
+        for key in (("games","applications") if source=="Aptoide" else (source,source+":pages",source+":navpos",source+":listings")):
             if key in source_cursors:
                 cursors[key]=source_cursors[key]
         stats.update(source_stats)
