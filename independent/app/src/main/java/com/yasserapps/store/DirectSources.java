@@ -41,7 +41,8 @@ final class DirectSources {
         new Source("modernapps", "Modern Apps", "https://maproj.org/fdroid/repo", "176FCB2525573E5BE8E1CB3A496DD97B137E81CA5B887A1D32CB894B4E5717B4"),
         new Source("rmgames", "rm's F-Droid repo", "https://hunke.ws/fdroid/repo", "80438B253C257BCCE05CDCB9E3AC9B6174C2250659962B14FCBE7F32FD42D53E"),
         new Source("2113games", "2113 Apps", "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json", ""),
-        new Source("porthub", "PortHub", "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json", "")
+        new Source("porthub", "PortHub", "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json", ""),
+        new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", "")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -78,7 +79,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0.1");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
@@ -433,6 +434,30 @@ final class DirectSources {
         return fresh;
     }
     private static Snapshot update(Context context,Source source,Snapshot cached) throws Exception {
+        if(source.id.equals("aptoide")) {
+            long now=System.currentTimeMillis();
+            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
+            Map<String,Catalog.App> unique=new LinkedHashMap<>();
+            for(String group:new String[]{"games","applications"}) {
+                int offset=0;
+                for(int page=0;page<10;page++) {
+                    JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=100/offset="+offset+"/mature=false",4*1024*1024);
+                    for(Catalog.App a:AptoideFeed.parse(data,group)) {
+                        Catalog.App old=unique.get(a.packageName);
+                        if(old==null||a.versionCode>old.versionCode)unique.put(a.packageName,a);
+                    }
+                    JSONObject list=data.getJSONObject("datalist");
+                    int next=list.optInt("next",-1);
+                    if(next<=offset||next>=list.optInt("total",Integer.MAX_VALUE)||list.getJSONArray("list").length()==0)break;
+                    offset=next;
+                    Thread.sleep(750);
+                }
+            }
+            if(unique.isEmpty())throw new IOException("No trusted Aptoide listings");
+            List<Catalog.App> entries=new ArrayList<>(unique.values());
+            Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Integer.toString(entries.size()).getBytes(StandardCharsets.UTF_8))),entries);
+            writeCache(context,source,fresh);return fresh;
+        }
         if(source.id.equals("2113games")) return gameFeed(context,source,cached);
         if(source.id.equals("porthub")) {
             JSONObject root=fetchJson(context,source.base,24*1024*1024);
@@ -489,7 +514,7 @@ final class DirectSources {
             if(snap==null) continue;
             for(Catalog.App a:snap.apps) {
                 Catalog.App old=unique.get(a.packageName);
-                if(old==null||(old.signerSha256.equalsIgnoreCase(a.signerSha256)&&a.versionCode>old.versionCode))
+                if(old==null||(old.discoveryOnly&&!a.discoveryOnly)||((old.discoveryOnly==a.discoveryOnly)&&old.signerSha256.equalsIgnoreCase(a.signerSha256)&&a.versionCode>old.versionCode))
                     unique.put(a.packageName,a);
             }
         }
@@ -520,8 +545,8 @@ final class DirectSources {
         }
         List<Catalog.App> combined=merge(snapshots);
         String warning=succeeded==SOURCES.length?null:"تعذّر الاتصال ببعض المصادر، نعرض آخر محتوى متوفر.";
-        int downloadable=0, ports=0; for(Catalog.App a:combined) { if(a.discoveryOnly) ports++; else downloadable++; }
-        android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+succeeded+" downloadable="+downloadable+" discoveryPorts="+ports);
+        int downloadable=0, ports=0, marketplace=0; for(Catalog.App a:combined) { if(!a.discoveryOnly) downloadable++; else if("PortHub".equals(a.sourceName))ports++; else marketplace++; }
+        android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+succeeded+" downloadable="+downloadable+" discoveryPorts="+ports+" marketplaceListings="+marketplace);
         callback.loaded(new Catalog.Result(combined,warning,true));
     }
 }
