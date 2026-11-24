@@ -17,6 +17,21 @@ sleep 8
 adb shell screencap -p /sdcard/yasserapps-home.png
 adb pull /sdcard/yasserapps-home.png independent-home.png
 
+# RTL category navigation in V10.2: All / Apps / Games.
+# Coordinates are for the configured Pixel 6 emulator display.
+adb shell input tap 925 435
+sleep 2
+adb shell screencap -p /sdcard/yasserapps-all.png
+adb pull /sdcard/yasserapps-all.png independent-all.png
+adb shell input tap 670 435
+sleep 2
+adb shell screencap -p /sdcard/yasserapps-apps.png
+adb pull /sdcard/yasserapps-apps.png independent-apps.png
+adb shell input tap 400 435
+sleep 2
+adb shell screencap -p /sdcard/yasserapps-games.png
+adb pull /sdcard/yasserapps-games.png independent-games.png
+
 # Pixel 6 emulator viewport: 1080x2400. Verify each real menu can be opened
 # without depending on the live catalog having any published third-party APKs.
 adb shell input tap 350 2250
