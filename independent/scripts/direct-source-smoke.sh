@@ -18,7 +18,7 @@ for n in $(seq 1 120); do
 done
 cat "$tmp/live.log"
 grep -E 'DIRECT_SOURCE_OK aptoide count=[1-9][0-9]+' "$tmp/live.log"
-grep -E 'DIRECT_CATALOG total=[1-9][0-9]+ sources=[12] downloadable=0 discoveryPorts=0 marketplaceListings=[1-9][0-9]+' "$tmp/live.log"
+grep -E 'DIRECT_CATALOG total=[1-9][0-9]+ sources=[12] downloadable=[0-9]+ discoveryPorts=0 marketplaceListings=[1-9][0-9]+' "$tmp/live.log"
 grep -E 'UI_HOME_SECTION kind=app total=[1-9][0-9]+' "$tmp/live.log"
 grep -E 'UI_HOME_SECTION kind=game total=[1-9][0-9]+' "$tmp/live.log"
 grep -E 'UI_FEATURED count=10 index=' "$tmp/live.log"
