@@ -180,7 +180,18 @@ public final class DownloadCoordinator {
         req.setDescription("تحميل من YASSERAPPS");
         req.setMimeType(extension.equals(".apk") ?
             "application/vnd.android.package-archive" : "application/octet-stream");
-        req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        // Use system DownloadManager for reliable background transfers, but
+        // suppress its generic notification. YASSERAPPS sends the single branded
+        // completion notification through DownloadCompleteReceiver instead.
+        // This permission is normal and granted on installation by Android.
+        // On OEM builds where it's unexpectedly unavailable, keep downloads
+        // functional without a redundant system *completion* alert.
+        if (app.checkSelfPermission("android.permission.DOWNLOAD_WITHOUT_NOTIFICATION")
+                == PackageManager.PERMISSION_GRANTED) {
+            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
+        } else {
+            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
+        }
         req.setAllowedOverMetered(!wifiOnly());
         req.setAllowedOverRoaming(false);
         req.setDestinationInExternalFilesDir(app, Environment.DIRECTORY_DOWNLOADS, fileName);
