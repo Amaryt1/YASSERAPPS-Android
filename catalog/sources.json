@@ -28,9 +28,10 @@
     },
     {
       "id": "taptap",
-      "status": "approved-catalog-interface-not-verified",
+      "status": "public-chart-metadata-testing",
       "website": "https://www.taptap.io/",
-      "enabled": false
+      "enabled": true,
+      "mode": "metadata-only"
     },
     {
       "id": "aurora",
@@ -40,9 +41,10 @@
     },
     {
       "id": "uptodown",
-      "status": "approved-catalog-interface-not-verified",
+      "status": "public-chart-metadata-testing",
       "website": "https://en.uptodown.com/android",
-      "enabled": false
+      "enabled": true,
+      "mode": "metadata-only"
     },
     {
       "id": "apkmirror",
