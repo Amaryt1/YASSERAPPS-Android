@@ -24,7 +24,9 @@ final class DirectSources {
     // Aptoide is the only live, verified public listing interface so far.
     private static final Source[] SOURCES = {
         new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", ""),
-        new Source("apkmirror", "APKMirror", "https://www.apkmirror.com/feed/", "")
+        new Source("apkmirror", "APKMirror", "https://www.apkmirror.com/feed/", ""),
+        new Source("uptodown","Uptodown","https://en.uptodown.com/android/apps/top",""),
+        new Source("taptap","TapTap","https://www.taptap.io/top/","")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -338,6 +340,16 @@ final class DirectSources {
         JSONObject data=fetchJson(context,"https://ws75.aptoide.com/api/7/app/getMeta/package_name="+app.packageName,2*1024*1024);
         return AptoideFeed.latestDetail(app,data);
     }
+    private static String fetchText(Context context,String address)throws Exception{
+        File temp=File.createTempFile("chart-", ".html",context.getCacheDir());
+        try{
+            download(address,temp,4*1024*1024,-1,null);
+            try(InputStream in=new FileInputStream(temp);ByteArrayOutputStream out=new ByteArrayOutputStream()){
+                byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);
+                return new String(out.toByteArray(),StandardCharsets.UTF_8);
+            }
+        }finally{temp.delete();}
+    }
     private static JSONObject fetchJson(Context context,String address,int limit) throws Exception {
         File file=File.createTempFile("gamefeed-", ".json",context.getCacheDir());
         try {
@@ -421,6 +433,30 @@ final class DirectSources {
         return fresh;
     }
     private static Snapshot update(Context context,Source source,Snapshot cached,java.util.function.Consumer<List<Catalog.App>> preview) throws Exception {
+        if(source.id.equals("uptodown")||source.id.equals("taptap")){
+            long now=System.currentTimeMillis();
+            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
+            List<String> links=PublicChartFeed.links(source.name,fetchText(context,source.base),source.base);
+            Map<String,Catalog.App> unique=new LinkedHashMap<>();
+            if(cached!=null)for(Catalog.App a:cached.apps)if(source.name.equals(a.sourceName))unique.put(a.id,a);
+            int checked=0,accepted=0;
+            android.content.SharedPreferences p=context.getSharedPreferences("public_chart_cursor_v1",Context.MODE_PRIVATE);
+            int offset=links.isEmpty()?0:Math.floorMod(p.getInt(source.id,0),links.size());
+            for(int i=0;i<Math.min(5,links.size());i++){
+                String link=links.get((offset+i)%links.size());checked++;
+                try{
+                    Catalog.App a=PublicChartFeed.parse(source.name,link,fetchText(context,link));
+                    if(a!=null){unique.put(a.id,a);accepted++;}
+                }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","CHART_DETAIL_FAILED "+source.id,e);}
+                Thread.sleep(1000);
+            }
+            if(accepted==0)throw new IOException("No validated public chart metadata");
+            List<Catalog.App> rows=new ArrayList<>(unique.values());
+            Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Long.toString(now).getBytes(StandardCharsets.UTF_8))),rows);
+            writeCache(context,source,fresh);p.edit().putInt(source.id,(offset+checked)%links.size()).apply();
+            android.util.Log.i("YASSERAPPS_CATALOG","CHART_IMPORT "+source.id+" checked="+checked+" accepted="+accepted+" cached="+rows.size());
+            return fresh;
+        }
         if(source.id.equals("apkmirror")){
             long now=System.currentTimeMillis();
             if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<60L*60*1000)return cached;
@@ -463,7 +499,7 @@ final class DirectSources {
                     JSONArray rows=datalist.getJSONArray("list");
                     for(Catalog.App app:AptoideFeed.discover(data,group)) {
                         Catalog.App old=unique.get(app.packageName);
-                        if(old==null&&unique.size()<target||old!=null&&app.versionCode>=old.versionCode)unique.put(app.packageName,app);
+                        if(old==null&&unique.size()<target||old!=null&&(app.versionCode>old.versionCode||app.versionCode==old.versionCode&&old.discoveryOnly&&old.description.isEmpty()))unique.put(app.packageName,app);
                         listed++;
                     }
                     // Remove an explicitly non-trusted listing, even when a previous version is cached.
