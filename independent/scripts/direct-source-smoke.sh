@@ -13,8 +13,17 @@ for id in fdroid izzyondroid; do
   curl -fLsS --retry 2 --max-time 120 "$base/entry.jar" -o "$tmp/$id.jar"
   path="$(unzip -p "$tmp/$id.jar" entry.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["index"]["name"].lstrip("/"))')"
   curl -fLsS --retry 2 --max-time 300 "$base/$path" -o "$tmp/$id.json"
-  adb exec-in run-as com.yasserapps.store sh -c "'cat > files/$id.jar'" < "$tmp/$id.jar"
-  adb exec-in run-as com.yasserapps.store sh -c "'cat > files/$id.json'" < "$tmp/$id.json"
+  for ext in jar json; do
+    remote="/data/local/tmp/yasser-$id.$ext"
+    adb push "$tmp/$id.$ext" "$remote"
+    adb shell chmod 644 "$remote"
+    adb shell run-as com.yasserapps.store cp "$remote" "files/$id.$ext"
+    adb shell run-as com.yasserapps.store ls -l "files/$id.$ext"
+    actual="$(adb shell run-as com.yasserapps.store sha256sum "files/$id.$ext" | awk '{print $1}' | tr -d '\r')"
+    expected="$(sha256sum "$tmp/$id.$ext" | awk '{print $1}')"
+    test "$actual" = "$expected"
+    adb shell rm "$remote"
+  done
 done
 adb shell am instrument -w com.yasserapps.store.test/com.yasserapps.store.DirectCatalogTest | tee "$tmp/result.txt"
 grep -F 'PASS signed direct sources on Android:' "$tmp/result.txt"
