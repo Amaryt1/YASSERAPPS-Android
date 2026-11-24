@@ -73,6 +73,37 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_LEGACY_STORAGE = 4281;
     private static final int REQUEST_UPDATE_NOTICES = 4282;
     private final String FAVORITES_KEY = "favorites_store_v1";
+    // A download started in the foreground automatically opens Android's
+    // installation confirmation only after the APK passes verification.
+    // Background downloads use a branded notification instead of launching UI.
+    private final java.util.Set<Long> armedDownloads = new java.util.HashSet<>();
+    private final java.util.Set<Long> handledDownloads = new java.util.HashSet<>();
+    private final Map<Long, long[]> speedSamples = new HashMap<>();
+    private boolean activityVisible = false;
+    private static final int REQUEST_DOWNLOAD_NOTICES = 4283;
+    private final Runnable completionWatch = new Runnable() {
+        @Override public void run() {
+            if (!activityVisible || isFinishing()) return;
+            for (DownloadCoordinator.Entry entry : downloadCoordinator.all()) {
+                if (entry.active()) {
+                    if (!handledDownloads.contains(entry.id)) armedDownloads.add(entry.id);
+                } else if (armedDownloads.remove(entry.id) && handledDownloads.add(entry.id)) {
+                    if (entry.complete()) {
+                        DownloadBranding.complete(MainActivity.this, entry);
+                        if ("downloads".equals(page)) showDownloads();
+                        showCompletionBanner(entry);
+                        main.postDelayed(() -> {
+                            if (activityVisible && !isFinishing()) installFromHistory(entry);
+                        }, 1200);
+                    } else if (entry.failed()) {
+                        DownloadBranding.failed(MainActivity.this, entry);
+                        if ("downloads".equals(page)) showDownloads();
+                    }
+                }
+            }
+            main.postDelayed(this, 1500);
+        }
+    };
     private final Runnable downloadsTick = new Runnable() {
         @Override public void run() {
             if ("downloads".equals(page) && !isFinishing()) showDownloads();
@@ -93,6 +124,9 @@ public final class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().getDecorView().setSystemUiVisibility(0);
         showHome();
+        if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(getIntent().getAction())) {
+            showDownloads();
+        }
         refresh();
         StoreUpdates.schedule(this);
         checkStoreUpdate("com.yasserapps.store.SHOW_UPDATE".equals(getIntent().getAction()));
@@ -102,6 +136,7 @@ public final class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         if ("com.yasserapps.store.SHOW_UPDATE".equals(intent.getAction())) checkStoreUpdate(true);
+        else if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(intent.getAction())) showDownloads();
     }
 
     private void checkStoreUpdate(boolean interactive) {
@@ -1192,16 +1227,27 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (downloadCoordinator != null && "downloads".equals(page)) showDownloads();
-        else if (downloadCoordinator != null && "updates".equals(page)) showUpdates();
+        activityVisible = true;
+        if (downloadCoordinator != null) {
+            for (DownloadCoordinator.Entry item : downloadCoordinator.all()) {
+                if (item.active() && !handledDownloads.contains(item.id)) armedDownloads.add(item.id);
+            }
+            main.removeCallbacks(completionWatch);
+            main.postDelayed(completionWatch, 900);
+            if ("downloads".equals(page)) showDownloads();
+            else if ("updates".equals(page)) showUpdates();
+        }
     }
 
     @Override protected void onPause() {
+        activityVisible = false;
+        main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         super.onPause();
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         images.shutdownNow();
         super.onDestroy();
