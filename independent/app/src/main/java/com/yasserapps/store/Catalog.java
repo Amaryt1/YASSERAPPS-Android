@@ -19,6 +19,8 @@ import java.util.concurrent.Executors;
 public final class Catalog {
     public static final String ADDRESS =
         "https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/apps.json";
+    private static final String API_ADDRESS =
+        "https://api.github.com/repos/Amaryt1/YASSERAPPS-Android/contents/catalog/apps.json?ref=main";
     private static final String PREFS = "yasserapps_live_catalog";
     private static final String CACHE = "last_valid_json";
     private static final int MAX_BYTES = 2_000_000;
@@ -41,9 +43,12 @@ public final class Catalog {
         public final List<App> apps;
         public final String warning;
 
-        Result(List<App> apps, String warning) {
+        public final boolean finalResult;
+
+        Result(List<App> apps, String warning, boolean finalResult) {
             this.apps = apps;
             this.warning = warning;
+            this.finalResult = finalResult;
         }
     }
 
@@ -137,47 +142,66 @@ public final class Catalog {
         return new ArrayList<>();
     }
 
+    private static String readLive(String address, String accept) throws Exception {
+        HttpURLConnection conn = null;
+        try {
+            String separator = address.contains("?") ? "&" : "?";
+            conn = (HttpURLConnection) new URL(address + separator + "_ts=" + System.currentTimeMillis()).openConnection();
+            conn.setUseCaches(false);
+            conn.setConnectTimeout(12000);
+            conn.setReadTimeout(30000);
+            conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0");
+            conn.setRequestProperty("Pragma", "no-cache");
+            conn.setRequestProperty("Accept", accept);
+            conn.setRequestProperty("User-Agent", "YASSERAPPS-Android-Independent");
+            int status = conn.getResponseCode();
+            if (status != 200) throw new Exception("Catalog HTTP status " + status);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (InputStream stream = conn.getInputStream()) {
+                byte[] buffer = new byte[16384];
+                int total = 0, read;
+                while ((read = stream.read(buffer)) != -1) {
+                    total += read;
+                    if (total > MAX_BYTES) throw new Exception("Catalog too large");
+                    bytes.write(buffer, 0, read);
+                }
+            }
+            return new String(bytes.toByteArray(), StandardCharsets.UTF_8);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
     public static void load(Context context, Callback callback) {
         Context app = context.getApplicationContext();
         IO.execute(() -> {
             List<App> initial = cache(app);
-            if (!initial.isEmpty()) {
-                // Display verified bundled/cached applications immediately,
-                // while the network refresh proceeds asynchronously.
-                callback.loaded(new Result(initial, null));
-            }
-            Result result;
-            HttpURLConnection conn = null;
-            try {
-                conn = (HttpURLConnection) new URL(ADDRESS).openConnection();
-                conn.setConnectTimeout(9000);
-                conn.setReadTimeout(13000);
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("User-Agent", "YASSERAPPS-Android-Independent");
-                if (conn.getResponseCode() != 200) throw new Exception("Catalog HTTP status " + conn.getResponseCode());
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                try (InputStream stream = conn.getInputStream()) {
-                    byte[] buffer = new byte[8192];
-                    int total = 0, read;
-                    while ((read = stream.read(buffer)) != -1) {
-                        total += read;
-                        if (total > MAX_BYTES) throw new Exception("Catalog too large");
-                        bytes.write(buffer, 0, read);
+            if (!initial.isEmpty()) callback.loaded(new Result(initial, null, false));
+            String[] endpoints = {ADDRESS, API_ADDRESS};
+            String[] accepts = {"application/json", "application/vnd.github.raw+json"};
+            for (int i = 0; i < endpoints.length; i++) {
+                try {
+                    String data = readLive(endpoints[i], accepts[i]);
+                    List<App> apps = parse(data);
+                    JSONArray entries = new JSONObject(data).getJSONArray("apps");
+                    int expected = 0;
+                    for (int n = 0; n < entries.length(); n++) {
+                        if (entries.getJSONObject(n).optBoolean("enabled", true)) expected++;
                     }
+                    if (apps.size() != expected) {
+                        throw new Exception("Catalog validation rejected " + (expected - apps.size()) + " enabled entries");
+                    }
+                    app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                        .edit().putString(CACHE, data).apply();
+                    android.util.Log.i("YASSERAPPS_CATALOG", "LIVE_CATALOG_OK count=" + apps.size() + " endpoint=" + i);
+                    callback.loaded(new Result(apps, null, true));
+                    return;
+                } catch (Exception e) {
+                    android.util.Log.w("YASSERAPPS_CATALOG", "Catalog endpoint " + i + " failed", e);
                 }
-                String data = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
-                List<App> apps = parse(data);
-                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit().putString(CACHE, data).apply();
-                result = new Result(apps, null);
-            } catch (Exception e) {
-                android.util.Log.w("YASSERAPPS_CATALOG", "Live catalog fetch failed; using cached snapshot", e);
-                List<App> offline = cache(app);
-                result = new Result(offline, offline.isEmpty() ? null : "تعذّر تحديث المتجر. نعرض آخر قائمة محفوظة.");
-            } finally {
-                if (conn != null) conn.disconnect();
             }
-            callback.loaded(result);
+            android.util.Log.w("YASSERAPPS_CATALOG", "LIVE_CATALOG_FAILED cached=" + initial.size());
+            callback.loaded(new Result(initial, "تعذّر تحديث المتجر. نعرض آخر قائمة محفوظة.", true));
         });
     }
 }
