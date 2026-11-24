@@ -508,7 +508,8 @@ public final class MainActivity extends Activity {
             shotFrame.setClipToOutline(true);
             ImageView realScreenshot = new ImageView(this);
             realScreenshot.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            image(realScreenshot, selected.screenshots.get(0));
+            image(realScreenshot, selected.screenshots.get(
+                selected.screenshots.size() > 1 ? 1 : 0));
             FrameLayout.LayoutParams innerShot = new FrameLayout.LayoutParams(-1, -1);
             innerShot.setMargins(dp(2), dp(2), dp(2), dp(2));
             shotFrame.addView(realScreenshot, innerShot);
