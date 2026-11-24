@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "fdroid",
+      "name": "F-Droid",
+      "baseUrl": "https://f-droid.org/repo",
+      "format": "fdroid-v2",
+      "enabled": true,
+      "mode": "review"
+    },
+    {
+      "id": "izzyondroid",
+      "name": "IzzyOnDroid",
+      "baseUrl": "https://apt.izzysoft.de/fdroid/repo",
+      "format": "fdroid-v2",
+      "enabled": true,
+      "mode": "review"
+    },
+    {
+      "id": "liteapks",
+      "name": "LiteAPKs",
+      "website": "https://liteapks.com/",
+      "enabled": false,
+      "mode": "pending",
+      "reason": "No verified public integration endpoint or redistribution authorization."
+    }
+  ]
+}
