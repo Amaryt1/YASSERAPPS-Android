@@ -28,7 +28,16 @@ final class DirectSources {
         new Source("guardian", "Guardian Project", "https://guardianproject.info/fdroid/repo",
             "B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135"),
         new Source("microg", "microG", "https://repo.microg.org/fdroid/repo",
-            "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165")
+            "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165"),
+        new Source("playfdroid", "PlayFDroid", "https://raw.githubusercontent.com/PlayFDroid/fdroid-repo/gh-pages/fdroid/repo", "077873B95749B78FA46971CC117F6F6086639D785208F0DDF3DA2143CB1E8DDD"),
+        new Source("kde", "KDE Stable", "https://cdn.kde.org/android/stable-releases/fdroid/repo", "13784BA6C80FF4E2181E55C56F961EED5844CEA16870D3B38D58780B85E1158F"),
+        new Source("newpipe", "NewPipe", "https://archive.newpipe.net/fdroid/repo", "E2402C78F9B97C6C89E97DB914A2751FDA1D02FE2039CC0897A462BDB57E7501"),
+        new Source("collabora", "Collabora Office", "https://www.collaboraoffice.com/downloads/fdroid/repo", "573258C84E149B5F4D9299E7434B2B69A8410372921D4AE586BA91EC767892CC"),
+        new Source("bitwarden", "Bitwarden", "https://mobileapp.bitwarden.com/fdroid/repo", "BC54EA6FD1CD5175BCCCC47C561C5726E1C3ED7E686B6DB4B18BAC843A3EFE6C"),
+        new Source("molly", "Molly", "https://molly.im/fdroid/foss/fdroid/repo", "5198DAEF37FC23C14D5EE32305B2AF45787BD7DF2034DE33AD302BDB3446DF74"),
+        new Source("session", "Session", "https://fdroid.getsession.org/fdroid/repo", "DB0E5297EB65CC22D6BD93C869943BDCFCB6A07DC69A48A0DD8C7BA698EC04E6"),
+        new Source("simplex", "SimpleX", "https://app.simplex.chat/fdroid/repo", "9F358FF284D1F71656A2BFAF0E005DEAE6AA14143720E089F11FF2DDCFEB01BA"),
+        new Source("wind", "Wind Offline", "https://guardianproject-wind.s3.amazonaws.com/fdroid/repo", "182CF464D219D340DA443C62155198E399FEC1BC4379309B775DD9FC97ED97E1")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -65,9 +74,10 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/10.4");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/10.5");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
+            if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
             if(status!=200) throw new IOException("HTTP "+status);
             if(connection.getContentLengthLong()>limit) throw new IOException("Index exceeds safety limit");
             MessageDigest digest=MessageDigest.getInstance("SHA-256");
@@ -85,14 +95,17 @@ final class DirectSources {
         } finally { connection.disconnect(); }
     }
     private static JSONObject verifiedEntry(File file, Source source) throws Exception {
+        return verifiedJson(file,source,"entry.json",4*1024*1024);
+    }
+    private static JSONObject verifiedJson(File file, Source source,String name,int limit) throws Exception {
         try(JarFile jar=new JarFile(file,true)) {
-            JarEntry entry=jar.getJarEntry("entry.json");
+            JarEntry entry=jar.getJarEntry(name);
             if(entry==null) throw new SecurityException("Missing signed entry.json");
             ByteArrayOutputStream out=new ByteArrayOutputStream();
             try(InputStream in=jar.getInputStream(entry)) {
                 byte[] b=new byte[8192]; int n;
                 while((n=in.read(b))!=-1) {
-                    if(out.size()+n>4*1024*1024) throw new IOException("Entry too large");
+                    if(out.size()+n>limit) throw new IOException("Entry too large");
                     out.write(b,0,n);
                 }
             }
@@ -189,7 +202,7 @@ final class DirectSources {
         Catalog.App a=new Catalog.App();
         a.id=source.id+"."+pkg; a.packageName=pkg;
         a.name=clean(meta.opt("name"),200); if(a.name.isEmpty()) a.name=pkg;
-        a.category=game(meta)?"game":"app"; a.version=m.optString("versionName",String.valueOf(best));
+        a.category=(source.id.equals("playfdroid")||game(meta))?"game":"app"; a.version=m.optString("versionName",String.valueOf(best));
         a.versionCode=best; a.sizeBytes=f.getLong("size"); a.sha256=f.getString("sha256").toLowerCase(Locale.ROOT);
         a.apkUrl=url(source,f.getString("name")); a.iconUrl=media(source,meta.opt("icon"));
         a.bannerUrl=media(source,meta.opt("featureGraphic"));
@@ -272,11 +285,64 @@ final class DirectSources {
             writer.write("]}"); writer.flush(); file.finishWrite(out);
         } catch(Exception e) { file.failWrite(out); throw e; }
     }
+    private static Snapshot legacy(Context context,Source source,File jar,Snapshot cached) throws Exception {
+        JSONObject root=verifiedJson(jar,source,"index-v1.json",16*1024*1024);
+        long time=root.getJSONObject("repo").getLong("timestamp");
+        if(time<=0||(cached!=null&&time<cached.timestamp)) throw new SecurityException("Repository rollback");
+        MessageDigest digest=MessageDigest.getInstance("SHA-256");
+        String h=hex(digest.digest(root.toString().getBytes(StandardCharsets.UTF_8)));
+        if(cached!=null&&h.equals(cached.hash)) return cached;
+        JSONArray metadata=root.getJSONArray("apps");
+        JSONObject packages=root.getJSONObject("packages");
+        List<Catalog.App> list=new ArrayList<>();
+        for(int i=0;i<metadata.length();i++) {
+            JSONObject a=metadata.getJSONObject(i);
+            String pkg=a.optString("packageName");
+            JSONArray releases=packages.optJSONArray(pkg);
+            if(releases==null) continue;
+            JSONObject meta=new JSONObject();
+            JSONObject local=a.optJSONObject("localized");
+            JSONObject l=(JSONObject)localized(local);
+            if(l==null) l=new JSONObject();
+            for(String key:new String[]{"name","summary","description"}) meta.put(key,l.optString(key,a.optString(key)));
+            meta.put("categories",a.optJSONArray("categories"));
+            meta.put("license",a.optString("license"));
+            meta.put("lastUpdated",a.optLong("lastUpdated",0));
+            String icon=a.optString("icon");
+            if(!icon.isEmpty()) meta.put("icon",new JSONObject().put("name","icons/"+icon));
+            JSONObject versions=new JSONObject();
+            int suggested=a.optInt("suggestedVersionCode",0);
+            for(int j=0;j<releases.length();j++) {
+                JSONObject r=releases.getJSONObject(j);
+                if(suggested>0&&r.optInt("versionCode")>suggested) continue;
+                if(!"sha256".equalsIgnoreCase(r.optString("hashType","sha256"))||!hash(r.optString("signer"))) continue;
+                JSONObject m=new JSONObject().put("versionCode",r.optInt("versionCode"))
+                    .put("versionName",r.optString("versionName"))
+                    .put("usesSdk",new JSONObject().put("minSdkVersion",r.optInt("minSdkVersion",1)))
+                    .put("signer",new JSONObject().put("sha256",new JSONArray().put(r.optString("signer"))));
+                if(r.has("nativecode")) m.put("nativecode",r.get("nativecode"));
+                JSONObject file=new JSONObject().put("name",r.optString("apkName")).put("sha256",r.optString("hash")).put("size",r.optLong("size"));
+                versions.put(String.valueOf(j),new JSONObject().put("manifest",m).put("file",file).put("added",r.optLong("added")).put("whatsNew",l.optString("whatsNew")));
+            }
+            try {
+                Catalog.App converted=convert(source,pkg,new JSONObject().put("metadata",meta).put("versions",versions));
+                if(converted!=null) list.add(converted);
+            } catch(Exception ex) { android.util.Log.w("YASSERAPPS_CATALOG","Skipping invalid legacy entry "+pkg); }
+        }
+        if(list.isEmpty()) throw new IOException("No compatible signed legacy entries");
+        Snapshot fresh=new Snapshot(time,h,list);
+        writeCache(context,source,fresh);
+        return fresh;
+    }
     private static Snapshot update(Context context,Source source,Snapshot cached) throws Exception {
         File jar=File.createTempFile("entry-", ".jar",context.getCacheDir());
         File index=File.createTempFile("index-", ".json",context.getCacheDir());
         try {
-            download(source.base+"/entry.jar",jar,8L*1024*1024,-1,null);
+            try { download(source.base+"/entry.jar",jar,8L*1024*1024,-1,null); }
+            catch(FileNotFoundException e) {
+                download(source.base+"/index-v1.jar",jar,16L*1024*1024,-1,null);
+                return legacy(context,source,jar,cached);
+            }
             JSONObject entry=verifiedEntry(jar,source);
             long timestamp=entry.getLong("timestamp");
             JSONObject descriptor=entry.getJSONObject("index");
@@ -296,6 +362,7 @@ final class DirectSources {
         Source source=null;
         for(Source s:SOURCES) if(s.id.equals(id)) source=s;
         if(source==null) throw new IllegalArgumentException("Unknown source");
+        if(!index.exists()) return legacy(context,source,jar,null).apps;
         JSONObject entry=verifiedEntry(jar,source);
         JSONObject descriptor=entry.getJSONObject("index");
         if(index.length()!=descriptor.getLong("size")) throw new SecurityException("Size mismatch");
