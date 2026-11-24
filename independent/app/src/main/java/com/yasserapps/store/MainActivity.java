@@ -113,6 +113,9 @@ public final class MainActivity extends Activity {
     private FrameLayout screen;
     private String page = "home";
     private String category = "all";
+    private static final int CATALOG_PAGE_SIZE = 40;
+    private String listTitle = "";
+    private String listKind = "all";
     private boolean loading = true;
     private String warning;
     private Catalog.App detailApp;
@@ -445,9 +448,9 @@ public final class MainActivity extends Activity {
             gap(content, 17);
             section(content, "أحدث الألعاب", matching("game"), true);
         } else if ("app".equals(category)) {
-            section(content, "أحدث التطبيقات", matching("app"), false);
+            catalogList(content, "التطبيقات", matching("app"));
         } else if ("game".equals(category)) {
-            section(content, "أحدث الألعاب", matching("game"), false);
+            catalogList(content, "الألعاب", matching("game"));
         }
         render(content, true);
     }
@@ -577,6 +580,7 @@ public final class MainActivity extends Activity {
             panelText(root,message);
             return;
         }
+        // The home is a preview; the category tabs and View All expose every item.
         int max=compact?Math.min(3,entries.size()):Math.min(10,entries.size());
         for(int i=0;i<max;i++){
             card(root,entries.get(i));
@@ -584,14 +588,42 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void catalogList(LinearLayout root, String title, List<Catalog.App> entries) {
+        TextView heading = text(title + " (" + entries.size() + ")", 19, WHITE, true);
+        root.addView(heading);
+        gap(root, 9);
+        if (entries.isEmpty()) {
+            panelText(root, loading ? "جاري تحميل محتوى المتجر..." :
+                (warning != null ? warning : "لا يوجد محتوى منشور حاليًا."));
+            return;
+        }
+        LinearLayout rows = linear(true);
+        root.addView(rows, lp(-1, -2));
+        final int[] cursor = {0};
+        TextView more = action("عرض المزيد", false, () -> {});
+        Runnable append = () -> {
+            int end = Math.min(entries.size(), cursor[0] + CATALOG_PAGE_SIZE);
+            for (int i = cursor[0]; i < end; i++) {
+                card(rows, entries.get(i));
+                gap(rows, 9);
+            }
+            cursor[0] = end;
+            more.setText("عرض المزيد (" + (entries.size() - end) + ")");
+            more.setVisibility(end < entries.size() ? View.VISIBLE : View.GONE);
+        };
+        root.addView(more, lp(-1, 50));
+        more.setOnClickListener(v -> append.run());
+        append.run();
+        android.util.Log.i("YASSERAPPS_CATALOG", "UI_LIST total=" + entries.size() + " rendered=" + cursor[0]);
+    }
+
     private void showList(String title, String kind) {
-        page = "home";
+        page = "catalog_list";
+        listTitle = title;
+        listKind = kind;
         LinearLayout c = verticalContent();
         backBar(c, title, this::showHome);
-        for (Catalog.App a : matching(kind)) {
-            card(c, a);
-            gap(c, 9);
-        }
+        catalogList(c, title, matching(kind));
         render(c, true);
     }
 
@@ -932,6 +964,7 @@ public final class MainActivity extends Activity {
             apps.addAll(result.apps);
             warning = result.warning;
             if ("home".equals(page)) showHome();
+            else if ("catalog_list".equals(page)) showList(listTitle, listKind);
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
@@ -939,6 +972,10 @@ public final class MainActivity extends Activity {
                 String message = result.warning != null ? result.warning :
                     "تم تحديث المتجر: " + apps.size() + " تطبيقًا ولعبة";
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                if ("settings".equals(page)) {
+                    category = "all";
+                    showHome();
+                }
             }
         }));
     }
@@ -1377,7 +1414,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.1\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.2\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
