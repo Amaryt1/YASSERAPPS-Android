@@ -280,9 +280,25 @@ final class DirectSources {
             if(cached!=null&&digest.equalsIgnoreCase(cached.hash)) return cached;
             download(url(source,descriptor.getString("name")),index,MAX_INDEX_BYTES,size,digest);
             Snapshot fresh=new Snapshot(timestamp,digest,parseIndex(index,source));
-            writeCache(context,source,fresh);
+            try { writeCache(context,source,fresh); }
+            catch(Exception e) { android.util.Log.w("YASSERAPPS_CATALOG","Local cache unavailable",e); }
             return fresh;
         } finally { jar.delete(); index.delete(); }
+    }
+    // Test-only callers provide real publisher files downloaded by the CI runner.
+    static List<Catalog.App> verifyFixture(String id, File jar, File index) throws Exception {
+        Source source=null;
+        for(Source s:SOURCES) if(s.id.equals(id)) source=s;
+        if(source==null) throw new IllegalArgumentException("Unknown source");
+        JSONObject descriptor=verifiedEntry(jar,source).getJSONObject("index");
+        if(index.length()!=descriptor.getLong("size")) throw new SecurityException("Size mismatch");
+        MessageDigest digest=MessageDigest.getInstance("SHA-256");
+        try(InputStream input=new FileInputStream(index)) {
+            byte[] bytes=new byte[65536]; int n;
+            while((n=input.read(bytes))!=-1) digest.update(bytes,0,n);
+        }
+        if(!hex(digest.digest()).equalsIgnoreCase(descriptor.getString("sha256"))) throw new SecurityException("Index hash mismatch");
+        return parseIndex(index,source);
     }
     private static List<Catalog.App> merge(Map<String,Snapshot> snapshots) {
         Map<String,Catalog.App> unique=new LinkedHashMap<>();
@@ -298,6 +314,7 @@ final class DirectSources {
         List<Catalog.App> result=new ArrayList<>(unique.values());
         result.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed().thenComparing(a->a.name,String.CASE_INSENSITIVE_ORDER));
         // Keep the existing branded hero and choose a real game with artwork if available.
+        for(Catalog.App a:result) a.featured=false;
         for(Catalog.App a:result) if(a.isGame()&&(!a.bannerUrl.isEmpty()||!a.screenshots.isEmpty())) { a.featured=true; break; }
         return result;
     }
