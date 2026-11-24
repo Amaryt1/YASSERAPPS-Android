@@ -1099,9 +1099,28 @@ public final class MainActivity extends Activity {
         LinearLayout content = verticalContent();
         header(content);
         content.addView(text("إدارة التنزيلات", 23, WHITE, true));
-        gap(content, 7);
-        content.addView(text("التنزيل يستمر بالنظام حتى لو قفلت المتجر. التثبيت بموافقتك.", 12, SUBTEXT, false));
-        gap(content, 16);
+        gap(content, 13);
+        FrameLayout brandPanel = new FrameLayout(this);
+        brandPanel.setBackground(shape(Color.rgb(8, 23, 10), 17, Color.rgb(62, 120, 36)));
+        brandPanel.setClipToOutline(true);
+        brandPanel.addView(new BrandArt(this), new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout ribbon = linear(false);
+        ribbon.setGravity(Gravity.CENTER_VERTICAL);
+        ribbon.setPadding(dp(14), dp(10), dp(14), dp(10));
+        ImageView emblem = new ImageView(this);
+        emblem.setImageResource(R.drawable.yasser_logo);
+        ribbon.addView(emblem, lp(58, 58));
+        padx(ribbon, 12);
+        LinearLayout copy = linear(true);
+        copy.addView(text("YASSERAPPS DOWNLOADS", 18, GREEN, true));
+        gap(copy, 3);
+        copy.addView(text("سرعة • تقدم مباشر • إدارة وتحميل آمن", 12, WHITE, false));
+        ribbon.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
+        brandPanel.addView(ribbon, new FrameLayout.LayoutParams(-1, -1));
+        content.addView(brandPanel, lp(-1, 94));
+        gap(content, 9);
+        content.addView(text("التنزيل يستمر بالنظام حتى لو قفلت المتجر، والتثبيت بموافقتك.", 12, SUBTEXT, false));
+        gap(content, 17);
         List<DownloadCoordinator.Entry> records = downloadCoordinator.all();
         if (records.isEmpty()) {
             panelText(content, "ما عندك تحميلات بعد. من تختار تطبيق أو لعبة، راح يظهر تقدم التحميل هنا.");
@@ -1109,10 +1128,28 @@ public final class MainActivity extends Activity {
             LinearLayout card = linear(true);
             card.setPadding(dp(13), dp(13), dp(13), dp(14));
             card.setBackground(shape(PANEL, 17, Color.rgb(51, 66, 47)));
+            LinearLayout headingRow = linear(false);
+            headingRow.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView appGraphic = new ImageView(this);
+            appGraphic.setImageResource(R.drawable.yasser_logo);
+            appGraphic.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            for (Catalog.App item : apps) {
+                if (item.packageName.equals(entry.packageName)) {
+                    image(appGraphic, item.iconUrl);
+                    break;
+                }
+            }
+            headingRow.addView(appGraphic, lp(53, 53));
+            padx(headingRow, 10);
+            LinearLayout labels = linear(true);
             TextView title = text(entry.name, 17, WHITE, true);
             title.setMaxLines(2);
-            card.addView(title);
-            gap(card, 4);
+            labels.addView(title);
+            gap(labels, 3);
+            labels.addView(text("YASSERAPPS • " + entry.version, 11, GREEN, true));
+            headingRow.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+            card.addView(headingRow);
+            gap(card, 9);
             String stateText = entry.message();
             int color = entry.failed() ? Color.rgb(255, 161, 141) : GREEN;
             card.addView(text(stateText, 12, color, false));
@@ -1135,11 +1172,30 @@ public final class MainActivity extends Activity {
                 String total = entry.bytesTotal > 0 ? size(entry.bytesTotal) : "الحجم غير معروف";
                 String percent = entry.percent() < 0 ? "" : " • " + entry.percent() + "%";
                 card.addView(text(done + " / " + total + percent, 12, SUBTEXT, false));
+                long now = System.currentTimeMillis();
+                long[] last = speedSamples.get(entry.id);
+                long speed = 0;
+                if (last != null) {
+                    long elapsed = now - last[0];
+                    speed = elapsed > 700 ? Math.max(0,
+                        (entry.bytesDone - last[1]) * 1000L / Math.max(1L, elapsed)) : last[2];
+                }
+                speedSamples.put(entry.id, new long[]{now, entry.bytesDone, speed});
+                if (speed > 0) {
+                    long remaining = entry.bytesTotal > entry.bytesDone ?
+                        (entry.bytesTotal - entry.bytesDone) / speed : -1;
+                    String eta = remaining < 0 ? "" : remaining < 60 ?
+                        " • المتبقي " + remaining + " ث" :
+                        " • المتبقي " + (remaining / 60 + 1) + " د";
+                    TextView rate = text("السرعة " + size(speed) + "/ث" + eta,
+                        12, GREEN, false);
+                    card.addView(rate);
+                }
             }
             gap(card, 10);
             LinearLayout actions = linear(false);
             if (entry.complete()) {
-                TextView install = action("فحص وتثبيت", true, () -> installFromHistory(entry));
+                TextView install = action("تثبيت الآن", true, () -> installFromHistory(entry));
                 actions.addView(install, new LinearLayout.LayoutParams(0, dp(44), 1));
                 padx(actions, 8);
             } else if (entry.failed()) {
@@ -1149,6 +1205,7 @@ public final class MainActivity extends Activity {
                         candidate = item; break;
                     }
                     downloadCoordinator.remove(entry.id);
+                    DownloadBranding.clear(this, entry.id);
                     if (candidate != null) download(candidate);
                     else {
                         Toast.makeText(this, "التطبيق مو موجود بالكتالوج الحالي", Toast.LENGTH_LONG).show();
@@ -1164,6 +1221,9 @@ public final class MainActivity extends Activity {
                     .setMessage("راح ينحذف التحميل وسجله من جهازك. ما يتأثر التطبيق المثبّت.")
                     .setPositiveButton("تأكيد", (dialog, which) -> {
                         downloadCoordinator.remove(entry.id);
+                        DownloadBranding.clear(this, entry.id);
+                        speedSamples.remove(entry.id);
+                        armedDownloads.remove(entry.id);
                         showDownloads();
                     })
                     .setNegativeButton("رجوع", null)
