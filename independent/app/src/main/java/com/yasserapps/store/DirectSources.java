@@ -433,45 +433,56 @@ final class DirectSources {
         return fresh;
     }
     private static Snapshot update(Context context,Source source,Snapshot cached,java.util.function.Consumer<List<Catalog.App>> preview) throws Exception {
-        if(source.id.equals("uptodown")||source.id.equals("taptap")){
+        if(source.id.equals("uptodown")||source.id.equals("taptap")||source.id.equals("apkmirror")){
             long now=System.currentTimeMillis();
-            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
-            List<String> links=PublicChartFeed.links(source.name,fetchText(context,source.base),source.base);
+            final int target=2000;
+            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<(cached.apps.size()<target?15L*60*1000:6L*60*60*1000))return cached;
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
             if(cached!=null)for(Catalog.App a:cached.apps)if(source.name.equals(a.sourceName))unique.put(a.id,a);
-            int checked=0,accepted=0;
-            android.content.SharedPreferences p=context.getSharedPreferences("public_chart_cursor_v1",Context.MODE_PRIVATE);
+            int accepted=0,checked=0;
+            if(source.id.equals("apkmirror")){
+                File temp=File.createTempFile("mirror-rss-", ".xml",context.getCacheDir());
+                try{
+                    download(source.base,temp,2*1024*1024,-1,null);
+                    try(InputStream in=new FileInputStream(temp)){
+                        for(Catalog.App a:MirrorFeed.parse(in)){
+                            if(unique.size()<target||unique.containsKey(a.id)){unique.put(a.id,a);accepted++;}
+                        }
+                    }
+                }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","RSS_REFRESH_FAILED",e);}
+                finally{temp.delete();}
+            }
+            String[] charts=source.id.equals("uptodown")?new String[]{
+                source.base,"https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates","https://en.uptodown.com/android/newreleases"
+            }:source.id.equals("apkmirror")?new String[]{"https://www.apkmirror.com/uploads/"}:new String[]{source.base};
+            LinkedHashSet<String> urls=new LinkedHashSet<>();
+            for(String chart:charts){
+                try{urls.addAll(PublicChartFeed.links(source.name,fetchText(context,chart),chart));}
+                catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","CHART_LIST_FAILED "+source.id,e);}
+                Thread.sleep(1000);
+            }
+            List<String> links=new ArrayList<>(urls);
+            android.content.SharedPreferences p=context.getSharedPreferences("public_chart_cursor_v2",Context.MODE_PRIVATE);
             int offset=links.isEmpty()?0:Math.floorMod(p.getInt(source.id,0),links.size());
-            for(int i=0;i<Math.min(5,links.size());i++){
+            long deadline=android.os.SystemClock.elapsedRealtime()+85000L;
+            // Rotate through real chart URLs. Never fabricate app IDs or bypass blocked endpoints.
+            for(int i=0;i<Math.min(40,links.size())&&android.os.SystemClock.elapsedRealtime()<deadline;i++){
                 String link=links.get((offset+i)%links.size());checked++;
                 try{
                     Catalog.App a=PublicChartFeed.parse(source.name,link,fetchText(context,link));
-                    if(a!=null){unique.put(a.id,a);accepted++;}
-                }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","CHART_DETAIL_FAILED "+source.id,e);}
-                Thread.sleep(1000);
+                    if(a!=null&&(unique.containsKey(a.id)||unique.size()<target)){unique.put(a.id,a);accepted++;}
+                }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","CHART_DETAIL_FAILED "+source.id,e);break;}
+                if(checked%10==0&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
+                Thread.sleep(1200);
             }
-            if(accepted==0)throw new IOException("No validated public chart metadata");
+            if(accepted==0&&cached==null)throw new IOException("No validated public chart metadata");
+            if(unique.isEmpty())throw new IOException("Empty public chart");
             List<Catalog.App> rows=new ArrayList<>(unique.values());
             Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Long.toString(now).getBytes(StandardCharsets.UTF_8))),rows);
-            writeCache(context,source,fresh);p.edit().putInt(source.id,(offset+checked)%links.size()).apply();
-            android.util.Log.i("YASSERAPPS_CATALOG","CHART_IMPORT "+source.id+" checked="+checked+" accepted="+accepted+" cached="+rows.size());
+            writeCache(context,source,fresh);
+            if(!links.isEmpty())p.edit().putInt(source.id,(offset+checked)%links.size()).apply();
+            android.util.Log.i("YASSERAPPS_CATALOG","CHART_IMPORT "+source.id+" available="+links.size()+" checked="+checked+" accepted="+accepted+" cached="+rows.size());
             return fresh;
-        }
-        if(source.id.equals("apkmirror")){
-            long now=System.currentTimeMillis();
-            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<60L*60*1000)return cached;
-            File temp=File.createTempFile("mirror-rss-", ".xml",context.getCacheDir());
-            try{
-                download(source.base,temp,2*1024*1024,-1,null);
-                List<Catalog.App> rows;
-                try(InputStream in=new FileInputStream(temp)){rows=MirrorFeed.parse(in);}
-                if(rows.isEmpty())throw new IOException("Empty APKMirror release feed");
-                Map<String,Catalog.App> unique=new LinkedHashMap<>();
-                for(Catalog.App a:rows)unique.put(a.id,a);
-                if(cached!=null)for(Catalog.App a:cached.apps)if(unique.size()<2000&&"APKMirror".equals(a.sourceName))unique.putIfAbsent(a.id,a);
-                Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Long.toString(now).getBytes(StandardCharsets.UTF_8))),new ArrayList<>(unique.values()));
-                writeCache(context,source,fresh);return fresh;
-            }finally{temp.delete();}
         }
         if(source.id.equals("aptoide")) {
             final int target=20000;
@@ -481,14 +492,14 @@ final class DirectSources {
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
             if(cached!=null)for(Catalog.App app:cached.apps)if("Aptoide".equals(app.sourceName))unique.put(app.packageName,app);
             int accepted=0,attempted=0,rejected=0,listed=0,pages=0;
-            long deadline=android.os.SystemClock.elapsedRealtime()+100000L;
+            long deadline=android.os.SystemClock.elapsedRealtime()+150000L;
             android.content.SharedPreferences.Editor checkpoint=progress.edit();
             String[] groups={"games","applications"};
             int[] offsets={cached==null?0:progress.getInt("games",0),cached==null?0:progress.getInt("applications",0)};
-            if(unique.size()>=target){offsets[0]=0;offsets[1]=0;}
+            // Retain cursors even when the target is reached, so older entries are refreshed as well.
             // Refresh popular pages, then continue where the last successful batch ended.
             // Interleave the categories, keep a request/time budget and respect upstream errors.
-            for(int page=0;page<20;page++) {
+            for(int page=0;page<35;page++) {
                 for(int g=0;g<groups.length;g++){
                     if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
                     String group=groups[g];
@@ -523,7 +534,7 @@ final class DirectSources {
                     }
                     int next=datalist.optInt("next",-1);
                     if(page>0||offsets[g]==0)offsets[g]=rows.length()==0||next<=offset||next>=datalist.optInt("total",Integer.MAX_VALUE)?0:next;
-                    if(page==0&&cached==null&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
+                    if((page==0||page%10==0)&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
                     Thread.sleep(750);
                 }
                 if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
