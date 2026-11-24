@@ -562,7 +562,7 @@ public final class MainActivity extends Activity {
             name.contains("الألعاب")?"game":"grid", GREEN);
         title.addView(badge,lp(24,27));
         padx(title,7);
-        TextView heading=text(name,19,WHITE,true);
+        TextView heading=text(name + " (" + entries.size() + ")",19,WHITE,true);
         title.addView(heading,new LinearLayout.LayoutParams(0,dp(38),1));
         TextView all=text("عرض الكل  ‹",13,WHITE,false);
         all.setGravity(Gravity.CENTER_VERTICAL);
@@ -580,12 +580,10 @@ public final class MainActivity extends Activity {
             panelText(root,message);
             return;
         }
-        // The home is a preview; the category tabs and View All expose every item.
-        int max=compact?Math.min(3,entries.size()):Math.min(10,entries.size());
-        for(int i=0;i<max;i++){
-            card(root,entries.get(i));
-            gap(root,9);
-        }
+        // Keep the familiar home preview, with additional rows available in place.
+        appendCatalogPages(root, entries, compact ? 3 : 10);
+        android.util.Log.i("YASSERAPPS_CATALOG", "UI_HOME_SECTION kind=" +
+            (compact ? "game" : "app") + " total=" + entries.size());
     }
 
     private void catalogList(LinearLayout root, String title, List<Catalog.App> entries) {
@@ -597,12 +595,18 @@ public final class MainActivity extends Activity {
                 (warning != null ? warning : "لا يوجد محتوى منشور حاليًا."));
             return;
         }
+        appendCatalogPages(root, entries, CATALOG_PAGE_SIZE);
+        android.util.Log.i("YASSERAPPS_CATALOG", "UI_LIST total=" + entries.size() +
+            " rendered=" + Math.min(entries.size(), CATALOG_PAGE_SIZE));
+    }
+
+    private void appendCatalogPages(LinearLayout root, List<Catalog.App> entries, int initialSize) {
         LinearLayout rows = linear(true);
         root.addView(rows, lp(-1, -2));
         final int[] cursor = {0};
         TextView more = action("عرض المزيد", false, () -> {});
         Runnable append = () -> {
-            int end = Math.min(entries.size(), cursor[0] + CATALOG_PAGE_SIZE);
+            int end = Math.min(entries.size(), cursor[0] + (cursor[0] == 0 ? initialSize : CATALOG_PAGE_SIZE));
             for (int i = cursor[0]; i < end; i++) {
                 card(rows, entries.get(i));
                 gap(rows, 9);
@@ -614,7 +618,6 @@ public final class MainActivity extends Activity {
         root.addView(more, lp(-1, 50));
         more.setOnClickListener(v -> append.run());
         append.run();
-        android.util.Log.i("YASSERAPPS_CATALOG", "UI_LIST total=" + entries.size() + " rendered=" + cursor[0]);
     }
 
     private void showList(String title, String kind) {
