@@ -56,6 +56,26 @@ PY
   adb shell input tap "$x" "$y"
   sleep 2
 }
+# Exercise the actual featured controls and verify that the selected package changes.
+adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/featured.log"
+grep -F 'UI_FEATURED count=10 index=0' "$tmp/featured.log"
+adb shell uiautomator dump /sdcard/yasser-ui.xml >/dev/null
+adb pull /sdcard/yasser-ui.xml "$tmp/ui.xml" >/dev/null
+read -r x y < <(python3 - "$tmp/ui.xml" <<'PY'
+import sys,re,xml.etree.ElementTree as E
+for n in E.parse(sys.argv[1]).iter('node'):
+    if n.get('content-desc')=='المميز التالي':
+        a,b,c,d=map(int,re.findall(r'\d+',n.get('bounds')))
+        print((a+c)//2,(b+d)//2)
+        break
+else: raise SystemExit('Missing featured next control')
+PY
+)
+adb shell input tap "$x" "$y"
+sleep 2
+adb logcat -d -s YASSERAPPS_CATALOG:I > "$tmp/featured.log"
+grep -F 'UI_FEATURED count=10 index=1' "$tmp/featured.log"
+echo 'PASS ten featured recommendations and next navigation'
 adb logcat -c
 tap_tab 'التطبيقات'
 adb logcat -d -s YASSERAPPS_CATALOG:I | grep -E 'UI_LIST total=[1-9][0-9]+ rendered=40'
