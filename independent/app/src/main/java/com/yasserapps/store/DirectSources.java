@@ -438,22 +438,41 @@ final class DirectSources {
             long now=System.currentTimeMillis();
             if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
+            if(cached!=null) for(Catalog.App app:cached.apps) unique.put(app.packageName,app);
+            int accepted=0,attempted=0,rejected=0;
+            long deadline=android.os.SystemClock.elapsedRealtime()+100000L;
             for(String group:new String[]{"games","applications"}) {
-                int offset=0;
-                for(int page=0;page<10;page++) {
-                    JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=100/offset="+offset+"/mature=false",4*1024*1024);
-                    for(Catalog.App a:AptoideFeed.parse(data,group)) {
-                        Catalog.App old=unique.get(a.packageName);
-                        if(old==null||a.versionCode>old.versionCode)unique.put(a.packageName,a);
+                int requests=0;
+                if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
+                JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=30/offset=0/mature=false/sort=downloads",4*1024*1024);
+                if(!"OK".equals(data.getJSONObject("info").optString("status")))throw new IOException("Aptoide list status");
+                JSONArray rows=data.getJSONObject("datalist").getJSONArray("list");
+                for(int i=0;i<rows.length()&&requests<20;i++) {
+                    if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
+                    JSONObject r=rows.optJSONObject(i);
+                    if(r==null)continue;
+                    String pkg=r.optString("package");
+                    if(!pkg.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+"))continue;
+                    requests++; attempted++;
+                    // List API omits malware verdict: check the exact release in its official detail API.
+                    // MD5 is only a correlation field here, never used as an APK security guarantee.
+                    JSONObject detail=fetchJson(context,"https://ws75.aptoide.com/api/7/app/getMeta/package_name="+pkg,2*1024*1024);
+                    Catalog.App app=AptoideFeed.checkedDetail(r,detail,group);
+                    if(app==null) {
+                        rejected++;
+                        Catalog.App prior=unique.get(pkg);
+                        // Do not continue advertising a release that no longer passes a fresh check.
+                        if(prior!=null&&r.optJSONObject("file")!=null&&prior.versionCode<=r.optJSONObject("file").optInt("vercode"))unique.remove(pkg);
+                    } else {
+                        accepted++;
+                        Catalog.App old=unique.get(pkg);
+                        if(old==null||app.versionCode>=old.versionCode)unique.put(pkg,app);
                     }
-                    JSONObject list=data.getJSONObject("datalist");
-                    int next=list.optInt("next",-1);
-                    if(next<=offset||next>=list.optInt("total",Integer.MAX_VALUE)||list.getJSONArray("list").length()==0)break;
-                    offset=next;
-                    Thread.sleep(750);
+                    Thread.sleep(500);
                 }
             }
-            if(unique.isEmpty())throw new IOException("No trusted Aptoide listings");
+            android.util.Log.i("YASSERAPPS_CATALOG","APTOIDE_DETAIL_CHECK attempted="+attempted+" accepted="+accepted+" rejected="+rejected);
+            if(accepted==0)throw new IOException("No Aptoide detail releases passed checks");
             List<Catalog.App> entries=new ArrayList<>(unique.values());
             Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Integer.toString(entries.size()).getBytes(StandardCharsets.UTF_8))),entries);
             writeCache(context,source,fresh);return fresh;
