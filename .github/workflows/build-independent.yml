@@ -43,6 +43,25 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
 
+      - name: Embed actual server catalogue snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p independent/app/src/main/assets
+          DEST=independent/app/src/main/assets/server-catalog.json
+          if ! curl -fsSL --retry 2 'https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json' -o "$DEST"; then
+            curl -fsSL 'https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/155f7bc4c0c7b61e4926299459a91c004683b3c5/catalog/generate_live_catalog.py' -o /tmp/yasser-catalog.py
+            python3 /tmp/yasser-catalog.py --output "$DEST" --min-new 500
+          fi
+          python3 - "$DEST" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d['schemaVersion']==1 and 0<len(d['apps'])<=20000
+          assert len(d['apps'])==d['report']['total']
+          assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
+          print("EMBEDDED_CATALOG",json.dumps(d['report']))
+          PY
+
       - name: Compile independent APK
         working-directory: independent
         run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
@@ -56,6 +75,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -10
           unzip -t "$APK" > /dev/null
           if unzip -l "$APK" | grep -q yasserapps_starter_catalog; then exit 1; fi
+          unzip -l "$APK" | grep -F assets/server-catalog.json
           echo "APK archive integrity verified"
 
       - name: Upload YASSERAPPS-independent APK

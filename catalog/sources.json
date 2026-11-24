@@ -1,216 +1,58 @@
 {
   "schemaVersion": 1,
-  "sources": [
+  "sources": [],
+  "gameFeeds": [],
+  "discoveryCandidates": [],
+  "largeCatalogCandidates": [
     {
-      "id": "fdroid",
-      "name": "F-Droid",
-      "baseUrl": "https://f-droid.org/repo",
-      "format": "fdroid-v2",
+      "id": "aptoide",
+      "status": "public-metadata-only",
+      "documentation": "https://partners-center-be.aptoide.com/partners_api_doc/en",
+      "mode": "metadata-only",
       "enabled": true,
-      "mode": "direct",
-      "fingerprint": "43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB"
+      "endpoint": "https://ws75.aptoide.com/api/7/apps/get",
+      "target": 20000,
+      "pageSize": 50
     },
     {
-      "id": "izzyondroid",
-      "name": "IzzyOnDroid",
-      "baseUrl": "https://apt.izzysoft.de/fdroid/repo",
-      "format": "fdroid-v2",
-      "enabled": true,
-      "mode": "direct",
-      "fingerprint": "3BF0D6ABFEAE2F401707B6D966BE743BF0EEE49C2561B9BA39073711F628937A"
-    },
-    {
-      "id": "guardian",
-      "name": "Guardian Project",
-      "baseUrl": "https://guardianproject.info/fdroid/repo",
-      "fingerprint": "B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135",
-      "format": "fdroid-v2",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "microg",
-      "name": "microG",
-      "baseUrl": "https://repo.microg.org/fdroid/repo",
-      "fingerprint": "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165",
-      "format": "fdroid-v2",
-      "enabled": true,
-      "mode": "direct"
+      "id": "apkpure",
+      "status": "approved-catalog-interface-not-verified",
+      "website": "https://apkpure.net/",
+      "enabled": false
     },
     {
       "id": "liteapks",
-      "name": "LiteAPKs",
+      "status": "approved-catalog-interface-not-verified",
       "website": "https://liteapks.com/",
-      "enabled": false,
-      "mode": "pending",
-      "reason": "No verified public integration endpoint or redistribution authorization."
+      "enabled": false
     },
     {
-      "id": "playfdroid",
-      "name": "PlayFDroid",
-      "baseUrl": "https://raw.githubusercontent.com/PlayFDroid/fdroid-repo/gh-pages/fdroid/repo",
-      "fingerprint": "077873B95749B78FA46971CC117F6F6086639D785208F0DDF3DA2143CB1E8DDD",
-      "format": "fdroid-v2-or-signed-v1",
+      "id": "taptap",
+      "status": "public-chart-metadata-testing",
+      "website": "https://www.taptap.io/",
       "enabled": true,
-      "mode": "direct"
+      "mode": "metadata-only"
     },
     {
-      "id": "kde",
-      "name": "KDE Stable",
-      "baseUrl": "https://cdn.kde.org/android/stable-releases/fdroid/repo",
-      "fingerprint": "13784BA6C80FF4E2181E55C56F961EED5844CEA16870D3B38D58780B85E1158F",
-      "format": "fdroid-v2-or-signed-v1",
+      "id": "aurora",
+      "status": "Aurora OSS is not a full Google Play catalog API",
+      "website": "https://auroraoss.com/",
+      "enabled": false
+    },
+    {
+      "id": "uptodown",
+      "status": "public-chart-metadata-testing",
+      "website": "https://en.uptodown.com/android",
       "enabled": true,
-      "mode": "direct"
+      "mode": "metadata-only"
     },
     {
-      "id": "newpipe",
-      "name": "NewPipe",
-      "baseUrl": "https://archive.newpipe.net/fdroid/repo",
-      "fingerprint": "E2402C78F9B97C6C89E97DB914A2751FDA1D02FE2039CC0897A462BDB57E7501",
-      "format": "fdroid-v2-or-signed-v1",
+      "id": "apkmirror",
+      "status": "public-rss-integration-testing",
+      "website": "https://www.apkmirror.com/",
       "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "collabora",
-      "name": "Collabora Office",
-      "baseUrl": "https://www.collaboraoffice.com/downloads/fdroid/repo",
-      "fingerprint": "573258C84E149B5F4D9299E7434B2B69A8410372921D4AE586BA91EC767892CC",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "bitwarden",
-      "name": "Bitwarden",
-      "baseUrl": "https://mobileapp.bitwarden.com/fdroid/repo",
-      "fingerprint": "BC54EA6FD1CD5175BCCCC47C561C5726E1C3ED7E686B6DB4B18BAC843A3EFE6C",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "molly",
-      "name": "Molly",
-      "baseUrl": "https://molly.im/fdroid/foss/fdroid/repo",
-      "fingerprint": "5198DAEF37FC23C14D5EE32305B2AF45787BD7DF2034DE33AD302BDB3446DF74",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "session",
-      "name": "Session",
-      "baseUrl": "https://fdroid.getsession.org/fdroid/repo",
-      "fingerprint": "DB0E5297EB65CC22D6BD93C869943BDCFCB6A07DC69A48A0DD8C7BA698EC04E6",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "simplex",
-      "name": "SimpleX",
-      "baseUrl": "https://app.simplex.chat/fdroid/repo",
-      "fingerprint": "9F358FF284D1F71656A2BFAF0E005DEAE6AA14143720E089F11FF2DDCFEB01BA",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "wind",
-      "name": "Wind Offline",
-      "baseUrl": "https://guardianproject-wind.s3.amazonaws.com/fdroid/repo",
-      "fingerprint": "182CF464D219D340DA443C62155198E399FEC1BC4379309B775DD9FC97ED97E1",
-      "format": "fdroid-v2-or-signed-v1",
-      "enabled": true,
-      "mode": "direct"
-    },
-    {
-      "id": "2113apps",
-      "name": "2113 Apps",
-      "website": "https://github.com/2113apps/verified-android-apps",
-      "enabled": false,
-      "mode": "pending",
-      "reason": "Discovery feed integrated separately below; not a signed F-Droid index."
-    },
-    {
-      "id": "opensourceandroid",
-      "name": "Open Source Android",
-      "website": "https://opensourceandroid.dev/",
-      "enabled": false,
-      "mode": "pending",
-      "reason": "Discovery directory, not a direct signed APK repository."
-    },
-    {
-      "id": "modernapps",
-      "name": "Modern Apps",
-      "baseUrl": "https://maproj.org/fdroid/repo",
-      "fingerprint": "176FCB2525573E5BE8E1CB3A496DD97B137E81CA5B887A1D32CB894B4E5717B4",
-      "website": "https://maproj.org/fdroid",
-      "enabled": true,
-      "mode": "direct",
-      "format": "fdroid-v2-or-signed-v1"
-    },
-    {
-      "id": "rmgames",
-      "name": "rm's F-Droid repo",
-      "baseUrl": "https://hunke.ws/fdroid/repo",
-      "fingerprint": "80438B253C257BCCE05CDCB9E3AC9B6174C2250659962B14FCBE7F32FD42D53E",
-      "website": "https://hunke.ws/fdroid/repo/index.html",
-      "enabled": true,
-      "mode": "direct",
-      "format": "fdroid-v2-or-signed-v1"
-    },
-    {
-      "id": "metatrans",
-      "name": "Metatrans Apps & Games",
-      "website": "https://fdroid.metatransapps.com/",
-      "baseUrl": "https://fdroid.metatransapps.com/fdroid/repo",
-      "fingerprint": "214027CD55300B837A93B43717B190DD4867CDB20FAABD8853DEF55BD0FF6A0B",
-      "enabled": false,
-      "mode": "pending",
-      "reason": "F-Droid repo monitor reports weak signature algorithm; do not disable signature checks."
-    },
-    {
-      "id": "itchio",
-      "name": "itch.io",
-      "website": "https://itch.io/docs/api/overview",
-      "enabled": false,
-      "mode": "pending",
-      "reason": "Public RSS discovery is not a direct signed APK catalog; downloads require authorized access."
-    }
-  ],
-  "gameFeeds": [
-    {
-      "id": "2113games",
-      "name": "2113 Apps",
-      "url": "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json",
-      "enabled": true,
-      "license": "CC-BY-4.0",
-      "verification": "Resolve exact APK link on publisher-listed 2113 page; check full SHA-256, APK signer, package and version before install."
-    },
-    {
-      "id": "porthub",
-      "name": "PortHub",
-      "url": "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json",
-      "enabled": true,
-      "mode": "discovery-only",
-      "verification": "Publisher release links, no direct installation or playable count until APK hash and signer are verified."
-    }
-  ],
-  "discoveryCandidates": [
-    {
-      "id": "recompa",
-      "url": "https://recompa.app/index.json",
-      "status": "audit-only",
-      "reason": "Inspect schema and confirm catalog reuse terms before enabling. No original retail data hosted."
-    },
-    {
-      "id": "openportsgames",
-      "url": "https://github.com/Kymie131/openportsgames",
-      "status": "audit-only",
-      "reason": "CC BY 4.0 official source directory; requires independent Android APK verification."
+      "mode": "metadata-only",
+      "endpoint": "https://www.apkmirror.com/feed/"
     }
   ]
 }

@@ -113,7 +113,7 @@ public final class MainActivity extends Activity {
     private FrameLayout screen;
     private String page = "home";
     private String category = "all";
-    private static final int CATALOG_PAGE_SIZE = 40;
+    private static final int CATALOG_PAGE_SIZE = 50;
     private String listTitle = "";
     private String listKind = "all";
     private boolean loading = true;
@@ -240,6 +240,8 @@ public final class MainActivity extends Activity {
     }
 
     private void render(LinearLayout content, boolean footer) {
+        main.removeCallbacks(featuredTicker);
+        if(!"home".equals(page)||!"all".equals(category)) featuredContainer=null;
         screen = new FrameLayout(this);
         screen.setBackgroundColor(BG);
         screen.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -267,6 +269,7 @@ public final class MainActivity extends Activity {
         if (footer) addFooter(screen);
         setContentView(screen);
         if (Build.VERSION.SDK_INT >= 35) screen.requestApplyInsets();
+        scheduleFeatured();
     }
 
     private void addFooter(FrameLayout parent) {
@@ -416,6 +419,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean installedAndNewer(Catalog.App app) {
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName))return false;
         try {
             PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
             long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
@@ -444,9 +448,13 @@ public final class MainActivity extends Activity {
         if ("all".equals(category)) {
             heroCard(content);
             gap(content, 14);
-            section(content, "أحدث التطبيقات", matching("app"), false);
+            homeAppsSection=linear(true);
+            content.addView(homeAppsSection,lp(-1,-2));
+            section(homeAppsSection, "أحدث التطبيقات", matching("app"), false);
             gap(content, 17);
-            section(content, "أحدث الألعاب", matching("game"), true);
+            homeGamesSection=linear(true);
+            content.addView(homeGamesSection,lp(-1,-2));
+            section(homeGamesSection, "أحدث الألعاب", matching("game"), true);
         } else if ("app".equals(category)) {
             catalogList(content, "التطبيقات", matching("app"));
         } else if ("game".equals(category)) {
@@ -456,10 +464,40 @@ public final class MainActivity extends Activity {
     }
 
     private String selectedFeaturedPackage = "";
+    private LinearLayout featuredContainer,homeAppsSection,homeGamesSection;
+    private List<Catalog.App> featuredItems=java.util.Collections.emptyList();
+    private int featuredIndex;
+    private static final long FEATURED_INTERVAL=6000L;
+    private final Runnable featuredTicker=new Runnable(){
+        @Override public void run(){
+            if(featuredActive()&&featuredItems.size()>1)renderFeatured(featuredContainer,featuredItems,featuredIndex+1);
+        }
+    };
+    private boolean featuredActive(){
+        return activityVisible&&!isFinishing()&&!isDestroyed()&&"home".equals(page)&&"all".equals(category)
+            &&featuredContainer!=null&&featuredContainer.isAttachedToWindow();
+    }
+    private void scheduleFeatured(){
+        main.removeCallbacks(featuredTicker);
+        if(featuredActive()&&featuredItems.size()>1)main.postDelayed(featuredTicker,FEATURED_INTERVAL);
+    }
+    private void updateHomeContent(){
+        if(!"all".equals(category)||featuredContainer==null||!featuredContainer.isAttachedToWindow()
+            ||homeAppsSection==null||homeGamesSection==null){showHome();return;}
+        List<Catalog.App> next=FeaturedApps.choose(apps);
+        int index=0;
+        for(int i=0;i<next.size();i++)if(next.get(i).packageName.equals(selectedFeaturedPackage))index=i;
+        renderFeatured(featuredContainer,next,index);
+        homeAppsSection.removeAllViews();
+        section(homeAppsSection,"أحدث التطبيقات",matching("app"),false);
+        homeGamesSection.removeAllViews();
+        section(homeGamesSection,"أحدث الألعاب",matching("game"),true);
+    }
 
     private void heroCard(LinearLayout root) {
         List<Catalog.App> featured = FeaturedApps.choose(apps);
         LinearLayout container = linear(true);
+        featuredContainer=container;
         root.addView(container, lp(-1, -2));
         int selectedIndex=0;
         for(int i=0;i<featured.size();i++)
@@ -471,6 +509,8 @@ public final class MainActivity extends Activity {
         root.removeAllViews();
         final int count=featured.size();
         final int current=count==0?0:Math.floorMod(index,count);
+        featuredItems=featured;
+        featuredIndex=current;
         final Catalog.App selected=count==0?null:featured.get(current);
         if(selected!=null) selectedFeaturedPackage=selected.packageName;
         FrameLayout banner = new FrameLayout(this);
@@ -556,6 +596,7 @@ public final class MainActivity extends Activity {
             final float[] down={0f,0f};
             banner.setOnTouchListener((v,event)->{
                 if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN) {
+                    main.removeCallbacks(featuredTicker);
                     down[0]=event.getX(); down[1]=event.getY();
                 } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_UP) {
                     float dx=event.getX()-down[0], dy=event.getY()-down[1];
@@ -564,7 +605,8 @@ public final class MainActivity extends Activity {
                         renderFeatured(root,featured,current+(dx>0?1:-1));
                         return true;
                     }
-                }
+                    scheduleFeatured();
+                } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_CANCEL) scheduleFeatured();
                 return false;
             });
         }
@@ -600,6 +642,7 @@ public final class MainActivity extends Activity {
             root.addView(controls,lp(-1,36));
             android.util.Log.i("YASSERAPPS_CATALOG","UI_FEATURED count="+count+" index="+current+" package="+selected.packageName);
         }
+        scheduleFeatured();
     }
 
     private void section(LinearLayout root, String name, List<Catalog.App> entries, boolean compact) {
@@ -733,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(app.discoveryOnly?"المصدر":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -824,7 +867,7 @@ public final class MainActivity extends Activity {
         c.addView(check, lp(-1, 49));
         gap(c, 10);
         c.addView(text(
-            "يفحص المتجر إصدارات التطبيقات المنشورة عندنا والمتاحة للرؤية على جهازك، ولا يثبت أي تحديث دون موافقتك.",
+            "يقارن المتجر إصدارات التطبيقات المتاحة مع المثبتة على جهازك. يطلب أندرويد موافقتك عند التثبيت.",
             12, SUBTEXT, false
         ));
         gap(c, 17);
@@ -849,7 +892,24 @@ public final class MainActivity extends Activity {
         c.addView(panel, lp(-1, -2));
     }
 
+    private final Map<String,Long> detailChecks=new HashMap<>();
     private void showDetail(Catalog.App app) {
+        if("Aptoide".equals(app.sourceName)){
+            long now=android.os.SystemClock.elapsedRealtime();
+            Long last=detailChecks.get(app.packageName);
+            if(last==null||now-last>300000L){
+                detailChecks.put(app.packageName,now);
+                if(detailChecks.size()>500)detailChecks.clear();
+                Catalog.enrich(this,app,fresh->main.post(()->{
+                    if(isFinishing()||isDestroyed()||fresh==null)return;
+                    for(int i=0;i<apps.size();i++){
+                        Catalog.App old=apps.get(i);
+                        if(old.packageName.equals(fresh.packageName)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
+                    }
+                    if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(fresh.packageName)&&fresh.versionCode>=detailApp.versionCode)showDetail(fresh);
+                }));
+            }
+        }
         detailApp = app;
         page = "detail";
         LinearLayout content = verticalContent();
@@ -926,12 +986,13 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly ? "صفحة الإصدارات" : previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
-            if(app.discoveryOnly) { openPublisher(app.publisherUrl); return; }
+            if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
+            if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -952,7 +1013,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly) { gap(content,8); content.addView(text("هذا رابط مشروع، وليس APK مفحوصاً للتثبيت المباشر.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -1004,7 +1065,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openPublisher(String url) {
-        if(!PortFeeds.publisherLink(url)) {
+        if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)&&!MirrorFeed.listingLink(url)) {
             Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
         }
         try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
@@ -1065,15 +1126,15 @@ public final class MainActivity extends Activity {
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
-            if ("home".equals(page)) showHome();
+            if ("home".equals(page)) updateHomeContent();
             else if ("catalog_list".equals(page)) showList(listTitle, listKind);
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
-                for (Catalog.App current : apps) if (current.packageName.equals(detailApp.packageName)) {
-                    if (current.versionCode != detailApp.versionCode || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
+                for (Catalog.App current : apps) if (current.id.equals(detailApp.id)) {
+                    if (current.versionCode != detailApp.versionCode || !current.description.equals(detailApp.description) || !current.iconUrl.equals(detailApp.iconUrl) || !current.publisherUrl.equals(detailApp.publisherUrl) || !current.version.equals(detailApp.version) || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
                     break;
                 }
             }
@@ -1232,6 +1293,24 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private boolean resolvingInstall;
+    private void resolveAptoideInstall(Catalog.App item){
+        if(resolvingInstall)return;
+        resolvingInstall=true;
+        Toast.makeText(this,"جاري التحقق من أحدث إصدار...",Toast.LENGTH_SHORT).show();
+        Catalog.enrich(this,item,fresh->main.post(()->{
+            resolvingInstall=false;
+            if(isFinishing()||isDestroyed()||!activityVisible)return;
+            if(fresh==null||fresh.discoveryOnly||!AptoideFeed.directEligible(fresh)){
+                Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار أو يحتاج ملفات إضافية",Toast.LENGTH_LONG).show();
+                return;
+            }
+            for(int i=0;i<apps.size();i++)if(apps.get(i).id.equals(fresh.id)){apps.set(i,fresh);break;}
+            DownloadCoordinator.Entry old=downloadCoordinator.latestFor(fresh);
+            if(old!=null&&old.complete())installFromHistory(old);
+            else download(fresh);
+        }));
+    }
     private void download(Catalog.App app) {
         if (Build.VERSION.SDK_INT <= 28 &&
             checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -1509,7 +1588,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.6\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
@@ -1553,6 +1632,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityVisible = true;
+        scheduleFeatured();
         main.removeCallbacks(catalogTicker);
         catalogTicker.run();
         if (downloadCoordinator != null) {
@@ -1574,6 +1654,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         activityVisible = false;
+        main.removeCallbacks(featuredTicker);
         main.removeCallbacks(catalogTicker);
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
@@ -1581,6 +1662,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(featuredTicker);
         main.removeCallbacks(catalogTicker);
         activeSearchRefresh = null;
         main.removeCallbacks(completionWatch);

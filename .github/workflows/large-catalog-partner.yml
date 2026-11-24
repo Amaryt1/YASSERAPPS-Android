@@ -1,0 +1,54 @@
+name: Large catalog partner validation
+on:
+  pull_request:
+    branches: [feature/ports-11.0.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PARTNER_KEY: ${{ secrets.YASSERAPPS_APTOIDE_PARTNER_KEY }}
+      PARTNER_STORE: ${{ vars.YASSERAPPS_APTOIDE_PARTNER_STORE }}
+    steps:
+      - name: Check authorized partner catalog capacity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, urllib.request, urllib.parse, json, time, re
+          key=os.environ.get("PARTNER_KEY","")
+          store=os.environ.get("PARTNER_STORE","")
+          if not key or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}",store):
+              print("PARTNER_PENDING: approved Aptoide partner API key and store name are not configured")
+              raise SystemExit(0)
+          for group in ("games","applications"):
+              offset=0
+              unique={}
+              total=None
+              for page in range(20):
+                  url="https://ws75.aptoide.com/api/7/apps/get/store_name="+store+"/group_name="+group+"/limit=100/offset="+str(offset)+"/mature=false"
+                  req=urllib.request.Request(url,headers={"Authorization":"ApiKey "+key,"User-Agent":"YASSERAPPS-Partner-Validation/1.0"})
+                  try:
+                      with urllib.request.urlopen(req,timeout=15) as response:
+                          raw=response.read(8*1024*1024+1)
+                      if len(raw)>8*1024*1024: raise ValueError("response exceeds limit")
+                      obj=json.loads(raw)
+                      if obj.get("info",{}).get("status")!="OK": raise ValueError("API status not OK")
+                      data=obj["datalist"]
+                      total=data.get("total")
+                      rows=data["list"]
+                      for app in rows:
+                          file=app.get("file",{})
+                          if file.get("malware",{}).get("rank")=="TRUSTED" and app.get("package"):
+                              unique[app["package"]]=1
+                      new=data.get("next",-1)
+                      if not isinstance(new,int) or new<=offset or not rows or (isinstance(total,int) and new>=total): break
+                      offset=new
+                      time.sleep(1)
+                  except Exception as exc:
+                      print("PARTNER_CHECK_FAILED",group,type(exc).__name__)
+                      raise SystemExit(1)
+              print("PARTNER_CATALOG",group,"reported_total",total,"unique_trusted_sample",len(unique),"metadata_only")
+          PY

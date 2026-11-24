@@ -11,39 +11,47 @@ public final class DirectCatalogTest extends Instrumentation {
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
-            File root=getTargetContext().getFilesDir();
-            for(String category:new String[]{"Game","Games","Action Game","Role-Playing Game","Puzzle Game","Strategy Game","Sport Game","game:arcade"}) {
-                if(!DirectSources.game(new org.json.JSONObject().put("categories",new org.json.JSONArray().put(category))))
-                    throw new AssertionError("Game classification failed: "+category);
-            }
-            if(DirectSources.game(new org.json.JSONObject().put("categories",new org.json.JSONArray().put("Development"))))
-                throw new AssertionError("False game classification");
-            int total=0, games=0, verified=0;
-            java.util.ArrayList<Catalog.App> combined=new java.util.ArrayList<>();
-            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg","playfdroid","kde","newpipe","collabora","bitwarden","molly","session","simplex","wind","modernapps","rmgames"}) {
-                List<Catalog.App> apps;
-                try { apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json")); }
-                catch(Exception e) { android.util.Log.e("YASSERAPPS_CATALOG","FIXTURE_FAILED "+id,e); if(verified<4&&java.util.Arrays.asList("fdroid","izzyondroid","guardian","microg").contains(id)) throw e; continue; }
-                verified++;
-                int sourceGames=0;
-                if(apps.isEmpty()) throw new AssertionError("Empty "+id);
-                for(Catalog.App a:apps) {
-                    if(a.isGame()) { games++; sourceGames++; }
-                    if(!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}"))
-                        throw new AssertionError("Invalid APK metadata");
-                    Catalog.App copy=Catalog.fromJson(Catalog.toJson(a));
-                    if(copy.versionCode!=a.versionCode||!copy.apkUrl.equals(a.apkUrl))
-                        throw new AssertionError("Cache conversion failed");
-                }
-                android.util.Log.i("YASSERAPPS_CATALOG","FIXTURE_SOURCE "+id+" count="+apps.size()+" games="+sourceGames);
-                total+=apps.size();
-                combined.addAll(apps);
-            }
-            if(verified!=15||games<50||total<100) throw new AssertionError("Unexpected counts: "+total+"/"+games);
-            java.util.Map<String,Catalog.App> unique=new java.util.LinkedHashMap<>();
-            for(Catalog.App a:combined) unique.putIfAbsent(a.packageName,a);
-            List<Catalog.App> featured=FeaturedApps.choose(new java.util.ArrayList<>(unique.values()));
-            if(featured.size()!=10) throw new AssertionError("Expected ten featured recommendations");
+            org.json.JSONObject sample=new org.json.JSONObject().put("package","test.market.app").put("name","Market fixture").put("uname","market-fixture").put("file",new org.json.JSONObject().put("vercode",1).put("vername","1.0").put("filesize",1000).put("malware",new org.json.JSONObject().put("rank","TRUSTED")));
+            List<Catalog.App> market=AptoideFeed.parse(new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(sample))),"games");
+            if(market.size()!=1||!market.get(0).discoveryOnly||!market.get(0).apkUrl.isEmpty()||!market.get(0).isGame())throw new AssertionError("Aptoide metadata boundary");
+            if(!Catalog.fromJson(Catalog.toJson(market.get(0))).discoveryOnly||AptoideFeed.listingLink("https://x.en.aptoide.com.evil.example/app"))throw new AssertionError("Aptoide cache or URL validation");
+            // Real list responses omit the malware verdict; only matching detailed releases qualify.
+            org.json.JSONObject listing=new org.json.JSONObject(sample.toString());
+            String md5="0123456789abcdef0123456789abcdef";
+            listing.getJSONObject("file").put("md5sum",md5).remove("malware");
+            org.json.JSONObject detail=new org.json.JSONObject(sample.toString());
+            detail.getJSONObject("file").put("md5sum",md5);
+            org.json.JSONObject response=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("data",detail);
+            Catalog.App checked=AptoideFeed.checkedDetail(listing,response,"games");
+            if(checked==null||!checked.discoveryOnly||!checked.apkUrl.isEmpty())throw new AssertionError("Matching detail must remain metadata-only");
+            detail.getJSONObject("file").put("vercode",2).put("vername","2.0");
+            Catalog.App newest=AptoideFeed.latestDetail(checked,response);
+            if(newest==null||newest.versionCode!=2||!newest.discoveryOnly||!newest.apkUrl.isEmpty())throw new AssertionError("Latest source detail");
+            detail.put("package","wrong.market.app");
+            if(AptoideFeed.latestDetail(checked,response)!=null)throw new AssertionError("Wrong detail package");
+            detail.put("package","test.market.app");
+            detail.getJSONObject("file").put("vercode",1).put("vername","1.0");
+            detail.getJSONObject("file").put("md5sum","fedcba9876543210fedcba9876543210");
+            if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Mismatched release accepted");
+            detail.getJSONObject("file").put("md5sum",md5).put("malware",new org.json.JSONObject().put("rank","UNKNOWN"));
+            if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Unknown security verdict accepted");
+            detail.getJSONObject("file").put("malware",new org.json.JSONObject().put("rank","TRUSTED")).put("path","https://pool.apk.aptoide.com/test/test.apk").put("signature",new org.json.JSONObject().put("sha1","0123456789abcdef0123456789abcdef01234567"));
+            detail.put("pay",org.json.JSONObject.NULL).put("aab",org.json.JSONObject.NULL).put("obb",org.json.JSONObject.NULL).put("soft_locks",new org.json.JSONArray());
+            detail.put("media",new org.json.JSONObject().put("description","Real app description").put("summary","Real summary"));
+            Catalog.App direct=AptoideFeed.latestDetail(checked,response);
+            if(direct==null||direct.discoveryOnly||!AptoideFeed.directEligible(direct)||!AptoideFeed.directEligible(Catalog.fromJson(Catalog.toJson(direct)))||!direct.description.equals("Real app description"))throw new AssertionError("Direct public APK and clean description");
+            detail.put("pay",new org.json.JSONObject().put("price",1));
+            if(!AptoideFeed.latestDetail(checked,response).discoveryOnly)throw new AssertionError("Paid release must not become direct");
+            File signed=new File(getTargetContext().getApplicationInfo().sourceDir);
+            com.android.apksig.ApkVerifier.Result verified=new com.android.apksig.ApkVerifier.Builder(signed).setMinCheckedPlatformVersion(26).build().verify();
+            if(!verified.isVerified()||!verified.isVerifiedUsingV2Scheme()&&!verified.isVerifiedUsingV3Scheme())throw new AssertionError("Real APK signing verifier");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS public APK eligibility, clean description and local signed APK verification");
+            org.json.JSONObject listResponse=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(listing)));
+            List<Catalog.App> unchecked=AptoideFeed.discover(listResponse,"games");
+            if(unchecked.size()!=1||!unchecked.get(0).discoveryOnly||!unchecked.get(0).apkUrl.isEmpty()||!AptoideFeed.parse(listResponse,"games").isEmpty())throw new AssertionError("Unchecked entries must remain discovery-only");
+            listing.getJSONObject("file").put("malware",new org.json.JSONObject().put("rank","WARN"));
+            if(!AptoideFeed.discover(listResponse,"games").isEmpty())throw new AssertionError("Explicit non-trusted listing rejected");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS Aptoide detail checks and bulk discovery-only boundary");
             // Featured cards must update when a newer release arrives.
             Catalog.App first=new Catalog.App(); first.packageName="test.first"; first.iconUrl="https://example.org/first.png"; first.updatedAt=10; first.versionCode=1;
             Catalog.App second=new Catalog.App(); second.packageName="test.second"; second.iconUrl="https://example.org/second.png"; second.updatedAt=20; second.versionCode=1;
@@ -64,10 +72,30 @@ public final class DirectCatalogTest extends Instrumentation {
             if(first.needsFiles()) throw new AssertionError("Ordinary APK must not show files button");
             if(PortFeeds.publisherLink("https://github.com.evil.example/example/port")) throw new AssertionError("Unsafe publisher link");
             android.util.Log.i("YASSERAPPS_CATALOG","PASS featured recency and port requirements");
+            // Exercise large-catalog pagination without storing upstream content or using keys.
+            java.util.List<LargeCatalogPager.Listing> large=LargeCatalogPager.collect((category,offset,limit)->{
+                org.json.JSONArray rows=new org.json.JSONArray();
+                for(int i=0;i<limit;i++) rows.put(new org.json.JSONObject().put("package","test.large.app"+(offset+i)).put("name","Fixture "+(offset+i)).put("file",new org.json.JSONObject().put("vercode",1).put("filesize",100).put("malware",new org.json.JSONObject().put("rank","TRUSTED"))));
+                return new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",rows).put("next",offset+limit).put("total",5000));
+            },"games",50,100);
+            if(large.size()!=5000)throw new AssertionError("Large-catalog pagination");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS synthetic 5000-entry pagination (not live apps)");
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);
-            result.putString("stream","\nPASS signed direct sources on Android: "+total+" entries, "+games+" games before deduplication; verified sources="+verified+"\n");
+            String rss="<rss version='2.0'><channel><item><title>Example 2.0</title><link>https://www.apkmirror.com/apk/example/example-app/example-2-release/</link><description>Example description</description><pubDate>Tue, 24 Nov 2026 10:00:00 +0000</pubDate></item><item><title>Unsafe</title><link>https://www.apkmirror.com.evil.example/apk/a/b/</link></item></channel></rss>";
+            List<Catalog.App> mirror=MirrorFeed.parse(new java.io.ByteArrayInputStream(rss.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            if(mirror.size()!=1||!mirror.get(0).discoveryOnly||!mirror.get(0).packageName.isEmpty()||!mirror.get(0).apkUrl.isEmpty()||!Catalog.fromJson(Catalog.toJson(mirror.get(0))).id.equals(mirror.get(0).id))throw new AssertionError("Mirror RSS metadata boundary");
+            List<String> mirrorLinks=PublicChartFeed.links("APKMirror","<a href='/apk/example/app/example-release/'>release</a><a href='/apk/example/app/'>app</a><a href='https://www.apkmirror.com.evil.example/apk/a/b/'>unsafe</a>","https://www.apkmirror.com/uploads/");
+            if(mirrorLinks.size()!=1||!mirrorLinks.get(0).equals("https://www.apkmirror.com/apk/example/app/"))throw new AssertionError("Mirror application canonical identity");
+            String chart="<a href='/app/123'>Game</a><a href='https://www.taptap.io.evil.example/app/12'>Unsafe</a>";
+            List<String> chartLinks=PublicChartFeed.links("TapTap",chart,"https://www.taptap.io/top/");
+            if(chartLinks.size()!=1||!chartLinks.get(0).equals("https://www.taptap.io/app/123"))throw new AssertionError("Chart origin validation");
+            String page="<html><head><meta property='og:image' content='https://img.tapimg.net/game.png'><meta property='og:description' content='A real game summary'></head><body><h1>Example game</h1></body></html>";
+            Catalog.App game=PublicChartFeed.parse("TapTap",chartLinks.get(0),page);
+            if(game==null||!game.isGame()||!game.discoveryOnly||!game.packageName.isEmpty()||!game.apkUrl.isEmpty()||!Catalog.fromJson(Catalog.toJson(game)).id.equals(game.id))throw new AssertionError("Public chart identity and metadata-only boundary");
+            if(PublicChartFeed.parse("TapTap","https://www.taptap.io.evil.example/app/123",page)!=null)throw new AssertionError("Chart host spoof");
+            result.putString("stream","\nPASS market metadata boundaries and pagination fixtures\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {
             result.putString("stream","\nFAIL "+android.util.Log.getStackTraceString(failure));

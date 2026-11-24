@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "kind": "live-source-directory",
+  "catalogStorage": "server-generated-metadata-with-bundled-snapshot",
+  "refresh": {
+    "pageSize": 50,
+    "foregroundGrowthMinutes": 15,
+    "steadyStateHours": 6,
+    "targetUniquePackages": 20000,
+    "publicChartBatchLimit": 40,
+    "publicChartTargetPerSource": 2000,
+    "aptoidePagesPerCycle": 70,
+    "serverSchedule": "23 */2 * * *",
+    "minimumNewTarget": 500,
+    "deviceRequired": false
+  },
+  "sources": [
+    {
+      "id": "aptoide",
+      "name": "Aptoide",
+      "status": "on-demand-public-apk-testing",
+      "format": "aptoide-v7",
+      "feeds": {
+        "games": "https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=50/offset=0/mature=false/sort=downloads",
+        "applications": "https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=50/offset=0/mature=false/sort=downloads"
+      },
+      "pagination": {
+        "next": "datalist.next",
+        "items": "datalist.list",
+        "total": "datalist.total",
+        "offsetParameter": "offset"
+      },
+      "detailEndpoint": "https://ws75.aptoide.com/api/7/app/getMeta/package_name={package}",
+      "directInstall": "eligible-single-apk-only"
+    },
+    {
+      "id": "apkpure",
+      "name": "APKPure",
+      "status": "public-access-403-recheck",
+      "feeds": null,
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://apkpure.net/partner-developers-apps-on-apkpure"
+      ]
+    },
+    {
+      "id": "liteapks",
+      "name": "LiteAPKs",
+      "status": "rights-and-approved-feed-required",
+      "feeds": null,
+      "directInstall": false,
+      "publicChartUrls": []
+    },
+    {
+      "id": "taptap",
+      "name": "TapTap",
+      "status": "public-chart-metadata-testing",
+      "feeds": {
+        "charts": "https://www.taptap.io/top/"
+      },
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://www.taptap.io/top/"
+      ],
+      "format": "public-html"
+    },
+    {
+      "id": "aurora",
+      "name": "Aurora",
+      "status": "google-play-catalog-registration-required",
+      "feeds": null,
+      "directInstall": false,
+      "documentation": "https://developers.google.com/android-publisher/play-catalog"
+    },
+    {
+      "id": "uptodown",
+      "name": "Uptodown",
+      "status": "public-chart-metadata-testing",
+      "feeds": {
+        "charts": [
+          "https://en.uptodown.com/android/apps/top",
+          "https://en.uptodown.com/android/games/top",
+          "https://en.uptodown.com/android/latest-updates",
+          "https://en.uptodown.com/android/newreleases"
+        ]
+      },
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://en.uptodown.com/android/apps/top",
+        "https://en.uptodown.com/android/games/top",
+        "https://en.uptodown.com/android/latest-updates"
+      ],
+      "format": "public-html"
+    },
+    {
+      "id": "apkmirror",
+      "name": "APKMirror",
+      "status": "public-rss-integration-testing",
+      "feeds": {
+        "releases": "https://www.apkmirror.com/feed/",
+        "uploads": "https://www.apkmirror.com/uploads/"
+      },
+      "directInstall": false,
+      "format": "rss2"
+    }
+  ],
+  "catalogUrl": "https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json"
+}

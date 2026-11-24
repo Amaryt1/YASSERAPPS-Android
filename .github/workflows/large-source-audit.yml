@@ -1,0 +1,111 @@
+name: Audit large public catalog interfaces
+on:
+  pull_request:
+    branches: [feature/ports-11.0.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe official public endpoints (no private API or download scraping)
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json
+          checks={
+            "Aptoide games":"https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=10/offset=0/mature=false",
+            "Aptoide applications":"https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=10/offset=0/mature=false",
+            "APKPure":"https://apkpure.net/partner-developers-apps-on-apkpure",
+            "LiteAPKs":"https://liteapks.com/",
+            "TapTap":"https://developer.taptap.io/docs/",
+            "Aurora":"https://auroraoss.com/",
+            "Uptodown":"https://en.uptodown.com/android",
+            "APKMirror":"https://www.apkmirror.com/"
+          }
+          from collections import Counter
+          import re
+          checks["Aptoide popular games"]="https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=30/offset=0/mature=false/sort=downloads"
+          checks["Aptoide popular applications"]="https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=30/offset=0/mature=false/sort=downloads"
+          for name,url in checks.items():
+              try:
+                  req=urllib.request.Request(url,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
+                  with urllib.request.urlopen(req,timeout=15) as r:
+                      print("PUBLIC_ENDPOINT",name,"HTTP",r.status,"type",r.headers.get("Content-Type"))
+                      if name.startswith("Aptoide"):
+                          obj=json.loads(r.read(2*1024*1024))
+                          data=obj.get("datalist",{})
+                          rows=data.get("list",[])
+                          trusted=[a for a in rows if a.get("file",{}).get("malware",{}).get("rank")=="TRUSTED"]
+                          print("APTOIDE_SAMPLE",name,"status",obj.get("info",{}).get("status"),"reported_total",data.get("total"),"rows",len(rows),"trusted",len(trusted),"with_sha256",sum(bool(a.get("file",{}).get("sha256")) for a in trusted))
+                          print("APTOIDE_SHAPE",name,"row_keys",sorted(rows[0]) if rows else [],"file_keys",sorted(rows[0].get("file",{})) if rows else [],"ranks",dict(Counter(str(a.get("file",{}).get("malware",{}).get("rank","MISSING")) for a in rows)),"with_uname",sum(bool(a.get("uname")) for a in rows),"with_package",sum(bool(a.get("package")) for a in rows))
+                          if name.startswith("Aptoide popular"):
+                              for a in rows[:3]:
+                                  pkg=a.get("package","")
+                                  if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)+",pkg): continue
+                                  try:
+                                      req2=urllib.request.Request("https://ws75.aptoide.com/api/7/app/getMeta/package_name="+pkg,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
+                                      with urllib.request.urlopen(req2,timeout=10) as detail:
+                                          meta=json.loads(detail.read(2*1024*1024)).get("data",{})
+                                          file=meta.get("file",{})
+                                          signature=file.get("signature",{}) or {}
+                                          if not isinstance(signature,dict): signature={}
+                                          print("APTOIDE_DOWNLOAD_FIELDS",pkg,"file_keys",sorted(file),"signature_keys",sorted(signature),"has_path",bool(file.get("path")),"has_sha256",bool(file.get("sha256")),"has_signer_sha256",bool(signature.get("sha256")),"has_obb",bool(meta.get("obb")),"has_aab",bool(meta.get("aab")))
+                                          print("APTOIDE_DETAIL",pkg,"keys",sorted(meta),"rank",meta.get("file",{}).get("malware",{}).get("rank","MISSING"),"same_version",meta.get("file",{}).get("vercode")==a.get("file",{}).get("vercode"))
+                                  except Exception as exc:
+                                      print("APTOIDE_DETAIL_FAILED",pkg,type(exc).__name__)
+                      else:
+                          print("WEBSITE_ONLY",name,"not a catalog or download integration")
+              except urllib.error.HTTPError as e:
+                  print("PUBLIC_ENDPOINT",name,"HTTP",e.code,"not integrated")
+              except Exception as e:
+                  print("PUBLIC_ENDPOINT",name,type(e).__name__,"not integrated")
+          PY
+      - name: Inspect public chart metadata only
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error, re, json, time
+          from html.parser import HTMLParser
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.active=False; self.parts=[]; self.blocks=[]; self.links=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if tag=='script' and a.get('type','').lower()=='application/ld+json': self.active=True; self.parts=[]
+                  if tag=='a' and a.get('href'): self.links.append(a['href'])
+              def handle_data(self, data):
+                  if self.active: self.parts.append(data)
+              def handle_endtag(self, tag):
+                  if tag=='script' and self.active: self.blocks.append(''.join(self.parts)); self.active=False
+          sources=[
+            ('Uptodown apps','https://en.uptodown.com/android/apps/top'),
+            ('Uptodown games','https://en.uptodown.com/android/games/top'),
+            ('TapTap','https://www.taptap.io/top/'),
+            ('APKPure','https://apkpure.net/partner-developers-apps-on-apkpure'),
+            ('LiteAPKs','https://liteapks.com/robots.txt'),
+            ('Aurora','https://auroraoss.com/aurora-store'),
+            ('APKMirror','https://www.apkmirror.com/feed/'),
+            ('Aptoide','https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=5/offset=0/mature=false/sort=downloads')]
+          def walk(v):
+              if isinstance(v,dict):
+                  if '@type' in v: yield (str(v['@type']),sorted(v.keys()),len(v.get('itemListElement',[])) if isinstance(v.get('itemListElement'),list) else 0)
+                  for x in v.values(): yield from walk(x)
+              elif isinstance(v,list):
+                  for x in v: yield from walk(x)
+          for name,url in sources:
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'YASSERAPPS-Structure-Audit/1.0'})
+                  with urllib.request.urlopen(req,timeout=12) as r:
+                      raw=r.read(4*1024*1024+1)
+                      if len(raw)>4*1024*1024: raise ValueError('response limit')
+                      p=Parser(); p.feed(raw.decode('utf-8','replace'))
+                      print('STRUCTURED_SOURCE',name,r.status,r.headers.get('Content-Type'),'jsonld',len(p.blocks))
+                      for block in p.blocks[:20]:
+                          try: print('SCHEMA',name,list(walk(json.loads(block)))[:20])
+                          except ValueError: print('INVALID_JSONLD',name)
+                      print('PUBLIC_LINK_SAMPLE',name,[x for x in dict.fromkeys(p.links) if re.search(r'\.en\.uptodown\.com/android/?$|/app/[0-9]+|/apk/',x)][:5])
+              except urllib.error.HTTPError as e: print('SOURCE_UNAVAILABLE',name,e.code)
+              except Exception as e: print('SOURCE_UNAVAILABLE',name,type(e).__name__)
+              time.sleep(1)
+          PY

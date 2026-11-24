@@ -14,7 +14,7 @@ final class FeaturedApps {
     static List<Catalog.App> choose(List<Catalog.App> apps) {
         Map<String,Catalog.App> unique=new HashMap<>();
         for(Catalog.App a:apps) {
-            if(a.discoveryOnly || a.updatedAt<=0 || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
+            if((a.discoveryOnly && !"Aptoide".equals(a.sourceName)) || a.updatedAt<=0 || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
             Catalog.App old=unique.get(a.packageName);
             if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(a.packageName,a);
         }
