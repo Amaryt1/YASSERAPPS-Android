@@ -1,77 +1,26 @@
-name: Catalog source sync
+name: Validate direct source configuration
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 2 * * *'
+  pull_request:
+    paths: ['catalog/sources.json', '.github/workflows/catalog-source-review.yml']
   push:
     branches: [main]
-    paths:
-      - 'catalog/sources.json'
-      - 'scripts/import_catalog_sources.py'
-      - '.github/workflows/catalog-source-review.yml'
-  pull_request:
-    paths:
-      - 'catalog/sources.json'
-      - 'scripts/import_catalog_sources.py'
-      - '.github/workflows/catalog-source-review.yml'
-
+    paths: ['catalog/sources.json', '.github/workflows/catalog-source-review.yml']
 permissions:
   contents: read
-concurrency:
-  group: catalog-sync-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  review:
-    if: github.event_name == 'pull_request'
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install signed index verifier
-        run: python -m pip install 'fdroidserver==2.4.5'
-      - name: Test candidate conversion and preservation
-        run: python scripts/import_catalog_sources.py --self-test
-      - name: Verify signed indexes and preview sync
-        run: python scripts/import_catalog_sources.py --limit 500 --output source-candidates.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: source-candidates
-          path: source-candidates.json
-
-  publish:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'Amaryt1/YASSERAPPS-Android'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install signed index verifier
-        run: python -m pip install 'fdroidserver==2.4.5'
-      - name: Test synchronization
-        run: python scripts/import_catalog_sources.py --self-test
-      - name: Sync signed repositories
-        run: python scripts/import_catalog_sources.py --limit 500 --publish
-      - name: Validate and publish catalog only
-        run: |
-          python scripts/validate_catalog.py catalog/apps.json
-          if git diff --quiet -- catalog/apps.json; then
-            echo "Catalog unchanged"
-            exit 0
-          fi
-          git config user.name "YASSERAPPS catalog bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- catalog/apps.json
-          git commit -m "Sync signed Android source catalogs"
-          git push origin HEAD:main
+      - run: |
+          python3 - <<'PY'
+          import json,re
+          sources=json.load(open('catalog/sources.json'))['sources']
+          for source in sources:
+              if source['enabled']:
+                  assert source['mode']=='direct'
+                  assert source['baseUrl'].startswith('https://')
+                  assert re.fullmatch(r'[0-9A-Fa-f]{64}',source['fingerprint'])
+          print('Direct source configuration valid; no catalog publishing')
+          PY
