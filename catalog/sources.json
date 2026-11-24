@@ -141,6 +141,44 @@
       "enabled": false,
       "mode": "pending",
       "reason": "Discovery directory, not a direct signed APK repository."
+    },
+    {
+      "id": "modernapps",
+      "name": "Modern Apps",
+      "baseUrl": "https://maproj.org/fdroid/repo",
+      "fingerprint": "176FCB2525573E5BE8E1CB3A496DD97B137E81CA5B887A1D32CB894B4E5717B4",
+      "website": "https://maproj.org/fdroid",
+      "enabled": true,
+      "mode": "direct",
+      "format": "fdroid-v2-or-signed-v1"
+    },
+    {
+      "id": "rmgames",
+      "name": "rm's F-Droid repo",
+      "baseUrl": "https://hunke.ws/fdroid/repo",
+      "fingerprint": "80438B253C257BCCE05CDCB9E3AC9B6174C2250659962B14FCBE7F32FD42D53E",
+      "website": "https://hunke.ws/fdroid/repo/index.html",
+      "enabled": true,
+      "mode": "direct",
+      "format": "fdroid-v2-or-signed-v1"
+    },
+    {
+      "id": "metatrans",
+      "name": "Metatrans Apps & Games",
+      "website": "https://fdroid.metatransapps.com/",
+      "baseUrl": "https://fdroid.metatransapps.com/fdroid/repo",
+      "fingerprint": "214027CD55300B837A93B43717B190DD4867CDB20FAABD8853DEF55BD0FF6A0B",
+      "enabled": false,
+      "mode": "pending",
+      "reason": "F-Droid repo monitor reports weak signature algorithm; do not disable signature checks."
+    },
+    {
+      "id": "itchio",
+      "name": "itch.io",
+      "website": "https://itch.io/docs/api/overview",
+      "enabled": false,
+      "mode": "pending",
+      "reason": "Public RSS discovery is not a direct signed APK catalog; downloads require authorized access."
     }
   ]
 }
