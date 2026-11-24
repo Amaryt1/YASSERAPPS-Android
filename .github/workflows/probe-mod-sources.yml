@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'catalog/probe_sources.py'
+      - 'catalog/review_metadata.py'
+      - 'catalog/test_review_metadata.py'
       - 'catalog/mod-source-candidates.json'
       - '.github/workflows/probe-mod-sources.yml'
 permissions:
@@ -15,7 +17,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: python3 -m py_compile catalog/probe_sources.py
+      - run: python3 -m py_compile catalog/probe_sources.py catalog/review_metadata.py
+      - run: python3 -m unittest discover -s catalog -p test_review_metadata.py
       - run: python3 catalog/probe_sources.py
       - uses: actions/upload-artifact@v4
         with:

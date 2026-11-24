@@ -2,10 +2,12 @@
 import concurrent.futures,gzip,io,json,re,time,urllib.request,urllib.error,urllib.parse,urllib.robotparser,xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
+from review_metadata import candidates as review_candidates,factual_rows
 AGENT="YASSERAPPS-Catalog"
 MAX_BYTES=2*1024*1024
 MAX_SITEMAP_BYTES=50*1024*1024
 MAX_CHILD_MAPS=12
+MAX_REVIEW_PAGES=8
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 def host(url):
@@ -86,6 +88,7 @@ def inspect(name,home,fetch=get):
     queue=list(candidates[:5])
     child_maps=0
     page_urls=set()
+    blocked=False
     while queue:
         typ,url=queue.pop(0)
         if url in seen or not same(url) or not rp.can_fetch(AGENT,url):continue
@@ -94,7 +97,7 @@ def inspect(name,home,fetch=get):
         limit=MAX_SITEMAP_BYTES if typ=="sitemap" else MAX_BYTES
         status,content=fetch(url,domain,limit)
         info={"type":typ,"status":status,"records":0}
-        if status in ("401","403","429"):result["documents"].append(info);break
+        if status in ("401","403","429"):result["documents"].append(info);blocked=True;break
         if status=="200" and content is not None:
             try:
                 if typ=="application/json":
@@ -116,6 +119,21 @@ def inspect(name,home,fetch=get):
             except (ValueError,ET.ParseError):info["status"]="invalid_document"
         result["documents"].append(info)
     counts["sitemapPageUrls"]=len(page_urls)
+    # Bounded sample of robots-allowed pages for internal review.
+    # A robots allowance does not establish a license or direct APK permission.
+    sample=[];checked=0
+    if not blocked:
+        for url in review_candidates(page_urls)[:MAX_REVIEW_PAGES]:
+            if not rp.can_fetch(AGENT,url):continue
+            time.sleep(delay)
+            status,content=fetch(url,domain)
+            checked+=1
+            if status in ("401","403","429"):break
+            if status=="200" and content:
+                try:sample.extend(factual_rows(content,name,url))
+                except (ValueError,TypeError):continue
+    result["reviewPagesChecked"]=checked
+    result["reviewRows"]=sample
     result["status"]="checked_metadata_only"
     return result
 def main():
