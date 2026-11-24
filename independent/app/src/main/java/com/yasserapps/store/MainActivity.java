@@ -408,10 +408,13 @@ public final class MainActivity extends Activity {
         banner.setClipToOutline(true);
         banner.addView(new BrandArt(this), new FrameLayout.LayoutParams(-1,-1));
 
-        if (selected != null && !selected.bannerUrl.isEmpty()) {
+        String artwork = selected == null ? "" :
+            !selected.bannerUrl.isEmpty() ? selected.bannerUrl :
+            !selected.screenshots.isEmpty() ? selected.screenshots.get(0) : "";
+        if (!artwork.isEmpty()) {
             ImageView art = new ImageView(this);
             art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            image(art,selected.bannerUrl);
+            image(art, artwork);
             banner.addView(art,new FrameLayout.LayoutParams(-1,-1));
         }
         View shade = new View(this);
@@ -449,10 +452,24 @@ public final class MainActivity extends Activity {
             title.addView(text("عرض التفاصيل ‹",14,GREEN,true));
         }
         inner.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        ImageView logo=new ImageView(this);
-        logo.setImageResource(R.drawable.yasser_logo);
-        logo.setAlpha(.93f);
-        inner.addView(logo,lp(88,88));
+        // Featured recommendations must show the promoted app's own imagery,
+        // never the YASSERAPPS logo or unrelated game artwork.
+        if (selected != null && !selected.screenshots.isEmpty()) {
+            FrameLayout shotFrame = new FrameLayout(this);
+            shotFrame.setBackground(shape(Color.rgb(14, 20, 16), 13, GREEN));
+            shotFrame.setClipToOutline(true);
+            ImageView realScreenshot = new ImageView(this);
+            realScreenshot.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            image(realScreenshot, selected.screenshots.get(0));
+            FrameLayout.LayoutParams innerShot = new FrameLayout.LayoutParams(-1, -1);
+            innerShot.setMargins(dp(2), dp(2), dp(2), dp(2));
+            shotFrame.addView(realScreenshot, innerShot);
+            inner.addView(shotFrame, lp(74, 128));
+        } else if (selected == null) {
+            ImageView logo = new ImageView(this);
+            logo.setImageResource(R.drawable.yasser_logo);
+            inner.addView(logo, lp(88, 88));
+        }
         banner.addView(inner,new FrameLayout.LayoutParams(-1,-1));
         banner.setOnClickListener(v -> {
             if (selected != null) showDetail(selected);
