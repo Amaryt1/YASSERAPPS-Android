@@ -615,6 +615,73 @@ final class DirectSources {
         for(Catalog.App a:result) if(a.isGame()&&(!a.bannerUrl.isEmpty()||!a.screenshots.isEmpty())) { a.featured=true; break; }
         return result;
     }
+    private static Map<String,Snapshot> serverSnapshots(Context context,InputStream stream)throws Exception{
+        Map<String,Snapshot> result=new LinkedHashMap<>();
+        Map<String,List<Catalog.App>> grouped=new LinkedHashMap<>();
+        long timestamp=0;int schema=0,count=0;
+        try(JsonReader r=new JsonReader(new InputStreamReader(stream,StandardCharsets.UTF_8))){
+            r.beginObject();
+            while(r.hasNext()){
+                String key=r.nextName();
+                if(key.equals("schemaVersion"))schema=r.nextInt();
+                else if(key.equals("generatedAt"))timestamp=r.nextLong();
+                else if(key.equals("apps")){
+                    r.beginArray();
+                    while(r.hasNext()){
+                        if(++count>20000)throw new IOException("Server catalogue limit");
+                        Catalog.App a=Catalog.fromJson((JSONObject)readValue(r,0));
+                        // A public catalogue only supplies listings. Resolve APKs from the official source on demand.
+                        if(!a.discoveryOnly||!a.apkUrl.isEmpty())throw new SecurityException("Unexpected server download");
+                        for(Source source:SOURCES)if(source.name.equals(a.sourceName)){
+                            grouped.computeIfAbsent(source.id,k->new ArrayList<>()).add(a);break;
+                        }
+                    }
+                    r.endArray();
+                }else r.skipValue();
+            }
+            r.endObject();
+            if(r.peek()!=JsonToken.END_DOCUMENT)throw new IOException("Trailing catalogue data");
+        }
+        if(schema!=1||timestamp<=0||timestamp>System.currentTimeMillis()+86400000L||grouped.isEmpty())throw new IOException("Invalid server catalogue");
+        String digest=hex(MessageDigest.getInstance("SHA-256").digest(Long.toString(timestamp).getBytes(StandardCharsets.UTF_8)));
+        for(Map.Entry<String,List<Catalog.App>> e:grouped.entrySet())result.put(e.getKey(),new Snapshot(timestamp,digest,e.getValue()));
+        return result;
+    }
+    private static void mergeServer(Map<String,Snapshot> snapshots,Map<String,Snapshot> remote){
+        for(Source source:SOURCES){
+            Snapshot incoming=remote.get(source.id);
+            if(incoming==null)continue;
+            Snapshot local=snapshots.get(source.id);
+            if(local!=null&&incoming.timestamp<local.timestamp)continue;
+            Map<String,Catalog.App> rows=new LinkedHashMap<>();
+            if(local!=null)for(Catalog.App a:local.apps)rows.put(a.id,a);
+            for(Catalog.App a:incoming.apps){
+                Catalog.App old=rows.get(a.id);
+                if(old==null||a.versionCode>old.versionCode||a.versionCode==old.versionCode&&old.discoveryOnly&&old.description.isEmpty())rows.put(a.id,a);
+            }
+            snapshots.put(source.id,new Snapshot(incoming.timestamp,incoming.hash,new ArrayList<>(rows.values())));
+        }
+    }
+    private static boolean loadServer(Context context,Map<String,Snapshot> snapshots,Catalog.Callback callback){
+        boolean available=false;
+        try(InputStream in=context.getAssets().open("server-catalog.json")){
+            mergeServer(snapshots,serverSnapshots(context,in));
+            available=true;
+            callback.loaded(new Catalog.Result(merge(snapshots),null,false));
+        }catch(Exception e){android.util.Log.i("YASSERAPPS_CATALOG","SERVER_SEED_UNAVAILABLE");}
+        try{
+            JSONObject root=fetchJson(context,"https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/generated/index.json",25*1024*1024);
+            Map<String,Snapshot> remote=serverSnapshots(context,new ByteArrayInputStream(root.toString().getBytes(StandardCharsets.UTF_8)));
+            mergeServer(snapshots,remote);
+            for(Source source:SOURCES){
+                Snapshot snap=snapshots.get(source.id);
+                if(snap!=null)writeCache(context,source,snap);
+            }
+            available=true;
+            android.util.Log.i("YASSERAPPS_CATALOG","SERVER_CATALOG total="+merge(snapshots).size()+" sources="+snapshots.size());
+        }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","SERVER_CATALOG_UNAVAILABLE",e);}
+        return available;
+    }
     static void load(Context context,Catalog.Callback callback) {
         Map<String,Snapshot> snapshots=new LinkedHashMap<>();
         for(Source source:SOURCES) {
@@ -622,6 +689,13 @@ final class DirectSources {
             if(cached!=null) snapshots.put(source.id,cached);
         }
         if(!snapshots.isEmpty()) callback.loaded(new Catalog.Result(merge(snapshots),null,false));
+        if(loadServer(context,snapshots,callback)){
+            List<Catalog.App> combined=merge(snapshots);
+            int downloadable=0;for(Catalog.App a:combined)if(!a.discoveryOnly)downloadable++;
+            for(Source source:SOURCES){Snapshot snap=snapshots.get(source.id);if(snap!=null)android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_SOURCE_OK "+source.id+" count="+snap.apps.size());}
+            android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+snapshots.size()+" downloadable="+downloadable+" discoveryPorts=0 marketplaceListings="+(combined.size()-downloadable));
+            callback.loaded(new Catalog.Result(combined,null,true));return;
+        }
         int succeeded=0;
         for(Source source:SOURCES) {
             try {
