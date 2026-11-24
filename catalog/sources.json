@@ -20,6 +20,24 @@
       "fingerprint": "3BF0D6ABFEAE2F401707B6D966BE743BF0EEE49C2561B9BA39073711F628937A"
     },
     {
+      "id": "guardian",
+      "name": "Guardian Project",
+      "baseUrl": "https://guardianproject.info/fdroid/repo",
+      "fingerprint": "B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135",
+      "format": "fdroid-v2",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "microg",
+      "name": "microG",
+      "baseUrl": "https://repo.microg.org/fdroid/repo",
+      "fingerprint": "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165",
+      "format": "fdroid-v2",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
       "id": "liteapks",
       "name": "LiteAPKs",
       "website": "https://liteapks.com/",
