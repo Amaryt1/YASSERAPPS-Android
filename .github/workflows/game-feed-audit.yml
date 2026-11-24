@@ -1,0 +1,57 @@
+name: Audit larger game discovery feeds
+on:
+  push:
+    branches: [feature/game-feeds-10.7.0]
+  pull_request:
+    branches: [feature/games-10.6.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Inspect public upstream game feeds without copying or hosting APKs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, collections, re
+          sources = {
+            "Recompa": "https://recompa.app/index.json",
+            "PortHub": "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json",
+            "2113": "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json",
+          }
+          def rows(data):
+              if isinstance(data,list):
+                  return [x for x in data if isinstance(x,dict)]
+              if isinstance(data,dict):
+                  for k in ("games","ports","apps","entries","items","catalog"):
+                      if isinstance(data.get(k),list):
+                          return rows(data[k])
+                  candidates=[v for v in data.values() if isinstance(v,list)]
+                  if candidates:
+                      return rows(max(candidates,key=len))
+              return []
+          for name,url in sources.items():
+              try:
+                  req=urllib.request.Request(url,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
+                  with urllib.request.urlopen(req,timeout=45) as response:
+                      raw=response.read(20*1024*1024+1)
+                  if len(raw)>20*1024*1024: raise ValueError("size limit")
+                  data=json.loads(raw)
+                  records=rows(data)
+                  counts=collections.Counter()
+                  fields=collections.Counter()
+                  for row in records:
+                      fields.update(row.keys())
+                      text=json.dumps(row)
+                      if re.search(r'https://[^"\s]+\.apk(?:[?"\s]|$)',text,re.I): counts["records_with_apk_url"]+=1
+                      if re.search(r'[a-f0-9]{64}',text,re.I): counts["records_with_hash_like_value"]+=1
+                      if re.search(r'"(?:arm64-v8a|armeabi-v7a)"',text): counts["records_with_ARM_abi"]+=1
+                      if row.get("android",{}).get("supported") is True if isinstance(row.get("android"),dict) else False: counts["android_supported"]+=1
+                  print("GAME_FEED_AUDIT",name,"records",len(records),"fields",dict(fields),"signals",dict(counts))
+                  print("NOTE: signals are discovery candidates, not verified playable or authorized APKs")
+              except Exception as e:
+                  print("GAME_FEED_UNAVAILABLE",name,type(e).__name__,str(e))
+          PY

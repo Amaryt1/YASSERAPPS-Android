@@ -132,7 +132,7 @@
       "website": "https://github.com/2113apps/verified-android-apps",
       "enabled": false,
       "mode": "pending",
-      "reason": "Directory of verified apps; no compatible signed catalog and metadata distribution permission confirmed."
+      "reason": "Discovery feed integrated separately below; not a signed F-Droid index."
     },
     {
       "id": "opensourceandroid",
@@ -179,6 +179,31 @@
       "enabled": false,
       "mode": "pending",
       "reason": "Public RSS discovery is not a direct signed APK catalog; downloads require authorized access."
+    }
+  ],
+  "gameFeeds": [
+    {
+      "id": "2113games",
+      "name": "2113 Apps Games",
+      "url": "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json",
+      "enabled": true,
+      "license": "CC-BY-4.0",
+      "format": "verified-release-discovery",
+      "verification": "Match publisher GitHub asset size and SHA-256; validate APK signer, package and version before installation."
+    }
+  ],
+  "discoveryCandidates": [
+    {
+      "id": "recompa",
+      "url": "https://recompa.app/index.json",
+      "status": "audit-only",
+      "reason": "Need schema, reuse permission and direct publisher APK checks; many ports need owned game data."
+    },
+    {
+      "id": "porthub",
+      "url": "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json",
+      "status": "audit-only",
+      "reason": "Links-only catalog; Android-compatible release assets and licenses need verification."
     }
   ]
 }
