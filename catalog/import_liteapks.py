@@ -12,7 +12,17 @@ def write(path,obj):
     tmp.replace(path)
 def preview_row(r):
     if not r.get("modClaim") or r.get("category") not in ("app","game") or not r.get("softwareVersion"):return None
-    return dict(name=r["name"],version=r["softwareVersion"],pageUrl=r["pageUrl"],category=r["category"],iconUrl=r.get("imageUrl",""),modClaim=True,status="pending_verified_release",installable=False)
+    rec=dict(name=r["name"],version=r["softwareVersion"],pageUrl=r["pageUrl"],category=r["category"],iconUrl=r.get("imageUrl",""),modClaim=True,status="pending_verified_release",installable=False,apkUrl=None,screenshots=r.get("screenshots",[]))
+    if r.get("fileSize"):rec["advertisedSize"]=r["fileSize"]
+    # Keep page URLs separate from installable APK URLs. Never invent file IDs.
+    link=r.get("explicitApkUrl","")
+    if link:
+        from urllib.parse import urlsplit
+        import re
+        p=urlsplit(link)
+        if p.scheme=="https" and p.hostname=="liteapks.com" and re.fullmatch(r"/download/[a-zA-Z0-9_-]+-\d+/\d+/?",p.path) and not p.query:
+            rec["downloadPageUrl"]=link
+    return rec
 def batch(urls,records,done,rp,delay,limit,budget,fetch=get,sleep=time.sleep,clock=time.monotonic):
     start=clock();attempted=0;status="batch_complete"
     for url in urls:
@@ -59,8 +69,15 @@ def main():
     rp=urllib.robotparser.RobotFileParser();rp.parse(robots.splitlines())
     delay=max(1,rp.crawl_delay(AGENT) or rp.crawl_delay("*") or 1)
     if delay>60:print("LITE_IMPORT_CRAWL_DELAY");return
-    done=set(state["done"])|set(records)
-    attempted,status=batch(state["urls"],records,done,rp,delay,args.limit,args.seconds)
+    done=set(state["done"])
+    # Refresh known previews once for new metadata fields; resume the main queue afterwards.
+    if state.get("previewSchema",1)<2:
+        refresh=list(records)
+        done.difference_update(refresh)
+        state["previewSchema"]=2
+    else:refresh=[url for url in records if url not in done]
+    queue=list(dict.fromkeys(refresh+state["urls"]))
+    attempted,status=batch(queue,records,done,rp,delay,args.limit,args.seconds)
     state["done"]=sorted(done)
     state["lastStatus"]=status
     state["lastAttempted"]=attempted

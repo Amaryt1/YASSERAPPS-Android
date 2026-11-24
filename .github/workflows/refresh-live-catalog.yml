@@ -43,13 +43,6 @@ jobs:
         run: |
           python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
-      - name: Sync official open-source APK releases
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python3 -m unittest discover -s catalog -p test_sync_github_releases.py
-          if [ ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]; then "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'; fi
-          python3 catalog/sync_github_releases.py
       - name: Import next LiteAPKs metadata batch
         run: |
           python3 -m unittest discover -s catalog -p test_import_liteapks.py
@@ -65,6 +58,13 @@ jobs:
               with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
                   f.write("LiteAPKs reviewed: "+str(len(s["done"]))+"; remaining: "+str(s["remaining"])+"; status: "+s["lastStatus"]+"\n")
           PY
+      - name: Sync official open-source APK releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m unittest discover -s catalog -p test_sync_github_releases.py
+          if [ ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]; then "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'; fi
+          python3 catalog/sync_github_releases.py
       - name: Generate and measure new catalogue records
         env:
           YASSER_FEED_HAPPYMOD_TOKEN: ${{ secrets.YASSER_FEED_HAPPYMOD_TOKEN }}

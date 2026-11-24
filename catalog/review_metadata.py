@@ -60,6 +60,16 @@ def factual_rows(html,source,url):
         image=item.get("image")
         if isinstance(image,dict):image=image.get("url")
         if isinstance(image,str) and urlsplit(image).scheme=="https":row["imageUrl"]=image[:2048]
+        # Preserve factual public metadata without treating landing pages as binary files.
+        shots=item.get("screenshot",[])
+        if not isinstance(shots,list):shots=[shots]
+        screenshots=[]
+        for shot in shots:
+            if isinstance(shot,dict):shot=shot.get("contentUrl") or shot.get("url")
+            if isinstance(shot,str):
+                link=public_link(url,shot)
+                if link and link not in screenshots:screenshots.append(link)
+        row["screenshots"]=screenshots[:12]
         # Inspect the page title metadata too; structured application names often omit MOD.
         og=item.get("openGraph",{})
         title=og.get("og:title","") if isinstance(og,dict) else ""

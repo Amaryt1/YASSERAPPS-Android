@@ -1,5 +1,5 @@
 import unittest,urllib.robotparser
-from import_liteapks import batch
+from import_liteapks import batch,preview_row
 class ImportTest(unittest.TestCase):
     def test_incremental_dedupe_and_rate_limit(self):
         urls=["https://liteapks.com/a.html","https://liteapks.com/b.html"]
@@ -14,3 +14,12 @@ class ImportTest(unittest.TestCase):
         n,status=batch(urls,records,done,rp,1,5,100,fetch,lambda _:None)
         self.assertEqual(n,1)
         self.assertEqual(len(records),1)
+
+    def test_landing_page_is_not_apk(self):
+        row=dict(name="Fixture",softwareVersion="1",pageUrl="https://liteapks.com/fixture.html",category="game",modClaim=True,explicitApkUrl="https://liteapks.com/download/fixture-123/1")
+        rec=preview_row(row)
+        self.assertEqual(rec["downloadPageUrl"],row["explicitApkUrl"])
+        self.assertIsNone(rec["apkUrl"])
+        self.assertFalse(rec["installable"])
+        row["explicitApkUrl"]="https://liteapks.com/file.apk"
+        self.assertNotIn("downloadPageUrl",preview_row(row))
