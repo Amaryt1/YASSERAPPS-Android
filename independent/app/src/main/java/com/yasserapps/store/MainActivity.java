@@ -1354,7 +1354,7 @@ public final class MainActivity extends Activity {
         });
         c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 9.0.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.1.0\nمتجر أندرويد مستقل بسورس YASSERAPPS، "
             + "يدعم سجل التحميلات، متابعة التقدم، إعادة المحاولة، والفحص الأمني قبل التثبيت.");
         gap(c, 12);
         c.addView(text("الحماية: التثبيت يطلب موافقتك • لا يطلب توكن GitHub", 12, SUBTEXT, false));
