@@ -151,36 +151,6 @@
       "probeOnly": true,
       "ownerReportedPermission": true,
       "permissionStatus": "reported_by_project_owner_2026-11-24"
-    },
-    {
-      "name": "JoJoy",
-      "status": "awaiting_feed",
-      "enabled": false,
-      "apiUrl": null,
-      "permissionUrl": null,
-      "reason": "Project owner reports provider permission; exact allowed APK URLs and release metadata still require validation.",
-      "authorizationConfirmed": false,
-      "itemsPath": "apps",
-      "nextPath": "next",
-      "fields": {},
-      "delaySeconds": 1,
-      "tokenEnv": "",
-      "slug": "jojoy",
-      "localApi": "sources/jojoy/index.json",
-      "probeHome": "https://www.jojoy.app/",
-      "discoveryMethods": [
-        "robots",
-        "sitemap",
-        "rss",
-        "atom",
-        "html",
-        "json-ld",
-        "open-graph",
-        "public-json"
-      ],
-      "probeOnly": true,
-      "ownerReportedPermission": true,
-      "permissionStatus": "reported_by_project_owner_2026-11-24"
     }
   ]
 }
