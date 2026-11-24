@@ -48,6 +48,20 @@ public final class DirectCatalogTest extends Instrumentation {
             List<Catalog.App> market=AptoideFeed.parse(new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("datalist",new org.json.JSONObject().put("list",new org.json.JSONArray().put(sample))),"games");
             if(market.size()!=1||!market.get(0).discoveryOnly||!market.get(0).apkUrl.isEmpty()||!market.get(0).isGame())throw new AssertionError("Aptoide metadata boundary");
             if(!Catalog.fromJson(Catalog.toJson(market.get(0))).discoveryOnly||AptoideFeed.listingLink("https://x.en.aptoide.com.evil.example/app"))throw new AssertionError("Aptoide cache or URL validation");
+            // Real list responses omit the malware verdict; only matching detailed releases qualify.
+            org.json.JSONObject listing=new org.json.JSONObject(sample.toString());
+            String md5="0123456789abcdef0123456789abcdef";
+            listing.getJSONObject("file").put("md5sum",md5).remove("malware");
+            org.json.JSONObject detail=new org.json.JSONObject(sample.toString());
+            detail.getJSONObject("file").put("md5sum",md5);
+            org.json.JSONObject response=new org.json.JSONObject().put("info",new org.json.JSONObject().put("status","OK")).put("data",detail);
+            Catalog.App checked=AptoideFeed.checkedDetail(listing,response,"games");
+            if(checked==null||!checked.discoveryOnly||!checked.apkUrl.isEmpty())throw new AssertionError("Matching detail must remain metadata-only");
+            detail.getJSONObject("file").put("md5sum","fedcba9876543210fedcba9876543210");
+            if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Mismatched release accepted");
+            detail.getJSONObject("file").put("md5sum",md5).put("malware",new org.json.JSONObject().put("rank","UNKNOWN"));
+            if(AptoideFeed.checkedDetail(listing,response,"games")!=null)throw new AssertionError("Unknown security verdict accepted");
+            android.util.Log.i("YASSERAPPS_CATALOG","PASS Aptoide detail checks and metadata-only boundary");
             // Featured cards must update when a newer release arrives.
             Catalog.App first=new Catalog.App(); first.packageName="test.first"; first.iconUrl="https://example.org/first.png"; first.updatedAt=10; first.versionCode=1;
             Catalog.App second=new Catalog.App(); second.packageName="test.second"; second.iconUrl="https://example.org/second.png"; second.updatedAt=20; second.versionCode=1;
