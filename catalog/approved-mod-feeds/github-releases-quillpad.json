@@ -1,32 +1,32 @@
 {
   "source": "GitHub Releases",
-  "permissionUrl": "https://f-droid.org/packages/io.github.quillpad/",
+  "permissionUrl": "https://github.com/quillpad/quillpad/blob/master/LICENSE",
   "reviewedPublicLicense": true,
-  "reviewNotes": "Existing GPL-licensed derivative. APK digest pinned from official GitHub release metadata; verified package, version, size and cryptographic signature in CI. Not a release from the six target sources.",
   "apps": [
     {
       "id": "quillpad",
       "name": "Quillpad",
-      "packageName": "io.github.quillpad",
       "category": "app",
-      "version": "1.5.16",
-      "versionCode": 58,
-      "modDescription": "نسخة مطورة من Quillnote للملاحظات وقوائم المهام، تدعم Markdown والمزامنة مع Nextcloud.",
-      "modEvidenceUrl": "https://f-droid.org/packages/io.github.quillpad/",
-      "publisherUrl": "https://github.com/quillpad/quillpad/releases/tag/v1.5.16",
       "modified": true,
-      "license": "GPL-3.0-only",
-      "sizeBytes": 4560063,
-      "apkUrl": "https://github.com/quillpad/quillpad/releases/download/v1.5.16/quillpad-1.5.16.apk",
-      "sha256": "2a04f693f760084058896551f7cb1dd6b6c0149ea8ddfabde8a09aeb8960996d",
-      "signerSha256": "3c2b48eeceed98e70a33d21d3e9ff6193343a1dddcbb9cc076b859d36cdeae6a",
-      "iconUrl": "https://raw.githubusercontent.com/quillpad/quillpad/master/fastlane/metadata/android/en-US/images/icon.png",
+      "modDescription": "نسخة مفتوحة المصدر مطوّرة من Quillnote للملاحظات وقوائم المهام، تدعم Markdown والمزامنة مع Nextcloud.",
+      "modEvidenceUrl": "https://github.com/quillpad/quillpad",
+      "publisherUrl": "https://github.com/quillpad/quillpad/releases/tag/v1.5.16",
+      "license": "GPL-3.0",
+      "translationOrigin": "editorial_arabic",
+      "iconUrl": "https://raw.githubusercontent.com/quillpad/quillpad/bd5baff4af9002f5a710020700e399572b2dd408/fastlane/metadata/android/en-US/images/icon.png",
       "screenshots": [
-        "https://raw.githubusercontent.com/quillpad/quillpad/master/fastlane/metadata/android/en-US/images/phoneScreenshots/1.png",
-        "https://raw.githubusercontent.com/quillpad/quillpad/master/fastlane/metadata/android/en-US/images/phoneScreenshots/2.png",
-        "https://raw.githubusercontent.com/quillpad/quillpad/master/fastlane/metadata/android/en-US/images/phoneScreenshots/3.png",
-        "https://raw.githubusercontent.com/quillpad/quillpad/master/fastlane/metadata/android/en-US/images/phoneScreenshots/4.png"
-      ]
+        "https://raw.githubusercontent.com/quillpad/quillpad/bd5baff4af9002f5a710020700e399572b2dd408/fastlane/metadata/android/en-US/images/phoneScreenshots/1.png",
+        "https://raw.githubusercontent.com/quillpad/quillpad/bd5baff4af9002f5a710020700e399572b2dd408/fastlane/metadata/android/en-US/images/phoneScreenshots/2.png",
+        "https://raw.githubusercontent.com/quillpad/quillpad/bd5baff4af9002f5a710020700e399572b2dd408/fastlane/metadata/android/en-US/images/phoneScreenshots/3.png",
+        "https://raw.githubusercontent.com/quillpad/quillpad/bd5baff4af9002f5a710020700e399572b2dd408/fastlane/metadata/android/en-US/images/phoneScreenshots/4.png"
+      ],
+      "packageName": "io.github.quillpad",
+      "versionCode": 58,
+      "version": "1.5.16",
+      "apkUrl": "https://github.com/quillpad/quillpad/releases/download/v1.5.16/quillpad-1.5.16.apk",
+      "sizeBytes": 4560063,
+      "sha256": "2a04f693f760084058896551f7cb1dd6b6c0149ea8ddfabde8a09aeb8960996d",
+      "signerSha256": "3c2b48eeceed98e70a33d21d3e9ff6193343a1dddcbb9cc076b859d36cdeae6a"
     }
   ]
 }
