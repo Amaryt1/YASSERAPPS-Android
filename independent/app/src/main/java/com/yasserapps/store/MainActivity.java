@@ -240,6 +240,8 @@ public final class MainActivity extends Activity {
     }
 
     private void render(LinearLayout content, boolean footer) {
+        main.removeCallbacks(featuredTicker);
+        if(!"home".equals(page)||!"all".equals(category)) featuredContainer=null;
         screen = new FrameLayout(this);
         screen.setBackgroundColor(BG);
         screen.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -267,6 +269,7 @@ public final class MainActivity extends Activity {
         if (footer) addFooter(screen);
         setContentView(screen);
         if (Build.VERSION.SDK_INT >= 35) screen.requestApplyInsets();
+        scheduleFeatured();
     }
 
     private void addFooter(FrameLayout parent) {
@@ -445,9 +448,13 @@ public final class MainActivity extends Activity {
         if ("all".equals(category)) {
             heroCard(content);
             gap(content, 14);
-            section(content, "أحدث التطبيقات", matching("app"), false);
+            homeAppsSection=linear(true);
+            content.addView(homeAppsSection,lp(-1,-2));
+            section(homeAppsSection, "أحدث التطبيقات", matching("app"), false);
             gap(content, 17);
-            section(content, "أحدث الألعاب", matching("game"), true);
+            homeGamesSection=linear(true);
+            content.addView(homeGamesSection,lp(-1,-2));
+            section(homeGamesSection, "أحدث الألعاب", matching("game"), true);
         } else if ("app".equals(category)) {
             catalogList(content, "التطبيقات", matching("app"));
         } else if ("game".equals(category)) {
@@ -457,10 +464,40 @@ public final class MainActivity extends Activity {
     }
 
     private String selectedFeaturedPackage = "";
+    private LinearLayout featuredContainer,homeAppsSection,homeGamesSection;
+    private List<Catalog.App> featuredItems=java.util.Collections.emptyList();
+    private int featuredIndex;
+    private static final long FEATURED_INTERVAL=6000L;
+    private final Runnable featuredTicker=new Runnable(){
+        @Override public void run(){
+            if(featuredActive()&&featuredItems.size()>1)renderFeatured(featuredContainer,featuredItems,featuredIndex+1);
+        }
+    };
+    private boolean featuredActive(){
+        return activityVisible&&!isFinishing()&&!isDestroyed()&&"home".equals(page)&&"all".equals(category)
+            &&featuredContainer!=null&&featuredContainer.isAttachedToWindow();
+    }
+    private void scheduleFeatured(){
+        main.removeCallbacks(featuredTicker);
+        if(featuredActive()&&featuredItems.size()>1)main.postDelayed(featuredTicker,FEATURED_INTERVAL);
+    }
+    private void updateHomeContent(){
+        if(!"all".equals(category)||featuredContainer==null||!featuredContainer.isAttachedToWindow()
+            ||homeAppsSection==null||homeGamesSection==null){showHome();return;}
+        List<Catalog.App> next=FeaturedApps.choose(apps);
+        int index=0;
+        for(int i=0;i<next.size();i++)if(next.get(i).packageName.equals(selectedFeaturedPackage))index=i;
+        renderFeatured(featuredContainer,next,index);
+        homeAppsSection.removeAllViews();
+        section(homeAppsSection,"أحدث التطبيقات",matching("app"),false);
+        homeGamesSection.removeAllViews();
+        section(homeGamesSection,"أحدث الألعاب",matching("game"),true);
+    }
 
     private void heroCard(LinearLayout root) {
         List<Catalog.App> featured = FeaturedApps.choose(apps);
         LinearLayout container = linear(true);
+        featuredContainer=container;
         root.addView(container, lp(-1, -2));
         int selectedIndex=0;
         for(int i=0;i<featured.size();i++)
@@ -472,6 +509,8 @@ public final class MainActivity extends Activity {
         root.removeAllViews();
         final int count=featured.size();
         final int current=count==0?0:Math.floorMod(index,count);
+        featuredItems=featured;
+        featuredIndex=current;
         final Catalog.App selected=count==0?null:featured.get(current);
         if(selected!=null) selectedFeaturedPackage=selected.packageName;
         FrameLayout banner = new FrameLayout(this);
@@ -557,6 +596,7 @@ public final class MainActivity extends Activity {
             final float[] down={0f,0f};
             banner.setOnTouchListener((v,event)->{
                 if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN) {
+                    main.removeCallbacks(featuredTicker);
                     down[0]=event.getX(); down[1]=event.getY();
                 } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_UP) {
                     float dx=event.getX()-down[0], dy=event.getY()-down[1];
@@ -565,7 +605,8 @@ public final class MainActivity extends Activity {
                         renderFeatured(root,featured,current+(dx>0?1:-1));
                         return true;
                     }
-                }
+                    scheduleFeatured();
+                } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_CANCEL) scheduleFeatured();
                 return false;
             });
         }
@@ -601,6 +642,7 @@ public final class MainActivity extends Activity {
             root.addView(controls,lp(-1,36));
             android.util.Log.i("YASSERAPPS_CATALOG","UI_FEATURED count="+count+" index="+current+" package="+selected.packageName);
         }
+        scheduleFeatured();
     }
 
     private void section(LinearLayout root, String name, List<Catalog.App> entries, boolean compact) {
@@ -1066,7 +1108,7 @@ public final class MainActivity extends Activity {
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
-            if ("home".equals(page)) showHome();
+            if ("home".equals(page)) updateHomeContent();
             else if ("catalog_list".equals(page)) showList(listTitle, listKind);
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
@@ -1554,6 +1596,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityVisible = true;
+        scheduleFeatured();
         main.removeCallbacks(catalogTicker);
         catalogTicker.run();
         if (downloadCoordinator != null) {
@@ -1575,6 +1618,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         activityVisible = false;
+        main.removeCallbacks(featuredTicker);
         main.removeCallbacks(catalogTicker);
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
@@ -1582,6 +1626,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(featuredTicker);
         main.removeCallbacks(catalogTicker);
         activeSearchRefresh = null;
         main.removeCallbacks(completionWatch);
