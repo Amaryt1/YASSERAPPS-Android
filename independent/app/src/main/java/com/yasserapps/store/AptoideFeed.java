@@ -25,6 +25,40 @@ final class AptoideFeed {
                 u.getUserInfo()==null&&u.getPort()==-1;
         } catch(Exception e){return false;}
     }
+    static boolean sameRelease(JSONObject listing,JSONObject detail) {
+        if(listing==null||detail==null)return false;
+        String pkg=listing.optString("package");
+        if(!pkg.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+")||!pkg.equals(detail.optString("package")))return false;
+        JSONObject a=listing.optJSONObject("file"),b=detail.optJSONObject("file");
+        if(a==null||b==null||a.optInt("vercode")<1||a.optInt("vercode")!=b.optInt("vercode"))return false;
+        String md5=a.optString("md5sum");
+        return md5.matches("(?i)[a-f0-9]{32}")&&md5.equalsIgnoreCase(b.optString("md5sum"));
+    }
+    static Catalog.App checkedDetail(JSONObject listing,JSONObject response,String category) throws Exception {
+        if(!"OK".equals(response.getJSONObject("info").optString("status")))return null;
+        JSONObject detail=response.optJSONObject("data");
+        if(!sameRelease(listing,detail))return null;
+        JSONObject wrapper=new JSONObject().put("info",new JSONObject().put("status","OK"))
+            .put("datalist",new JSONObject().put("list",new JSONArray().put(detail)));
+        List<Catalog.App> parsed=parse(wrapper,category);
+        if(parsed.isEmpty())return null;
+        Catalog.App a=parsed.get(0);
+        JSONObject media=detail.optJSONObject("media");
+        if(media!=null) {
+            String desc=media.optString("description");
+            if(!desc.isEmpty()) {
+                desc=android.text.Html.fromHtml(desc,android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
+                if(desc.length()>12000)desc=desc.substring(0,12000);
+                a.description=desc+"\n\n"+a.description;
+            }
+            JSONArray shots=media.optJSONArray("screenshots");
+            if(shots!=null) for(int i=0;i<Math.min(shots.length(),12);i++) {
+                JSONObject shot=shots.optJSONObject(i);
+                if(shot!=null&&safeImage(shot.optString("url")))a.screenshots.add(shot.optString("url"));
+            }
+        }
+        return a;
+    }
     static List<Catalog.App> parse(JSONObject root,String category) throws Exception {
         if(!"OK".equals(root.getJSONObject("info").optString("status")))throw new java.io.IOException("Public API status not OK");
         JSONArray rows=root.getJSONObject("datalist").getJSONArray("list");
