@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'catalog/verify_source_candidates.py'
+      - 'catalog/review_metadata.py'
+      - 'catalog/test_review_metadata.py'
+      - 'catalog/mod-source-candidates.json'
       - '.github/workflows/verify-source-candidates.yml'
 permissions:
   contents: read

@@ -3,6 +3,7 @@ No generated download URLs, access bypass, or inferred APK identity."""
 import hashlib,json,re,subprocess,tempfile,time,urllib.request,urllib.robotparser,urllib.parse
 from pathlib import Path
 from probe_sources import inspect, get, host, NoRedirect, AGENT
+from review_metadata import advertised_links
 ROOT=Path(__file__).resolve().parent
 REPO="https://github.com/Amaryt1/YASSERAPPS-Android/blob/main/catalog/source-permission-notice.md"
 MAX_APK=64*1024*1024
@@ -30,7 +31,7 @@ def verify(row,sdk):
                     if n>MAX_APK:return None,"apk_too_large"
                     digest.update(buf);f.write(buf)
             with apk.open("rb") as f:
-                if f.read(4)!=b"PK\x03\x04":return None,"not_apk_archive"
+                if f.read(4)!=b"PK\x03\x04":return None,"not_apk_archive_or_landing_page"
             sig=subprocess.check_output([str(sdk/"apksigner"),"verify","--min-sdk-version","26","--verbose","--print-certs",str(apk)],text=True,stderr=subprocess.DEVNULL,timeout=60)
             cert=re.findall(r"Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]{64})",sig)
             if len(cert)!=1 or not re.search(r"Verified using v[23] scheme.*: true",sig):return None,"signature_not_verified"
