@@ -892,7 +892,24 @@ public final class MainActivity extends Activity {
         c.addView(panel, lp(-1, -2));
     }
 
+    private final Map<String,Long> detailChecks=new HashMap<>();
     private void showDetail(Catalog.App app) {
+        if("Aptoide".equals(app.sourceName)){
+            long now=android.os.SystemClock.elapsedRealtime();
+            Long last=detailChecks.get(app.packageName);
+            if(last==null||now-last>300000L){
+                detailChecks.put(app.packageName,now);
+                if(detailChecks.size()>500)detailChecks.clear();
+                Catalog.enrich(this,app,fresh->main.post(()->{
+                    if(isFinishing()||isDestroyed()||fresh==null)return;
+                    for(int i=0;i<apps.size();i++){
+                        Catalog.App old=apps.get(i);
+                        if(old.packageName.equals(fresh.packageName)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
+                    }
+                    if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(fresh.packageName)&&fresh.versionCode>=detailApp.versionCode)showDetail(fresh);
+                }));
+            }
+        }
         detailApp = app;
         page = "detail";
         LinearLayout content = verticalContent();
