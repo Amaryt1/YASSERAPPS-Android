@@ -73,7 +73,7 @@ public final class DownloadCoordinator {
             if (status == DownloadManager.STATUS_PENDING) return "بانتظار بدء التحميل";
             if (status == DownloadManager.STATUS_RUNNING) return "جاري التحميل";
             if (status == DownloadManager.STATUS_PAUSED) return "متوقف مؤقتًا بواسطة النظام أو الشبكة";
-            if (status == DownloadManager.STATUS_SUCCESSFUL) return "مكتمل، جاهز لفحص الملف والتثبيت";
+            if (status == DownloadManager.STATUS_SUCCESSFUL) return "اكتمل التنزيل ✓ • جاهز للتثبيت";
             if (reason == DownloadManager.ERROR_INSUFFICIENT_SPACE) return "فشل التحميل: المساحة غير كافية";
             if (reason == DownloadManager.ERROR_CANNOT_RESUME) return "تعذر استكمال التحميل، جرّب مجددًا";
             if (reason == DownloadManager.ERROR_HTTP_DATA_ERROR) return "فشل الاتصال بالخادم";
