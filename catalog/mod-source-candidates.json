@@ -14,7 +14,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "happymod",
+      "localApi": "sources/happymod/index.json"
     },
     {
       "name": "MODDROID",
@@ -28,7 +30,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "moddroid",
+      "localApi": "sources/moddroid/index.json"
     },
     {
       "name": "APKMODY",
@@ -42,7 +46,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "apkmody",
+      "localApi": "sources/apkmody/index.json"
     },
     {
       "name": "APKDONE",
@@ -56,7 +62,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "apkdone",
+      "localApi": "sources/apkdone/index.json"
     },
     {
       "name": "APKVision",
@@ -70,7 +78,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "apkvision",
+      "localApi": "sources/apkvision/index.json"
     },
     {
       "name": "JoJoy",
@@ -84,7 +94,9 @@
       "nextPath": "next",
       "fields": {},
       "delaySeconds": 1,
-      "tokenEnv": ""
+      "tokenEnv": "",
+      "slug": "jojoy",
+      "localApi": "sources/jojoy/index.json"
     }
   ]
 }

@@ -26,7 +26,22 @@ def pages(name,items):
     return {"total":len(items),"pages":n,"first":f"{name}/1.json" if n else None}
 groups={"all":pages("all",rows)}
 for cat in ("app","game"): groups[cat]=pages(cat,[r for r in rows if r["category"]==cat])
-write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":all(r["discoveryOnly"] for r in rows),"installableMetadata":sum(not r["discoveryOnly"] for r in rows),"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"counts":dict(Counter(r["sourceName"] for r in rows))})
+registry=json.loads(Path("catalog/mod-source-candidates.json").read_text())
+source_apis={}
+for cfg in registry["sources"]:
+    slug=cfg["slug"]
+    assert re.fullmatch(r"[a-z0-9-]+",slug)
+    selected=[row for row in rows if row["sourceName"].casefold()==cfg["name"].casefold()]
+    prefix="sources/"+slug
+    sg={"all":pages(prefix+"/all",selected)}
+    for cat in ("app","game"):
+        sg[cat]=pages(prefix+"/"+cat,[row for row in selected if row["category"]==cat])
+    status="published" if selected else ("empty" if cfg.get("enabled") else "awaiting_authorized_source")
+    entry={"schemaVersion":1,"modOnly":True,"source":cfg["name"],"status":status,"generatedAt":d["generatedAt"],"total":len(selected),"installableMetadata":sum(not row["discoveryOnly"] for row in selected),"groups":sg}
+    write(prefix+"/index.json",entry)
+    assert sg["app"]["total"]+sg["game"]["total"]==len(selected)
+    source_apis[cfg["name"]]={"path":prefix+"/index.json","total":len(selected),"status":status}
+write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":all(r["discoveryOnly"] for r in rows),"installableMetadata":sum(not r["discoveryOnly"] for r in rows),"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"sourceApis":source_apis,"counts":dict(Counter(r["sourceName"] for r in rows))})
 if args.legacy_output:
     # Retired clients cannot safely display the new format.
     Path(args.legacy_output).write_text(json.dumps({"schemaVersion":1,"modOnly":True,"generatedAt":d["generatedAt"],"report":{"total":0,"counts":{}},"apps":[]}))
