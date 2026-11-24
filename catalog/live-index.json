@@ -6,7 +6,10 @@
     "pageSize": 50,
     "foregroundGrowthMinutes": 15,
     "steadyStateHours": 6,
-    "targetUniquePackages": 20000
+    "targetUniquePackages": 20000,
+    "publicChartBatchLimit": 40,
+    "publicChartTargetPerSource": 2000,
+    "aptoidePagesPerCycle": 70
   },
   "sources": [
     {
@@ -71,7 +74,12 @@
       "name": "Uptodown",
       "status": "public-chart-metadata-testing",
       "feeds": {
-        "charts": "https://en.uptodown.com/android/apps/top"
+        "charts": [
+          "https://en.uptodown.com/android/apps/top",
+          "https://en.uptodown.com/android/games/top",
+          "https://en.uptodown.com/android/latest-updates",
+          "https://en.uptodown.com/android/newreleases"
+        ]
       },
       "directInstall": false,
       "publicChartUrls": [
@@ -86,7 +94,8 @@
       "name": "APKMirror",
       "status": "public-rss-integration-testing",
       "feeds": {
-        "releases": "https://www.apkmirror.com/feed/"
+        "releases": "https://www.apkmirror.com/feed/",
+        "uploads": "https://www.apkmirror.com/uploads/"
       },
       "directInstall": false,
       "format": "rss2"
