@@ -16,7 +16,9 @@ public final class Catalog {
         public String sourceName="", signerSha256="", license="";
         public int versionCode;
         public long sizeBytes, updatedAt;
-        public boolean featured;
+        public boolean featured, discoveryOnly;
+        public String originalPlatform="", gameFiles="", filesInstructions="", filesPath="", publisherUrl="", attribution="";
+        public boolean needsFiles() { return "owned".equals(gameFiles)||"required".equals(gameFiles); }
         public ArrayList<String> screenshots = new ArrayList<>();
         public boolean isGame() { return "game".equals(category); }
     }
@@ -36,7 +38,9 @@ public final class Catalog {
             .put("summary",a.summary).put("description",a.description).put("changelog",a.changelog)
             .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
             .put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt)
-            .put("screenshots",new JSONArray(a.screenshots));
+            .put("screenshots",new JSONArray(a.screenshots))
+            .put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
+            .put("filesInstructions",a.filesInstructions).put("filesPath",a.filesPath).put("publisherUrl",a.publisherUrl).put("attribution",a.attribution);
     }
     static App fromJson(JSONObject obj) throws Exception {
         App a=new App();
@@ -46,7 +50,10 @@ public final class Catalog {
         a.summary=obj.optString("summary"); a.description=obj.optString("description"); a.changelog=obj.optString("changelog");
         a.sha256=obj.getString("sha256"); a.sizeBytes=obj.getLong("sizeBytes"); a.sourceName=obj.getString("sourceName");
         a.signerSha256=obj.getString("signerSha256"); a.license=obj.optString("license"); a.updatedAt=obj.optLong("updatedAt");
-        if(!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||a.versionCode<1)
+        a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
+        a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
+        a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");
+        if(a.discoveryOnly ? !PortFeeds.publisherLink(a.publisherUrl) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||a.versionCode<1))
             throw new IllegalArgumentException("Invalid cached entry");
         JSONArray shots=obj.optJSONArray("screenshots");
         if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
