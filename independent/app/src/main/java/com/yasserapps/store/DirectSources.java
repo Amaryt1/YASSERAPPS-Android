@@ -741,6 +741,41 @@ final class DirectSources {
         if(!modOnly||schema!=1||stamp<=0)throw new IOException("Not a MOD catalog");
         return rows;
     }
+    static List<Catalog.App> readLitePreviews(JSONObject root)throws Exception {
+        if(root.getInt("schemaVersion")!=1||!"LiteAPKs".equals(root.getString("source"))||root.getBoolean("installable"))
+            throw new IOException("Invalid preview feed");
+        JSONArray records=root.getJSONArray("records");
+        if(records.length()>82000)throw new IOException("Preview limit");
+        List<Catalog.App> rows=new ArrayList<>();Set<String> ids=new HashSet<>();
+        for(int i=0;i<records.length();i++){
+            JSONObject row=records.getJSONObject(i);
+            if(row.optBoolean("installable",true)||!row.optBoolean("modClaim",false)||!"pending_verified_release".equals(row.optString("status")))continue;
+            String page=row.optString("pageUrl"),name=row.optString("name"),version=row.optString("version"),category=row.optString("category");
+            URI uri=new URI(page);
+            if(!"https".equals(uri.getScheme())||!"liteapks.com".equalsIgnoreCase(uri.getHost())||uri.getUserInfo()!=null||uri.getFragment()!=null||!(uri.getPort()==-1||uri.getPort()==443)||name.isEmpty()||version.isEmpty()||!("app".equals(category)||"game".equals(category)))continue;
+            Catalog.App a=new Catalog.App();
+            a.id="liteapks.preview."+hex(MessageDigest.getInstance("SHA-256").digest(page.getBytes(StandardCharsets.UTF_8)));
+            if(!ids.add(a.id))continue;
+            a.name=name;a.version=version;a.category=category;a.sourceName="LiteAPKs";
+            a.publisherUrl=page;a.modEvidenceUrl=page;a.modified=true;a.discoveryOnly=true;
+            String icon=row.optString("iconUrl");
+            if(icon.startsWith("https://liteapks.com/"))a.iconUrl=icon;
+            a.summary="نسخة معدلة وفق وصف المصدر، بانتظار التحقق من ملف التنزيل.";
+            a.description=a.summary;
+            rows.add(a);
+        }
+        return rows;
+    }
+    private static List<Catalog.App> withLitePreviews(Context context,List<Catalog.App> verified){
+        List<Catalog.App> all=new ArrayList<>(verified);
+        Set<String> published=new HashSet<>();
+        for(Catalog.App a:verified)published.add(a.publisherUrl);
+        try{
+            JSONObject json=fetchJson(context,"https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/api/v1/sources/liteapks/preview.json",32*1024*1024);
+            for(Catalog.App a:readLitePreviews(json))if(!published.contains(a.publisherUrl))all.add(a);
+        }catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","LITE_PREVIEWS_UNAVAILABLE",e);}
+        return all;
+    }
     static void load(Context context,Catalog.Callback callback) {
         // Never load legacy cached, bundled or direct-source entries.
         File cache=new File(context.getFilesDir(),"mod-only-catalog-v1.json");
@@ -763,9 +798,9 @@ final class DirectSources {
                 byte[] buf=new byte[65536];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);
                 safe.finishWrite(out);
             }catch(Exception failure){safe.failWrite(out);throw failure;}
-            callback.loaded(new Catalog.Result(fresh,null,true));
+            callback.loaded(new Catalog.Result(withLitePreviews(context,fresh),null,true));
         }catch(Exception e){
-            callback.loaded(new Catalog.Result(rows,"تعذّر تحديث فهرس النسخ المعدلة.",true));
+            callback.loaded(new Catalog.Result(withLitePreviews(context,rows),"تعذّر تحديث فهرس النسخ المعدلة.",true));
         }finally{if(tmp!=null)tmp.delete();}
     }
 }

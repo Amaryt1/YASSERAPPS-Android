@@ -972,7 +972,7 @@ public final class MainActivity extends Activity {
         version.setBackground(shape(PANEL2,17,0));
         specs.addView(version);
         padx(specs,8);
-        TextView bytes=text(size(app.sizeBytes),12,WHITE,true);
+        TextView bytes=text(app.discoveryOnly&&app.sizeBytes==0?"الحجم غير متحقق":size(app.sizeBytes),12,WHITE,true);
         bytes.setPadding(dp(11),dp(8),dp(11),dp(8));
         bytes.setBackground(shape(PANEL2,17,0));
         specs.addView(bytes);
@@ -985,7 +985,7 @@ public final class MainActivity extends Activity {
         mainButton.setBackground(shape(GREEN,19,0));
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
-        DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
+        DownloadCoordinator.Entry previous = app.discoveryOnly ? null : downloadCoordinator.latestFor(app);
         String installLabel = app.discoveryOnly ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
