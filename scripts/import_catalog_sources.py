@@ -44,11 +44,14 @@ def media(base, value):
     return repo_url(base, obj["name"]) if isinstance(obj, dict) and obj.get("name") else ""
 
 def index_for(source):
+    from fdroidserver import common
     from fdroidserver.index import download_repo_index_v2
+    if common.config is None:
+        common.read_config()
     base, fingerprint = PINNED[source["id"]]
     if (base, fingerprint) != (source["baseUrl"], source["fingerprint"]):
         raise ValueError("Repository pin mismatch")
-    data, _ = download_repo_index_v2(base + "?fingerprint=" + fingerprint, verify_fingerprint=True, timeout=120)
+    data, _ = download_repo_index_v2(base + "?fingerprint=" + fingerprint, verify_fingerprint=True)
     if not isinstance(data, dict) or not data.get("packages"):
         raise ValueError("Empty or invalid signed index")
     return data
@@ -189,6 +192,8 @@ def main():
             groups.append(rows)
             report.append({"id": source["id"], "status": "ok", "eligible": len(rows)})
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             report.append({"id": source["id"], "status": "error", "error": str(exc)})
     print(json.dumps(report, ensure_ascii=False))
     if not groups or any(x["status"] == "error" for x in report):
