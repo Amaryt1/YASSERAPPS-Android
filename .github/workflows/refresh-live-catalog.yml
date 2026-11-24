@@ -8,6 +8,9 @@ on:
     paths:
       - 'catalog/generate_live_catalog.py'
       - 'catalog/import_liteapks.py'
+      - 'catalog/sync_github_releases.py'
+      - 'catalog/test_sync_github_releases.py'
+      - 'catalog/github-release-projects.json'
       - 'catalog/test_import_liteapks.py'
       - 'catalog/build_api.py'
       - 'catalog/provider_sync.py'
@@ -25,7 +28,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,6 +43,13 @@ jobs:
         run: |
           python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
+      - name: Sync official open-source APK releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m unittest discover -s catalog -p test_sync_github_releases.py
+          if [ ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]; then "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'; fi
+          python3 catalog/sync_github_releases.py
       - name: Import next LiteAPKs metadata batch
         run: |
           python3 -m unittest discover -s catalog -p test_import_liteapks.py
@@ -84,7 +94,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add catalog/generated/index.json catalog/generated/full-index.json catalog/api/v1 catalog/liteapks-review-index.json
+          git add catalog/generated/index.json catalog/generated/full-index.json catalog/api/v1 catalog/liteapks-review-index.json catalog/approved-mod-feeds
           if [ -f catalog/liteapks-import-state.json ]; then git add catalog/liteapks-import-state.json; fi
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Refresh generated YASSERAPPS catalogue"

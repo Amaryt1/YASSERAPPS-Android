@@ -32,6 +32,15 @@
       ],
       "reason": "Owner confirms permission from LiteAPKs; no independently verified provider grant or release-level rights record. Public verification enabled; authorized feed not supplied.",
       "permissionStatus": "reported_by_project_owner_2026-11-24"
+    },
+    {
+      "name": "GitHub Releases",
+      "slug": "github-releases",
+      "status": "official_release_import",
+      "enabled": false,
+      "authorizationConfirmed": false,
+      "localApi": "sources/github-releases/index.json",
+      "reason": "Imported independently from allowlisted licensed derivatives using official GitHub Releases API, with APK verification."
     }
   ],
   "onlyRegisteredSources": true

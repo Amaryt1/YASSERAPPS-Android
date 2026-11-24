@@ -40,8 +40,8 @@ def batch(urls,records,done,rp,delay,limit,budget,fetch=get,sleep=time.sleep,clo
 def main():
     p=argparse.ArgumentParser();p.add_argument("--limit",type=int,default=150);p.add_argument("--seconds",type=int,default=180);args=p.parse_args()
     cfg=json.loads((ROOT/"mod-source-candidates.json").read_text())["sources"]
-    if len(cfg)!=1 or cfg[0]["name"]!="LiteAPKs" or not cfg[0].get("ownerReportedPermission"):raise SystemExit("LiteAPKs permission not recorded")
-    s=cfg[0]
+    s=next((x for x in cfg if x["name"]=="LiteAPKs"),None)
+    if not s or not s.get("ownerReportedPermission"):raise SystemExit("LiteAPKs permission not recorded")
     old=json.loads(PREVIEW.read_text()) if PREVIEW.exists() else {"records":[]}
     records={r["pageUrl"]:r for r in old["records"]}
     state=json.loads(STATE.read_text()) if STATE.exists() else {"urls":[],"done":[],"discoveredAt":0}
