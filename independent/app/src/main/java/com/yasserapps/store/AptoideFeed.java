@@ -38,6 +38,16 @@ final class AptoideFeed {
         if(!"OK".equals(response.getJSONObject("info").optString("status")))return null;
         JSONObject detail=response.optJSONObject("data");
         if(!sameRelease(listing,detail))return null;
+        return parseDetail(detail,category);
+    }
+    static Catalog.App latestDetail(Catalog.App original,JSONObject response) throws Exception {
+        if(!"OK".equals(response.getJSONObject("info").optString("status")))return null;
+        JSONObject detail=response.optJSONObject("data");
+        if(detail==null||!original.packageName.equals(detail.optString("package")))return null;
+        Catalog.App fresh=parseDetail(detail,original.isGame()?"games":"applications");
+        return fresh!=null&&fresh.versionCode>=original.versionCode?fresh:null;
+    }
+    private static Catalog.App parseDetail(JSONObject detail,String category) throws Exception {
         JSONObject wrapper=new JSONObject().put("info",new JSONObject().put("status","OK"))
             .put("datalist",new JSONObject().put("list",new JSONArray().put(detail)));
         List<Catalog.App> parsed=parse(wrapper,category);
