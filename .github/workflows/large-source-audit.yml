@@ -1,0 +1,44 @@
+name: Audit large public catalog interfaces
+on:
+  pull_request:
+    branches: [feature/ports-11.0.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe official public endpoints (no private API or download scraping)
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json
+          checks={
+            "Aptoide games":"https://ws75.aptoide.com/api/7/apps/get/group_name=games/limit=10/offset=0/mature=false",
+            "Aptoide applications":"https://ws75.aptoide.com/api/7/apps/get/group_name=applications/limit=10/offset=0/mature=false",
+            "APKPure":"https://apkpure.net/partner-developers-apps-on-apkpure",
+            "LiteAPKs":"https://liteapks.com/",
+            "TapTap":"https://developer.taptap.io/docs/",
+            "Aurora":"https://auroraoss.com/",
+            "Uptodown":"https://en.uptodown.com/android",
+            "APKMirror":"https://www.apkmirror.com/"
+          }
+          for name,url in checks.items():
+              try:
+                  req=urllib.request.Request(url,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
+                  with urllib.request.urlopen(req,timeout=15) as r:
+                      print("PUBLIC_ENDPOINT",name,"HTTP",r.status,"type",r.headers.get("Content-Type"))
+                      if name.startswith("Aptoide"):
+                          obj=json.loads(r.read(2*1024*1024))
+                          data=obj.get("datalist",{})
+                          rows=data.get("list",[])
+                          trusted=[a for a in rows if a.get("file",{}).get("malware",{}).get("rank")=="TRUSTED"]
+                          print("APTOIDE_SAMPLE",name,"status",obj.get("info",{}).get("status"),"reported_total",data.get("total"),"rows",len(rows),"trusted",len(trusted),"with_sha256",sum(bool(a.get("file",{}).get("sha256")) for a in trusted))
+                      else:
+                          print("WEBSITE_ONLY",name,"not a catalog or download integration")
+              except urllib.error.HTTPError as e:
+                  print("PUBLIC_ENDPOINT",name,"HTTP",e.code,"not integrated")
+              except Exception as e:
+                  print("PUBLIC_ENDPOINT",name,type(e).__name__,"not integrated")
+          PY
