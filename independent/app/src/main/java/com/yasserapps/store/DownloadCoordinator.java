@@ -243,6 +243,11 @@ public final class DownloadCoordinator {
         return entries;
     }
 
+    public synchronized Entry find(long downloadId) {
+        for (Entry entry : all()) if (entry.id == downloadId) return entry;
+        return null;
+    }
+
     public synchronized Entry latestFor(Catalog.App app) {
         for (Entry entry : all()) {
             if (entry.packageName.equals(app.packageName) && entry.versionCode == app.versionCode) {
