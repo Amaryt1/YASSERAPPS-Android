@@ -53,7 +53,7 @@ public final class Catalog {
         a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
         a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
         a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");
-        if(a.discoveryOnly ? !PortFeeds.publisherLink(a.publisherUrl) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||a.versionCode<1))
+        if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||!a.sha256.matches("(?i)[a-f0-9]{64}")||a.versionCode<1))
             throw new IllegalArgumentException("Invalid cached entry");
         JSONArray shots=obj.optJSONArray("screenshots");
         if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
