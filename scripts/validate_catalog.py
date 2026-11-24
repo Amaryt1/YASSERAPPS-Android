@@ -74,6 +74,8 @@ def validate(path):
                     raise ValueError(f"invalid {field}")
             if type(app.get("featured", False)) is not bool or type(app.get("enabled", True)) is not bool:
                 raise ValueError("featured and enabled must be booleans")
+            if app.get("featured", False) and not app.get("bannerUrl", "") and not photos:
+                raise ValueError("featured entries require authentic app banner art or screenshots")
             if type(app.get("sizeBytes", 0)) is not int or app.get("sizeBytes", 0) < 0:
                 raise ValueError("sizeBytes must be nonnegative integer")
             checksum = app.get("sha256", "")
