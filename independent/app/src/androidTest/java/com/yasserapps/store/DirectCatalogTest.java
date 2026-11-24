@@ -72,6 +72,9 @@ public final class DirectCatalogTest extends Instrumentation {
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);
+            String rss="<rss version='2.0'><channel><item><title>Example 2.0</title><link>https://www.apkmirror.com/apk/example/example-app/example-2-release/</link><description>Example description</description><pubDate>Tue, 24 Nov 2026 10:00:00 +0000</pubDate></item><item><title>Unsafe</title><link>https://www.apkmirror.com.evil.example/apk/a/b/</link></item></channel></rss>";
+            List<Catalog.App> mirror=MirrorFeed.parse(new java.io.ByteArrayInputStream(rss.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            if(mirror.size()!=1||!mirror.get(0).discoveryOnly||!mirror.get(0).packageName.isEmpty()||!mirror.get(0).apkUrl.isEmpty()||!Catalog.fromJson(Catalog.toJson(mirror.get(0))).id.equals(mirror.get(0).id))throw new AssertionError("Mirror RSS metadata boundary");
             result.putString("stream","\nPASS market metadata boundaries and pagination fixtures\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {
