@@ -12,9 +12,15 @@ public final class DirectCatalogTest extends Instrumentation {
         Bundle result=new Bundle();
         try {
             File root=getTargetContext().getFilesDir();
+            for(String category:new String[]{"Game","Games","Action Game","Role-Playing Game","Puzzle Game","Strategy Game","Sport Game","game:arcade"}) {
+                if(!DirectSources.game(new org.json.JSONObject().put("categories",new org.json.JSONArray().put(category))))
+                    throw new AssertionError("Game classification failed: "+category);
+            }
+            if(DirectSources.game(new org.json.JSONObject().put("categories",new org.json.JSONArray().put("Development"))))
+                throw new AssertionError("False game classification");
             int total=0, games=0;
             java.util.ArrayList<Catalog.App> combined=new java.util.ArrayList<>();
-            for(String id:new String[]{"fdroid","izzyondroid"}) {
+            for(String id:new String[]{"fdroid","izzyondroid","guardian","microg"}) {
                 List<Catalog.App> apps=DirectSources.verifyFixture(getTargetContext(),id,new File(root,id+".jar"),new File(root,id+".json"));
                 if(apps.isEmpty()) throw new AssertionError("Empty "+id);
                 for(Catalog.App a:apps) {
@@ -25,10 +31,11 @@ public final class DirectCatalogTest extends Instrumentation {
                     if(copy.versionCode!=a.versionCode||!copy.apkUrl.equals(a.apkUrl))
                         throw new AssertionError("Cache conversion failed");
                 }
+                android.util.Log.i("YASSERAPPS_CATALOG","FIXTURE_SOURCE "+id+" count="+apps.size());
                 total+=apps.size();
                 combined.addAll(apps);
             }
-            if(games==0||total<100) throw new AssertionError("Unexpected counts: "+total+"/"+games);
+            if(games<50||total<100) throw new AssertionError("Unexpected counts: "+total+"/"+games);
             java.util.Map<String,Catalog.App> unique=new java.util.LinkedHashMap<>();
             for(Catalog.App a:combined) unique.putIfAbsent(a.packageName,a);
             List<Catalog.App> featured=FeaturedApps.choose(new java.util.ArrayList<>(unique.values()));

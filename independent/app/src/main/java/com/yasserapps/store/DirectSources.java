@@ -24,7 +24,11 @@ final class DirectSources {
         new Source("fdroid", "F-Droid", "https://f-droid.org/repo",
             "43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB"),
         new Source("izzyondroid", "IzzyOnDroid", "https://apt.izzysoft.de/fdroid/repo",
-            "3BF0D6ABFEAE2F401707B6D966BE743BF0EEE49C2561B9BA39073711F628937A")
+            "3BF0D6ABFEAE2F401707B6D966BE743BF0EEE49C2561B9BA39073711F628937A"),
+        new Source("guardian", "Guardian Project", "https://guardianproject.info/fdroid/repo",
+            "B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135"),
+        new Source("microg", "microG", "https://repo.microg.org/fdroid/repo",
+            "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -61,7 +65,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/10.3");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/10.4");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status!=200) throw new IOException("HTTP "+status);
@@ -141,11 +145,11 @@ final class DirectSources {
         }
         return "";
     }
-    private static boolean game(JSONObject metadata) {
+    static boolean game(JSONObject metadata) {
         JSONArray categories=metadata.optJSONArray("categories");
         if(categories!=null) for(int i=0;i<categories.length();i++) {
-            String c=categories.optString(i).toLowerCase(Locale.ROOT);
-            if(c.equals("game")||c.equals("games")||c.startsWith("game:")||c.startsWith("games:")) return true;
+            String c=categories.optString(i).trim().toLowerCase(Locale.ROOT).replace('_',' ').replace('-',' ');
+            if(c.equals("game")||c.equals("games")||c.startsWith("game:")||c.startsWith("games:")||c.endsWith(" game")||c.endsWith(" games")) return true;
         }
         return false;
     }
@@ -235,12 +239,13 @@ final class DirectSources {
             AtomicFile file=cacheFile(context,source);
             if(file.getBaseFile().length()>MAX_CACHE_BYTES) return null;
             try(JsonReader r=new JsonReader(new InputStreamReader(file.openRead(),StandardCharsets.UTF_8))) {
-                long time=0; String hash=""; List<Catalog.App> apps=new ArrayList<>();
+                long time=0; int classification=0; String hash=""; List<Catalog.App> apps=new ArrayList<>();
                 r.beginObject();
                 while(r.hasNext()) {
                     String key=r.nextName();
                     if(key.equals("timestamp")) time=r.nextLong();
                     else if(key.equals("hash")) hash=r.nextString();
+                    else if(key.equals("classification")) classification=r.nextInt();
                     else if(key.equals("apps")) {
                         r.beginArray();
                         while(r.hasNext()) apps.add(Catalog.fromJson((JSONObject)readValue(r,0)));
@@ -249,7 +254,8 @@ final class DirectSources {
                 }
                 r.endObject();
                 if(time<=0||!hash(hash)||apps.isEmpty()) return null;
-                return new Snapshot(time,hash,apps);
+                // Preserve the old cache offline, but force a signed reparse on next connection.
+                return new Snapshot(time,classification==2?hash:"0000000000000000000000000000000000000000000000000000000000000000",apps);
             }
         } catch(Exception e) { return null; }
     }
@@ -257,7 +263,7 @@ final class DirectSources {
         AtomicFile file=cacheFile(context,source); FileOutputStream out=file.startWrite();
         try {
             BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(out,StandardCharsets.UTF_8));
-            writer.write("{\"timestamp\":"+snapshot.timestamp+",\"hash\":"+JSONObject.quote(snapshot.hash)+",\"apps\":[");
+            writer.write("{\"classification\":2,\"timestamp\":"+snapshot.timestamp+",\"hash\":"+JSONObject.quote(snapshot.hash)+",\"apps\":[");
             boolean first=true;
             for(Catalog.App a:snapshot.apps) {
                 if(!first) writer.write(','); first=false;
