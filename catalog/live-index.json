@@ -30,37 +30,50 @@
     {
       "id": "apkpure",
       "name": "APKPure",
-      "status": "pending-authorized-feed",
+      "status": "public-access-403-recheck",
       "feeds": null,
-      "directInstall": false
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://apkpure.net/partner-developers-apps-on-apkpure"
+      ]
     },
     {
       "id": "liteapks",
       "name": "LiteAPKs",
-      "status": "pending-authorized-feed",
+      "status": "rights-and-approved-feed-required",
       "feeds": null,
-      "directInstall": false
+      "directInstall": false,
+      "publicChartUrls": []
     },
     {
       "id": "taptap",
       "name": "TapTap",
-      "status": "pending-authorized-feed",
+      "status": "structured-public-chart-audit",
       "feeds": null,
-      "directInstall": false
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://www.taptap.io/top/"
+      ]
     },
     {
       "id": "aurora",
       "name": "Aurora",
-      "status": "pending-authorized-feed",
+      "status": "google-play-catalog-registration-required",
       "feeds": null,
-      "directInstall": false
+      "directInstall": false,
+      "documentation": "https://developers.google.com/android-publisher/play-catalog"
     },
     {
       "id": "uptodown",
       "name": "Uptodown",
-      "status": "pending-authorized-feed",
+      "status": "structured-public-chart-audit",
       "feeds": null,
-      "directInstall": false
+      "directInstall": false,
+      "publicChartUrls": [
+        "https://en.uptodown.com/android/apps/top",
+        "https://en.uptodown.com/android/games/top",
+        "https://en.uptodown.com/android/latest-updates"
+      ]
     },
     {
       "id": "apkmirror",
