@@ -286,11 +286,12 @@ final class DirectSources {
         } finally { jar.delete(); index.delete(); }
     }
     // Test-only callers provide real publisher files downloaded by the CI runner.
-    static List<Catalog.App> verifyFixture(String id, File jar, File index) throws Exception {
+    static List<Catalog.App> verifyFixture(Context context, String id, File jar, File index) throws Exception {
         Source source=null;
         for(Source s:SOURCES) if(s.id.equals(id)) source=s;
         if(source==null) throw new IllegalArgumentException("Unknown source");
-        JSONObject descriptor=verifiedEntry(jar,source).getJSONObject("index");
+        JSONObject entry=verifiedEntry(jar,source);
+        JSONObject descriptor=entry.getJSONObject("index");
         if(index.length()!=descriptor.getLong("size")) throw new SecurityException("Size mismatch");
         MessageDigest digest=MessageDigest.getInstance("SHA-256");
         try(InputStream input=new FileInputStream(index)) {
@@ -298,7 +299,9 @@ final class DirectSources {
             while((n=input.read(bytes))!=-1) digest.update(bytes,0,n);
         }
         if(!hex(digest.digest()).equalsIgnoreCase(descriptor.getString("sha256"))) throw new SecurityException("Index hash mismatch");
-        return parseIndex(index,source);
+        List<Catalog.App> apps=parseIndex(index,source);
+        writeCache(context,source,new Snapshot(entry.getLong("timestamp"),descriptor.getString("sha256"),apps));
+        return apps;
     }
     private static List<Catalog.App> merge(Map<String,Snapshot> snapshots) {
         Map<String,Catalog.App> unique=new LinkedHashMap<>();
