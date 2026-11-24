@@ -48,6 +48,10 @@ jobs:
                                       req2=urllib.request.Request("https://ws75.aptoide.com/api/7/app/getMeta/package_name="+pkg,headers={"User-Agent":"YASSERAPPS-Catalog-Audit/1.0"})
                                       with urllib.request.urlopen(req2,timeout=10) as detail:
                                           meta=json.loads(detail.read(2*1024*1024)).get("data",{})
+                                          file=meta.get("file",{})
+                                          signature=file.get("signature",{}) or {}
+                                          if not isinstance(signature,dict): signature={}
+                                          print("APTOIDE_DOWNLOAD_FIELDS",pkg,"file_keys",sorted(file),"signature_keys",sorted(signature),"has_path",bool(file.get("path")),"has_sha256",bool(file.get("sha256")),"has_signer_sha256",bool(signature.get("sha256")),"has_obb",bool(meta.get("obb")),"has_aab",bool(meta.get("aab")))
                                           print("APTOIDE_DETAIL",pkg,"keys",sorted(meta),"rank",meta.get("file",{}).get("malware",{}).get("rank","MISSING"),"same_version",meta.get("file",{}).get("vercode")==a.get("file",{}).get("vercode"))
                                   except Exception as exc:
                                       print("APTOIDE_DETAIL_FAILED",pkg,type(exc).__name__)
