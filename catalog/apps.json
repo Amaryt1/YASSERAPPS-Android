@@ -13,8 +13,14 @@
       "sizeBytes": 16980865,
       "apkUrl": "https://github.com/TeamNewPipe/NewPipe/releases/download/v0.29.3/NewPipe_v0.29.3.apk",
       "iconUrl": "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/icon.png",
-      "bannerUrl": "",
-      "screenshots": [],
+      "bannerUrl": "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/featureGraphic.png",
+      "screenshots": [
+        "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/phoneScreenshots/00.png",
+        "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/phoneScreenshots/01.png",
+        "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/phoneScreenshots/02.png",
+        "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/phoneScreenshots/03.png",
+        "https://raw.githubusercontent.com/TeamNewPipe/NewPipe/v0.29.3/fastlane/metadata/android/en-US/images/phoneScreenshots/04.png"
+      ],
       "summary": "مشغل وسائط مفتوح المصدر وخفيف للأندرويد",
       "description": "NewPipe تطبيق مجاني ومفتوح المصدر. التحميل من الإصدار الرسمي للمطور على GitHub. المصدر والترخيص: https://github.com/TeamNewPipe/NewPipe (GPL-3.0).",
       "changelog": "تحديث 0.29.3: إصلاح مشاكل تشغيل Bandcamp وSoundCloud.",
@@ -32,8 +38,14 @@
       "sizeBytes": 30275058,
       "apkUrl": "https://github.com/00-Evan/shattered-pixel-dungeon/releases/download/v4.0.2/ShatteredPD-v4.0.2-Android.apk",
       "iconUrl": "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/android/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
-      "bannerUrl": "",
-      "screenshots": [],
+      "bannerUrl": "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/featureGraphic.png",
+      "screenshots": [
+        "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/phoneScreenshots/1.png",
+        "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/phoneScreenshots/2.png",
+        "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/phoneScreenshots/3.png",
+        "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/phoneScreenshots/4.png",
+        "https://raw.githubusercontent.com/00-Evan/shattered-pixel-dungeon/v4.0.2/metadata/en-US/images/phoneScreenshots/5.png"
+      ],
       "summary": "لعبة مغامرات زنزانات مفتوحة المصدر بمراحل عشوائية",
       "description": "Shattered Pixel Dungeon لعبة مجانية ومفتوحة المصدر بنظام roguelike. ملف APK الرسمي من المطور. المصدر والترخيص: https://github.com/00-Evan/shattered-pixel-dungeon (GPL-3.0).",
       "changelog": "الإصدار 4.0.2 يتضمن تحسينات وإصلاحات ضمن تحديث 4.0.",
