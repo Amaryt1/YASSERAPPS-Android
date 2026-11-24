@@ -919,6 +919,33 @@ public final class MainActivity extends Activity {
         }));
     }
 
+    private Bitmap decodeLimitedImage(InputStream input) throws Exception {
+        try (java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[16384];
+            int size = 0, read;
+            while ((read = input.read(buffer)) != -1) {
+                size += read;
+                if (size > 5_000_000) throw new IllegalArgumentException("Image too large");
+                output.write(buffer, 0, read);
+            }
+            byte[] bytes = output.toByteArray();
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                throw new IllegalArgumentException("Invalid image");
+            }
+            BitmapFactory.Options decode = new BitmapFactory.Options();
+            decode.inPreferredConfig = Bitmap.Config.RGB_565;
+            decode.inSampleSize = 1;
+            while (bounds.outWidth / decode.inSampleSize > 1200 ||
+                   bounds.outHeight / decode.inSampleSize > 1200) {
+                decode.inSampleSize *= 2;
+            }
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, decode);
+        }
+    }
+
     private void image(ImageView target, String address) {
         if (address == null || !address.startsWith("https://")) return;
         Bitmap cached = thumbnails.get(address);
@@ -928,44 +955,40 @@ public final class MainActivity extends Activity {
         }
         images.execute(() -> {
             Bitmap bitmap = null;
+            // Official catalog artwork bundled into this signed APK has priority,
+            // so featured game screenshots and icons appear even when offline.
             try {
-                URL url = new URL(address);
-                java.net.HttpURLConnection connection =
-                    (java.net.HttpURLConnection) url.openConnection();
-                connection.setConnectTimeout(6000);
-                connection.setReadTimeout(9000);
-                connection.setInstanceFollowRedirects(true);
-                if (!"https".equalsIgnoreCase(connection.getURL().getProtocol())) {
-                    throw new IllegalArgumentException("Images must use HTTPS");
+                java.security.MessageDigest digest =
+                    java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(address.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder filename = new StringBuilder("catalog_media/");
+                for (byte item : hash) {
+                    filename.append(String.format(java.util.Locale.ROOT, "%02x", item & 255));
                 }
-                try (InputStream input = connection.getInputStream();
-                     java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
-                    byte[] buffer = new byte[16384];
-                    int size = 0, read;
-                    while ((read = input.read(buffer)) != -1) {
-                        size += read;
-                        if (size > 5_000_000) throw new IllegalArgumentException("Image too large");
-                        output.write(buffer, 0, read);
-                    }
-                    byte[] bytes = output.toByteArray();
-                    BitmapFactory.Options bounds = new BitmapFactory.Options();
-                    bounds.inJustDecodeBounds = true;
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
-                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                        throw new IllegalArgumentException("Invalid image");
-                    }
-                    BitmapFactory.Options decode = new BitmapFactory.Options();
-                    decode.inPreferredConfig = Bitmap.Config.RGB_565;
-                    decode.inSampleSize = 1;
-                    while (bounds.outWidth / decode.inSampleSize > 1200 ||
-                           bounds.outHeight / decode.inSampleSize > 1200) {
-                        decode.inSampleSize *= 2;
-                    }
-                    bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, decode);
-                } finally {
-                    connection.disconnect();
+                filename.append(".img");
+                try (InputStream input = getAssets().open(filename.toString())) {
+                    bitmap = decodeLimitedImage(input);
                 }
             } catch (Exception ignored) { }
+
+            if (bitmap == null) {
+                java.net.HttpURLConnection connection = null;
+                try {
+                    connection = (java.net.HttpURLConnection) new URL(address).openConnection();
+                    connection.setConnectTimeout(6000);
+                    connection.setReadTimeout(9000);
+                    connection.setInstanceFollowRedirects(true);
+                    if (!"https".equalsIgnoreCase(connection.getURL().getProtocol())) {
+                        throw new IllegalArgumentException("Images must use HTTPS");
+                    }
+                    try (InputStream input = connection.getInputStream()) {
+                        bitmap = decodeLimitedImage(input);
+                    }
+                } catch (Exception ignored) { }
+                finally {
+                    if (connection != null) connection.disconnect();
+                }
+            }
             final Bitmap ready = bitmap;
             if (ready != null && !ready.isRecycled()) {
                 thumbnails.put(address, ready);
