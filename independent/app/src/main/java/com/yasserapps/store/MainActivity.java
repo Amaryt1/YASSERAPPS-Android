@@ -455,16 +455,24 @@ public final class MainActivity extends Activity {
         render(content, true);
     }
 
+    private String selectedFeaturedPackage = "";
+
     private void heroCard(LinearLayout root) {
-        Catalog.App featured = null;
-        int featuredCount = 0;
-        for (Catalog.App candidate : apps) {
-            if (candidate.featured) {
-                featuredCount++;
-                if (featured == null) featured = candidate;
-            }
-        }
-        final Catalog.App selected = featured;
+        List<Catalog.App> featured = FeaturedApps.choose(apps);
+        LinearLayout container = linear(true);
+        root.addView(container, lp(-1, -2));
+        int selectedIndex=0;
+        for(int i=0;i<featured.size();i++)
+            if(featured.get(i).packageName.equals(selectedFeaturedPackage)) selectedIndex=i;
+        renderFeatured(container, featured, selectedIndex);
+    }
+
+    private void renderFeatured(LinearLayout root, List<Catalog.App> featured, int index) {
+        root.removeAllViews();
+        final int count=featured.size();
+        final int current=count==0?0:Math.floorMod(index,count);
+        final Catalog.App selected=count==0?null:featured.get(current);
+        if(selected!=null) selectedFeaturedPackage=selected.packageName;
         FrameLayout banner = new FrameLayout(this);
         banner.setBackground(shape(Color.rgb(7,14,8), 18, Color.rgb(65,105,47)));
         banner.setClipToOutline(true);
@@ -507,7 +515,7 @@ public final class MainActivity extends Activity {
             name.setMaxLines(2);
             title.addView(name);
             gap(title,7);
-            TextView sub=text(selected.summary,12,WHITE,false);
+            TextView sub=text(FeaturedApps.displayCopy(selected.summary),12,WHITE,false);
             sub.setMaxLines(2);
             title.addView(sub);
             gap(title,12);
@@ -528,6 +536,11 @@ public final class MainActivity extends Activity {
             innerShot.setMargins(dp(2), dp(2), dp(2), dp(2));
             shotFrame.addView(realScreenshot, innerShot);
             inner.addView(shotFrame, lp(74, 128));
+        } else if (selected != null && !selected.iconUrl.isEmpty()) {
+            ImageView appIcon = new ImageView(this);
+            appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            image(appIcon, selected.iconUrl);
+            inner.addView(appIcon, lp(74, 74));
         } else if (selected == null) {
             ImageView logo = new ImageView(this);
             logo.setImageResource(R.drawable.yasser_logo);
@@ -538,20 +551,54 @@ public final class MainActivity extends Activity {
             if (selected != null) showDetail(selected);
             else showSearch();
         });
-        root.addView(banner,lp(-1,191));
 
-        if(featuredCount>1){
-            LinearLayout indicators=linear(false);
-            indicators.setGravity(Gravity.CENTER);
-            gap(root,8);
-            for (int i=0;i<Math.min(7,featuredCount);i++) {
+        if(count>1) {
+            final float[] down={0f,0f};
+            banner.setOnTouchListener((v,event)->{
+                if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN) {
+                    down[0]=event.getX(); down[1]=event.getY();
+                } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_UP) {
+                    float dx=event.getX()-down[0], dy=event.getY()-down[1];
+                    if(Math.abs(dx)>dp(42)&&Math.abs(dx)>Math.abs(dy)*1.5f) {
+                        v.setPressed(false);
+                        renderFeatured(root,featured,current+(dx>0?1:-1));
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
+        root.addView(banner,lp(-1,191));
+        if(count>1) {
+            gap(root,5);
+            LinearLayout controls=linear(false);
+            controls.setGravity(Gravity.CENTER);
+            TextView previous=text("‹",25,GREEN,true);
+            previous.setGravity(Gravity.CENTER);
+            previous.setContentDescription("المميز السابق");
+            previous.setOnClickListener(v->renderFeatured(root,featured,current-1));
+            controls.addView(previous,lp(36,36));
+            LinearLayout dots=linear(false);
+            dots.setGravity(Gravity.CENTER);
+            for(int i=0;i<count;i++) {
+                final int target=i;
+                FrameLayout hit=new FrameLayout(this);
                 View dot=new View(this);
-                dot.setBackground(shape(i==0?GREEN:Color.rgb(76,80,77),8,0));
-                LinearLayout.LayoutParams dotParams=lp(i==0?18:7,7);
-                dotParams.setMargins(dp(4),0,dp(4),0);
-                indicators.addView(dot,dotParams);
+                dot.setBackground(shape(i==current?GREEN:Color.rgb(76,80,77),8,0));
+                FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(i==current?13:6),dp(7),Gravity.CENTER);
+                hit.addView(dot,p);
+                hit.setContentDescription("المميز "+(i+1));
+                hit.setOnClickListener(v->renderFeatured(root,featured,target));
+                dots.addView(hit,new LinearLayout.LayoutParams(0,dp(36),1));
             }
-            root.addView(indicators);
+            controls.addView(dots,new LinearLayout.LayoutParams(0,dp(36),1));
+            TextView next=text("›",25,GREEN,true);
+            next.setGravity(Gravity.CENTER);
+            next.setContentDescription("المميز التالي");
+            next.setOnClickListener(v->renderFeatured(root,featured,current+1));
+            controls.addView(next,lp(36,36));
+            root.addView(controls,lp(-1,36));
+            android.util.Log.i("YASSERAPPS_CATALOG","UI_FEATURED count="+count+" index="+current+" package="+selected.packageName);
         }
     }
 
@@ -848,7 +895,7 @@ public final class MainActivity extends Activity {
         name.setMaxLines(2);
         texts.addView(name);
         gap(texts,6);
-        TextView summary=text(app.summary,13,SUBTEXT,false);
+        TextView summary=text(FeaturedApps.displayCopy(app.summary),13,SUBTEXT,false);
         summary.setMaxLines(2);
         texts.addView(summary);
         gap(texts,11);
@@ -857,7 +904,6 @@ public final class MainActivity extends Activity {
         intro.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
         content.addView(intro);
         gap(content,18);
-        if (!app.sourceName.isEmpty()) detailSection(content, "المصدر", app.sourceName + (app.license.isEmpty() ? "" : " • " + app.license));
 
 
         LinearLayout specs=linear(false);
@@ -934,10 +980,10 @@ public final class MainActivity extends Activity {
             content.addView(scroller,lp(-1,173));
             gap(content,23);
         }
-        detailSection(content,"الوصف",app.description.isEmpty()?app.summary:app.description);
+        detailSection(content,"الوصف",FeaturedApps.description(app).isEmpty()?"لا يوجد وصف متاح لهذا التطبيق.":FeaturedApps.description(app));
         gap(content,16);
         detailSection(content,"سجل التحديثات  •  "+app.version,
-            app.changelog.isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":app.changelog);
+            FeaturedApps.displayCopy(app.changelog).isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":FeaturedApps.displayCopy(app.changelog));
         gap(content,16);
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
@@ -1410,13 +1456,6 @@ public final class MainActivity extends Activity {
         TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
         c.addView(favorites, lp(-1, 54));
         gap(c, 11);
-        TextView wifi = action(downloadCoordinator.wifiOnly() ?
-            "التنزيل عبر Wi-Fi فقط: مفعّل" : "التنزيل عبر Wi-Fi فقط: غير مفعّل", false, () -> {
-                downloadCoordinator.setWifiOnly(!downloadCoordinator.wifiOnly());
-                showSettings();
-            });
-        c.addView(wifi, lp(-1, 54));
-        gap(c, 11);
         TextView notifications = action("تفعيل إشعارات تحديث المتجر", false, () -> {
             if (Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1433,16 +1472,8 @@ public final class MainActivity extends Activity {
             () -> checkStoreUpdate(true));
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
-        TextView updates = action("فحص تحديثات التطبيقات", false, this::showUpdates);
-        c.addView(updates, lp(-1, 54));
-        gap(c, 11);
-        TextView refresh = action("تحديث قائمة التطبيقات والألعاب", true, () -> {
-            Toast.makeText(this, "جاري تحديث المتجر", Toast.LENGTH_SHORT).show();
-            refresh(true);
-        });
-        c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.3.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 10.3.1\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
