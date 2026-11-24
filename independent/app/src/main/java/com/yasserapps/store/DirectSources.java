@@ -654,10 +654,15 @@ final class DirectSources {
             Snapshot local=snapshots.get(source.id);
             if(local!=null&&incoming.timestamp<local.timestamp)continue;
             Map<String,Catalog.App> rows=new LinkedHashMap<>();
-            if(local!=null)for(Catalog.App a:local.apps)rows.put(a.id,a);
+            Map<String,Catalog.App> previous=new LinkedHashMap<>();
+            if(local!=null)for(Catalog.App a:local.apps)previous.put(a.id,a);
             for(Catalog.App a:incoming.apps){
-                Catalog.App old=rows.get(a.id);
-                if(old==null||a.versionCode>old.versionCode||a.versionCode==old.versionCode&&old.discoveryOnly&&old.description.isEmpty())rows.put(a.id,a);
+                Catalog.App old=previous.get(a.id);
+                if(old!=null&&old.versionCode==a.versionCode&&!old.description.isEmpty()&&a.description.isEmpty()){
+                    // Keep display metadata, but never retain stale direct-download eligibility.
+                    a.description=old.description;a.summary=old.summary;a.screenshots.addAll(old.screenshots);
+                }
+                rows.put(a.id,a);
             }
             snapshots.put(source.id,new Snapshot(incoming.timestamp,incoming.hash,new ArrayList<>(rows.values())));
         }
