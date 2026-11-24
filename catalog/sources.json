@@ -46,9 +46,11 @@
     },
     {
       "id": "apkmirror",
-      "status": "approved-catalog-interface-not-verified",
+      "status": "public-rss-integration-testing",
       "website": "https://www.apkmirror.com/",
-      "enabled": false
+      "enabled": true,
+      "mode": "metadata-only",
+      "endpoint": "https://www.apkmirror.com/feed/"
     }
   ]
 }
