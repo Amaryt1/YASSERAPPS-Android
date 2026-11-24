@@ -44,6 +44,103 @@
       "enabled": false,
       "mode": "pending",
       "reason": "No verified public integration endpoint or redistribution authorization."
+    },
+    {
+      "id": "playfdroid",
+      "name": "PlayFDroid",
+      "baseUrl": "https://raw.githubusercontent.com/PlayFDroid/fdroid-repo/gh-pages/fdroid/repo",
+      "fingerprint": "077873B95749B78FA46971CC117F6F6086639D785208F0DDF3DA2143CB1E8DDD",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "kde",
+      "name": "KDE Stable",
+      "baseUrl": "https://cdn.kde.org/android/stable-releases/fdroid/repo",
+      "fingerprint": "13784BA6C80FF4E2181E55C56F961EED5844CEA16870D3B38D58780B85E1158F",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "newpipe",
+      "name": "NewPipe",
+      "baseUrl": "https://archive.newpipe.net/fdroid/repo",
+      "fingerprint": "E2402C78F9B97C6C89E97DB914A2751FDA1D02FE2039CC0897A462BDB57E7501",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "collabora",
+      "name": "Collabora Office",
+      "baseUrl": "https://www.collaboraoffice.com/downloads/fdroid/repo",
+      "fingerprint": "573258C84E149B5F4D9299E7434B2B69A8410372921D4AE586BA91EC767892CC",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "bitwarden",
+      "name": "Bitwarden",
+      "baseUrl": "https://mobileapp.bitwarden.com/fdroid/repo",
+      "fingerprint": "BC54EA6FD1CD5175BCCCC47C561C5726E1C3ED7E686B6DB4B18BAC843A3EFE6C",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "molly",
+      "name": "Molly",
+      "baseUrl": "https://molly.im/fdroid/foss/fdroid/repo",
+      "fingerprint": "5198DAEF37FC23C14D5EE32305B2AF45787BD7DF2034DE33AD302BDB3446DF74",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "session",
+      "name": "Session",
+      "baseUrl": "https://fdroid.getsession.org/fdroid/repo",
+      "fingerprint": "DB0E5297EB65CC22D6BD93C869943BDCFCB6A07DC69A48A0DD8C7BA698EC04E6",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "simplex",
+      "name": "SimpleX",
+      "baseUrl": "https://app.simplex.chat/fdroid/repo",
+      "fingerprint": "9F358FF284D1F71656A2BFAF0E005DEAE6AA14143720E089F11FF2DDCFEB01BA",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "wind",
+      "name": "Wind Offline",
+      "baseUrl": "https://guardianproject-wind.s3.amazonaws.com/fdroid/repo",
+      "fingerprint": "182CF464D219D340DA443C62155198E399FEC1BC4379309B775DD9FC97ED97E1",
+      "format": "fdroid-v2-or-signed-v1",
+      "enabled": true,
+      "mode": "direct"
+    },
+    {
+      "id": "2113apps",
+      "name": "2113 Apps",
+      "website": "https://github.com/2113apps/verified-android-apps",
+      "enabled": false,
+      "mode": "pending",
+      "reason": "Directory of verified apps; no compatible signed catalog and metadata distribution permission confirmed."
+    },
+    {
+      "id": "opensourceandroid",
+      "name": "Open Source Android",
+      "website": "https://opensourceandroid.dev/",
+      "enabled": false,
+      "mode": "pending",
+      "reason": "Discovery directory, not a direct signed APK repository."
     }
   ]
 }
