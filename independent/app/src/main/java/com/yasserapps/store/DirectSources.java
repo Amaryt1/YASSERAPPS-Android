@@ -40,7 +40,8 @@ final class DirectSources {
         new Source("wind", "Wind Offline", "https://guardianproject-wind.s3.amazonaws.com/fdroid/repo", "182CF464D219D340DA443C62155198E399FEC1BC4379309B775DD9FC97ED97E1"),
         new Source("modernapps", "Modern Apps", "https://maproj.org/fdroid/repo", "176FCB2525573E5BE8E1CB3A496DD97B137E81CA5B887A1D32CB894B4E5717B4"),
         new Source("rmgames", "rm's F-Droid repo", "https://hunke.ws/fdroid/repo", "80438B253C257BCCE05CDCB9E3AC9B6174C2250659962B14FCBE7F32FD42D53E"),
-        new Source("2113games", "2113 Apps Games", "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json", "")
+        new Source("2113games", "2113 Apps", "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json", ""),
+        new Source("porthub", "PortHub", "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json", "")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -77,7 +78,7 @@ final class DirectSources {
             connection.setReadTimeout(45000);
             connection.setUseCaches(false);
             connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","YASSERAPPS/10.7");
+            connection.setRequestProperty("User-Agent","YASSERAPPS/11.0");
             connection.setInstanceFollowRedirects(false);
             int status=connection.getResponseCode();
             if(status==404||status==410) throw new FileNotFoundException("HTTP "+status);
@@ -369,7 +370,7 @@ final class DirectSources {
         int requests=0;
         for(int i=0;i<records.length();i++) {
             JSONObject r=records.optJSONObject(i);
-            if(r==null||!Arrays.asList("Puzzle & Arcade","Adventure & RPG","Strategy Games","Racing Games","Sandbox Games","Simulation Games","Educational Games").contains(r.optString("category"))||!"github".equals(r.optString("source"))) continue;
+            if(r==null) continue;
             String pkg=r.optString("package"),digest=r.optString("sha256");
             int version=r.optInt("versionCode"); long size=r.optLong("size");
             JSONArray signers=r.optJSONArray("signers"),abis=r.optJSONArray("abis");
@@ -384,49 +385,62 @@ final class DirectSources {
             if(old!=null&&(!old.signerSha256.equalsIgnoreCase(signer)||version<=old.versionCode||digest.equalsIgnoreCase(old.sha256))) {
                 result.add(old); continue;
             }
+            // Main F-Droid and Izzy already supply these apps. Do not make hundreds of
+            // redundant calls, or bypass the upstream's API rate limits.
+            if("fdroid".equals(r.optString("source"))||"izzy".equals(r.optString("source"))) continue;
             try {
-                URI release=new URI(r.optString("sourceRelease"));
-                if(!"https".equals(release.getScheme())||!"github.com".equalsIgnoreCase(release.getHost())||
-                   release.getUserInfo()!=null||release.getPort()!=-1||release.getQuery()!=null||release.getFragment()!=null) continue;
-                String[] parts=release.getRawPath().split("/",5);
-                if(parts.length!=5||!parts[1].matches("[A-Za-z0-9_.-]+")||!parts[2].matches("[A-Za-z0-9_.-]+")||
-                    !"releases".equals(parts[3])||!parts[4].startsWith("tag/")) continue;
-                String tag=parts[4].substring(4);
-                if(tag.isEmpty()||tag.contains("..")||!tag.matches("[A-Za-z0-9_.%+-]+")) continue;
-                if(++requests>40) break;
-                JSONObject releaseData=fetchJson(context,"https://api.github.com/repos/"+parts[1]+"/"+parts[2]+"/releases/tags/"+tag,2*1024*1024);
-                if(releaseData.optBoolean("draft")||releaseData.optBoolean("prerelease")) continue;
-                JSONArray assets=releaseData.getJSONArray("assets");
+                URI page=new URI(r.optString("page"));
+                if(!"https".equals(page.getScheme())||!"h5.2113.net".equalsIgnoreCase(page.getHost())||
+                    page.getPort()!=-1||page.getUserInfo()!=null||page.getQuery()!=null||page.getFragment()!=null||
+                    !page.getPath().matches("/(?:apps|games)/[A-Za-z0-9_-]+\\.html")) continue;
+                if(++requests>40) { if(old!=null)result.add(old); continue; }
+                File html=File.createTempFile("2113-", ".html", context.getCacheDir());
                 String apk="";
-                for(int k=0;k<assets.length();k++) {
-                    JSONObject asset=assets.getJSONObject(k);
-                    String link=asset.optString("browser_download_url");
-                    String prefix="https://github.com/"+parts[1]+"/"+parts[2]+"/releases/download/";
-                    if(link.startsWith(prefix)&&link.toLowerCase(Locale.ROOT).endsWith(".apk")&&
-                        DownloadCoordinator.isDirectApk(link)&&asset.optLong("size")==size&&
-                        ("sha256:"+digest).equalsIgnoreCase(asset.optString("digest"))) { apk=link; break; }
-                }
+                try {
+                    download(page.toASCIIString(),html,512*1024,-1,null);
+                    String body=new String(java.nio.file.Files.readAllBytes(html.toPath()),StandardCharsets.UTF_8);
+                    java.util.regex.Matcher links=java.util.regex.Pattern.compile("https://h5-dl\\.2113\\.net/([A-Za-z0-9_.-]+\\.apk)").matcher(body);
+                    String expected=pkg+"_"+version;
+                    while(links.find()) {
+                        String file=links.group(1);
+                        if(file.equals(expected+"-"+digest.substring(0,8).toLowerCase(Locale.ROOT)+".apk")||
+                           file.equals(expected+".apk")) { apk=links.group(0); break; }
+                    }
+                } finally { html.delete(); }
                 if(apk.isEmpty()) { if(old!=null)result.add(old); continue; }
                 Catalog.App a=new Catalog.App();
                 a.id=source.id+"."+pkg; a.packageName=pkg; a.name=clean(r.opt("name"),200);
                 if(a.name.isEmpty()) a.name=pkg;
-                a.category="game"; a.version=r.optString("version"); a.versionCode=version;
+                String category=r.optString("category");
+                a.category=Arrays.asList("Puzzle & Arcade","Adventure & RPG","Strategy Games","Racing Games","Sandbox Games","Simulation Games","Educational Games").contains(category)?"game":"app";
+                a.version=r.optString("version"); a.versionCode=version;
                 a.sizeBytes=size; a.sha256=digest; a.signerSha256=signer; a.apkUrl=apk;
-                a.sourceName="2113 Apps / GitHub publisher"; a.license=r.optString("license","");
-                a.summary=r.optString("category"); a.description="إصدار المطوّر الأصلي. قد تتطلب بعض الألعاب ملفات أصلية تملكها. بيانات الفهرس: 2113 Apps (CC BY 4.0).";
+                a.sourceName="2113 Apps"; a.license=r.optString("license","");
+                a.summary=category; a.description="ملف APK مطابق للبصمة المنشورة؛ يتم التحقق منه وتوقيعه قبل التثبيت.";
+                a.attribution="2113 Apps — https://h5.2113.net/ — CC BY 4.0";
                 try { a.updatedAt=new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).parse(r.getString("released")).getTime(); }
                 catch(Exception ignored) {}
+                // Some source ports need retail data; do not assume all games are standalone.
+                if(Arrays.asList("com.github.bvschaik.julius","com.github.Keriew.augustus","io.openrct2","org.fheroes2").contains(pkg)) {
+                    a.gameFiles="owned"; a.originalPlatform="PC"; a.publisherUrl=r.optString("sourceCode");
+                }
                 result.add(a);
             } catch(Exception ex) { if(old!=null)result.add(old); android.util.Log.w("YASSERAPPS_CATALOG","GAME_FEED_SKIP "+pkg+": "+ex); }
         }
-        if(result.isEmpty()) throw new IOException("No independently matched release APKs");
+        if(result.isEmpty()) throw new IOException("No matching 2113 APK links");
         Snapshot fresh=new Snapshot(System.currentTimeMillis(),hex(MessageDigest.getInstance("SHA-256").digest(root.toString().getBytes(StandardCharsets.UTF_8))),result);
         writeCache(context,source,fresh);
         return fresh;
     }
-
     private static Snapshot update(Context context,Source source,Snapshot cached) throws Exception {
         if(source.id.equals("2113games")) return gameFeed(context,source,cached);
+        if(source.id.equals("porthub")) {
+            JSONObject root=fetchJson(context,source.base,24*1024*1024);
+            List<Catalog.App> ports=PortFeeds.parsePortHub(root);
+            if(ports.isEmpty()) throw new IOException("No supported port release listings");
+            Snapshot fresh=new Snapshot(System.currentTimeMillis(),hex(MessageDigest.getInstance("SHA-256").digest(root.toString().getBytes(StandardCharsets.UTF_8))),ports);
+            writeCache(context,source,fresh); return fresh;
+        }
         File jar=File.createTempFile("entry-", ".jar",context.getCacheDir());
         File index=File.createTempFile("index-", ".json",context.getCacheDir());
         try {
@@ -506,7 +520,8 @@ final class DirectSources {
         }
         List<Catalog.App> combined=merge(snapshots);
         String warning=succeeded==SOURCES.length?null:"تعذّر الاتصال ببعض المصادر، نعرض آخر محتوى متوفر.";
-        android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+succeeded);
+        int downloadable=0, ports=0; for(Catalog.App a:combined) { if(a.discoveryOnly) ports++; else downloadable++; }
+        android.util.Log.i("YASSERAPPS_CATALOG","DIRECT_CATALOG total="+combined.size()+" sources="+succeeded+" downloadable="+downloadable+" discoveryPorts="+ports);
         callback.loaded(new Catalog.Result(combined,warning,true));
     }
 }
