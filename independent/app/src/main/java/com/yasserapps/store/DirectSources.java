@@ -438,8 +438,6 @@ final class DirectSources {
             long now=System.currentTimeMillis();
             if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
-            Map<String,Catalog.App> previous=new HashMap<>();
-            if(cached!=null)for(Catalog.App app:cached.apps)previous.put(app.packageName,app);
             int accepted=0,attempted=0,rejected=0,listed=0,pages=0;
             long deadline=android.os.SystemClock.elapsedRealtime()+100000L;
             // At most 20 pages, and two explicit detail checks per group. No crawling every APK.
@@ -452,8 +450,6 @@ final class DirectSources {
                     JSONObject datalist=data.getJSONObject("datalist");
                     JSONArray rows=datalist.getJSONArray("list");
                     for(Catalog.App app:AptoideFeed.discover(data,group)) {
-                        Catalog.App prior=previous.get(app.packageName);
-                        if(prior!=null&&prior.versionCode==app.versionCode&&prior.summary.equals("Aptoide • فحص بيانات الإصدار"))app=prior;
                         Catalog.App old=unique.get(app.packageName);
                         if(old==null||app.versionCode>old.versionCode)unique.put(app.packageName,app);
                         listed++;
