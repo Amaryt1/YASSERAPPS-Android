@@ -20,28 +20,9 @@ import java.util.jar.JarFile;
 final class DirectSources {
     private static final long MAX_INDEX_BYTES = 256L * 1024 * 1024;
     private static final long MAX_CACHE_BYTES = 64L * 1024 * 1024;
+    // Only the seven owner-selected providers may be activated in this release.
+    // Aptoide is the only live, verified public listing interface so far.
     private static final Source[] SOURCES = {
-        new Source("fdroid", "F-Droid", "https://f-droid.org/repo",
-            "43238D512C1E5EB2D6569F4A3AFBF5523418B82E0A3ED1552770ABB9A9C9CCAB"),
-        new Source("izzyondroid", "IzzyOnDroid", "https://apt.izzysoft.de/fdroid/repo",
-            "3BF0D6ABFEAE2F401707B6D966BE743BF0EEE49C2561B9BA39073711F628937A"),
-        new Source("guardian", "Guardian Project", "https://guardianproject.info/fdroid/repo",
-            "B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135"),
-        new Source("microg", "microG", "https://repo.microg.org/fdroid/repo",
-            "9BD06727E62796C0130EB6DAB39B73157451582CBD138E86C468ACC395D14165"),
-        new Source("playfdroid", "PlayFDroid", "https://raw.githubusercontent.com/PlayFDroid/fdroid-repo/gh-pages/fdroid/repo", "077873B95749B78FA46971CC117F6F6086639D785208F0DDF3DA2143CB1E8DDD"),
-        new Source("kde", "KDE Stable", "https://cdn.kde.org/android/stable-releases/fdroid/repo", "13784BA6C80FF4E2181E55C56F961EED5844CEA16870D3B38D58780B85E1158F"),
-        new Source("newpipe", "NewPipe", "https://archive.newpipe.net/fdroid/repo", "E2402C78F9B97C6C89E97DB914A2751FDA1D02FE2039CC0897A462BDB57E7501"),
-        new Source("collabora", "Collabora Office", "https://www.collaboraoffice.com/downloads/fdroid/repo", "573258C84E149B5F4D9299E7434B2B69A8410372921D4AE586BA91EC767892CC"),
-        new Source("bitwarden", "Bitwarden", "https://mobileapp.bitwarden.com/fdroid/repo", "BC54EA6FD1CD5175BCCCC47C561C5726E1C3ED7E686B6DB4B18BAC843A3EFE6C"),
-        new Source("molly", "Molly", "https://molly.im/fdroid/foss/fdroid/repo", "5198DAEF37FC23C14D5EE32305B2AF45787BD7DF2034DE33AD302BDB3446DF74"),
-        new Source("session", "Session", "https://fdroid.getsession.org/fdroid/repo", "DB0E5297EB65CC22D6BD93C869943BDCFCB6A07DC69A48A0DD8C7BA698EC04E6"),
-        new Source("simplex", "SimpleX", "https://app.simplex.chat/fdroid/repo", "9F358FF284D1F71656A2BFAF0E005DEAE6AA14143720E089F11FF2DDCFEB01BA"),
-        new Source("wind", "Wind Offline", "https://guardianproject-wind.s3.amazonaws.com/fdroid/repo", "182CF464D219D340DA443C62155198E399FEC1BC4379309B775DD9FC97ED97E1"),
-        new Source("modernapps", "Modern Apps", "https://maproj.org/fdroid/repo", "176FCB2525573E5BE8E1CB3A496DD97B137E81CA5B887A1D32CB894B4E5717B4"),
-        new Source("rmgames", "rm's F-Droid repo", "https://hunke.ws/fdroid/repo", "80438B253C257BCCE05CDCB9E3AC9B6174C2250659962B14FCBE7F32FD42D53E"),
-        new Source("2113games", "2113 Apps", "https://raw.githubusercontent.com/2113apps/verified-android-apps/main/apps.json", ""),
-        new Source("porthub", "PortHub", "https://raw.githubusercontent.com/orev7s/porthub-catalog/main/games.json", ""),
         new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", "")
     };
     static final class Source {
@@ -435,53 +416,67 @@ final class DirectSources {
     }
     private static Snapshot update(Context context,Source source,Snapshot cached,java.util.function.Consumer<List<Catalog.App>> preview) throws Exception {
         if(source.id.equals("aptoide")) {
+            final int target=20000;
             long now=System.currentTimeMillis();
-            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<6L*60*60*1000)return cached;
+            android.content.SharedPreferences progress=context.getSharedPreferences("market_catalog_progress_v12",Context.MODE_PRIVATE);
+            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<(cached.apps.size()<target?15L*60*1000:6L*60*60*1000))return cached;
             Map<String,Catalog.App> unique=new LinkedHashMap<>();
+            if(cached!=null)for(Catalog.App app:cached.apps)if("Aptoide".equals(app.sourceName))unique.put(app.packageName,app);
             int accepted=0,attempted=0,rejected=0,listed=0,pages=0;
             long deadline=android.os.SystemClock.elapsedRealtime()+100000L;
-            // Up to 20 pages of 50 per group (2,000 records total), with a time bound.
-            for(String group:new String[]{"games","applications"}) {
-                int offset=0;
-                for(int page=0;page<20;page++) {
+            android.content.SharedPreferences.Editor checkpoint=progress.edit();
+            String[] groups={"games","applications"};
+            int[] offsets={cached==null?0:progress.getInt("games",0),cached==null?0:progress.getInt("applications",0)};
+            if(unique.size()>=target){offsets[0]=0;offsets[1]=0;}
+            // Refresh popular pages, then continue where the last successful batch ended.
+            // Interleave the categories, keep a request/time budget and respect upstream errors.
+            for(int page=0;page<20;page++) {
+                for(int g=0;g<groups.length;g++){
                     if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
+                    String group=groups[g];
+                    int offset=page==0?0:offsets[g];
                     JSONObject data=fetchJson(context,source.base+"/group_name="+group+"/limit=50/offset="+offset+"/mature=false/sort=downloads",4*1024*1024);
                     pages++;
                     JSONObject datalist=data.getJSONObject("datalist");
                     JSONArray rows=datalist.getJSONArray("list");
                     for(Catalog.App app:AptoideFeed.discover(data,group)) {
                         Catalog.App old=unique.get(app.packageName);
-                        if(old==null||app.versionCode>old.versionCode)unique.put(app.packageName,app);
+                        if(old==null&&unique.size()<target||old!=null&&app.versionCode>=old.versionCode)unique.put(app.packageName,app);
                         listed++;
                     }
-                    if(page==0) {
-                        for(int i=0;i<Math.min(2,rows.length());i++) {
-                            JSONObject r=rows.optJSONObject(i);
-                            if(r==null)continue;
-                            String pkg=r.optString("package");
-                            if(!pkg.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+"))continue;
+                    // Remove an explicitly non-trusted listing, even when a previous version is cached.
+                    for(int i=0;i<rows.length();i++){
+                        JSONObject row=rows.optJSONObject(i);
+                        JSONObject file=row==null?null:row.optJSONObject("file");
+                        JSONObject verdict=file==null?null:file.optJSONObject("malware");
+                        if(verdict!=null&&!"TRUSTED".equals(verdict.optString("rank")))unique.remove(row.optString("package"));
+                    }
+                    if(page==0&&rows.length()>0) {
+                        JSONObject r=rows.optJSONObject(0);
+                        String pkg=r==null?"":r.optString("package");
+                        if(pkg.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+")){
                             attempted++;
                             JSONObject detail=fetchJson(context,"https://ws75.aptoide.com/api/7/app/getMeta/package_name="+pkg,2*1024*1024);
                             Catalog.App app=AptoideFeed.checkedDetail(r,detail,group);
-                            if(app!=null){accepted++;unique.put(pkg,app);}
+                            if(app!=null){accepted++;if(unique.containsKey(pkg)||unique.size()<target)unique.put(pkg,app);}
                             else{rejected++;unique.remove(pkg);}
                             Thread.sleep(500);
                         }
                     }
-                    // Show the first page of each group on a cold load, without waiting for all 40 pages.
-                    // Never publish an incomplete cache over a previously complete snapshot.
-                    if(page==0&&cached==null&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
                     int next=datalist.optInt("next",-1);
-                    if(rows.length()==0||next<=offset||next>=datalist.optInt("total",Integer.MAX_VALUE))break;
-                    offset=next;
+                    if(page>0||offsets[g]==0)offsets[g]=rows.length()==0||next<=offset||next>=datalist.optInt("total",Integer.MAX_VALUE)?0:next;
+                    if(page==0&&cached==null&&!unique.isEmpty())preview.accept(new ArrayList<>(unique.values()));
                     Thread.sleep(750);
                 }
+                if(android.os.SystemClock.elapsedRealtime()>=deadline)break;
             }
-            android.util.Log.i("YASSERAPPS_CATALOG","APTOIDE_BULK pages="+pages+" listed="+listed+" unique="+unique.size()+" attempted="+attempted+" checked="+accepted+" rejected="+rejected);
-            if(unique.isEmpty()||accepted==0)throw new IOException("No Aptoide metadata or trusted detail samples");
+            android.util.Log.i("YASSERAPPS_CATALOG","APTOIDE_BULK pages="+pages+" listed="+listed+" unique="+unique.size()+" attempted="+attempted+" checked="+accepted+" rejected="+rejected+" gamesOffset="+offsets[0]+" appsOffset="+offsets[1]);
+            if(unique.isEmpty()||pages<2||accepted==0)throw new IOException("No Aptoide metadata or trusted detail samples");
             List<Catalog.App> entries=new ArrayList<>(unique.values());
             Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Integer.toString(entries.size()).getBytes(StandardCharsets.UTF_8))),entries);
-            writeCache(context,source,fresh);return fresh;
+            writeCache(context,source,fresh);
+            checkpoint.putInt("games",offsets[0]).putInt("applications",offsets[1]).apply();
+            return fresh;
         }
         if(source.id.equals("2113games")) return gameFeed(context,source,cached);
         if(source.id.equals("porthub")) {
