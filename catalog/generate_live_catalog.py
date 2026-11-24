@@ -12,7 +12,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kw): return None
 OPENER=urllib.request.build_opener(NoRedirect())
 def get(url):
-    with OPENER.open(urllib.request.Request(url,headers=HEADERS),timeout=18) as r:
+    with urllib.request.build_opener(NoRedirect()).open(urllib.request.Request(url,headers=HEADERS),timeout=18) as r:
         b=r.read(4*1024*1024+1)
         if len(b)>4*1024*1024: raise ValueError("response too large")
         return b
@@ -91,64 +91,115 @@ def chart(source,url):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--output",default="catalog/generated/index.json"); ap.add_argument("--min-new",type=int,default=500); ap.add_argument("--max-pages",type=int,default=60); args=ap.parse_args()
     path=Path(args.output); prior=json.loads(path.read_text()) if path.exists() else {}
-    rows={a["id"]:a for a in prior.get("apps",[]) if a.get("sourceName") in ("Aptoide","APKMirror","TapTap","Uptodown")}
-    initial=set(rows); cursors=prior.get("cursors",{}); stats={}; start=time.monotonic()
-    def save(row):
-        if not row: return
-        old=rows.get(row["id"])
-        if old is None and len(rows)>=LIMIT: return
-        if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
-    groups=("games","applications"); counts={g:0 for g in groups}
-    for n in range(args.max_pages):
-        group=groups[n%2]; offset=int(cursors.get(group,0))
-        try:
-            r=json.loads(get("https://ws75.aptoide.com/api/7/apps/get/group_name="+group+"/limit=50/offset="+str(offset)+"/mature=false/sort=downloads"))
-            if r.get("info",{}).get("status")!="OK": raise ValueError("API status")
-            d=r["datalist"]
-            for x in d["list"]:
-                f=x.get("file") or {}; verdict=f.get("malware")
-                if verdict and verdict.get("rank")!="TRUSTED": rows.pop("aptoide."+x.get("package",""),None); continue
-                row=aptoide(x,group)
-                if row: save(row); counts[group]+=1
-            nxt=int(d.get("next",-1)); cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
-        except Exception as e: print("APTOIDE_FAILED",group,type(e).__name__,flush=True); break
-        if n>=3 and len(set(rows)-initial)>=args.min_new+100: break
-        if len(rows)>=LIMIT or time.monotonic()-start>180: break
-        time.sleep(0.8)
-    stats["Aptoide"]=counts
-    try:
-        root=ET.fromstring(get("https://www.apkmirror.com/feed/"))
-        for item in root.findall(".//item"):
-            u=link("APKMirror",item.findtext("link","")); title=item.findtext("title","")
-            if not u: continue
-            try: stamp=int(parsedate_to_datetime(item.findtext("pubDate","")).timestamp()*1000)
-            except Exception: stamp=0
-            save(entry("APKMirror","apkmirror:"+urllib.parse.urlsplit(u).path,title,u,summary=clean(item.findtext("description",""),180),updatedAt=stamp))
-    except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
-    charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates"],"TapTap":["https://www.taptap.io/top/"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
-    for source,pages in charts.items():
-        urls={}
-        for url in pages:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from itertools import zip_longest
+    sources=("Aptoide","APKMirror","Uptodown","TapTap")
+    rows={a["id"]:a for a in prior.get("apps",[]) if a.get("sourceName") in sources}
+    initial=set(rows)
+    cursors=dict(prior.get("cursors",{}))
+    stats={}
+    # Each source owns its rows and cursor snapshot; the main thread merges once.
+    def refresh_source(source):
+        rows={k:v for k,v in prior_rows.items() if v.get("sourceName")==source}
+        cursors=dict(prior_cursors)
+        stats={}
+        start=time.monotonic()
+        def save(row):
+            if not row: return
+            old=rows.get(row["id"])
+            if old is None and len(rows)>=LIMIT: return
+            if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
+        if source=="Aptoide":
+            groups=("games","applications"); counts={g:0 for g in groups}
+            for n in range(args.max_pages):
+                if time.monotonic()-start>=150: break
+                group=groups[n%2]; offset=int(cursors.get(group,0))
+                try:
+                    r=json.loads(get("https://ws75.aptoide.com/api/7/apps/get/group_name="+group+"/limit=50/offset="+str(offset)+"/mature=false/sort=downloads"))
+                    if r.get("info",{}).get("status")!="OK": raise ValueError("API status")
+                    d=r["datalist"]
+                    for x in d["list"]:
+                        f=x.get("file") or {}; verdict=f.get("malware")
+                        if verdict and verdict.get("rank")!="TRUSTED": rows.pop("aptoide."+x.get("package",""),None); continue
+                        row=aptoide(x,group)
+                        if row: save(row); counts[group]+=1
+                    nxt=int(d.get("next",-1)); cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
+                except Exception as e: print("APTOIDE_FAILED",group,type(e).__name__,flush=True); break
+                if len(rows)>=LIMIT or time.monotonic()-start>180: break
+                time.sleep(0.8)
+            stats["Aptoide"]=counts
+        if source=="APKMirror":
             try:
-                p=HTML(); p.feed(get(url).decode("utf-8","replace"))
-                for h in p.links:
-                    valid=link(source,urllib.parse.urljoin(url,h))
-                    if valid: urls[valid]=None
-            except Exception as e: print("CHART_FAILED",source,type(e).__name__,flush=True)
-            time.sleep(1)
-        candidates=list(urls); pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
-        for i in range(min(25,len(candidates))):
-            u=candidates[(pos+i)%len(candidates)]; checked+=1
+                root=ET.fromstring(get("https://www.apkmirror.com/feed/"))
+                for item in root.findall(".//item"):
+                    u=link("APKMirror",item.findtext("link","")); title=item.findtext("title","")
+                    if not u: continue
+                    try: stamp=int(parsedate_to_datetime(item.findtext("pubDate","")).timestamp()*1000)
+                    except Exception: stamp=0
+                    save(entry("APKMirror","apkmirror:"+urllib.parse.urlsplit(u).path,title,u,summary=clean(item.findtext("description",""),180),updatedAt=stamp))
+            except Exception as e: print("RSS_FAILED",type(e).__name__,flush=True)
+        charts={"Uptodown":["https://en.uptodown.com/android/apps/top","https://en.uptodown.com/android/games/top","https://en.uptodown.com/android/latest-updates"],"TapTap":["https://www.taptap.io/top/"],"APKMirror":["https://www.apkmirror.com/uploads/"]}
+        if source in charts:
+            pages=charts[source]
+            urls={}
+            for url in pages:
+                if time.monotonic()-start>=150: break
+                try:
+                    p=HTML(); p.feed(get(url).decode("utf-8","replace"))
+                    for h in p.links:
+                        valid=link(source,urllib.parse.urljoin(url,h))
+                        if valid: urls[valid]=None
+                except Exception as e: print("CHART_FAILED",source,type(e).__name__,flush=True)
+                time.sleep(1)
+            candidates=list(urls); pos=int(cursors.get(source,0))%max(1,len(candidates)); accepted=0; checked=0
+            for i in range(min(25,len(candidates))):
+                if time.monotonic()-start>=150: break
+                u=candidates[(pos+i)%len(candidates)]; checked+=1
+                try:
+                    row=chart(source,u)
+                    if row: save(row); accepted+=1
+                except urllib.error.HTTPError as e:
+                    print("CHART_HTTP",source,e.code,flush=True)
+                    if e.code in (403,429): break
+                except Exception as e: print("CHART_DETAIL_FAILED",source,type(e).__name__,flush=True)
+                time.sleep(1.2)
+            if candidates: cursors[source]=(pos+checked)%len(candidates)
+            stats[source]={"links":len(candidates),"checked":checked,"accepted":accepted}
+        return rows,cursors,stats
+
+    prior_rows=dict(rows)
+    prior_cursors=dict(cursors)
+    outcomes={}
+    with ThreadPoolExecutor(max_workers=len(sources)) as pool:
+        futures={pool.submit(refresh_source,source):source for source in sources}
+        for future in as_completed(futures):
+            source=futures[future]
             try:
-                row=chart(source,u)
-                if row: save(row); accepted+=1
-            except urllib.error.HTTPError as e:
-                print("CHART_HTTP",source,e.code,flush=True)
-                if e.code in (403,429): break
-            except Exception as e: print("CHART_DETAIL_FAILED",source,type(e).__name__,flush=True)
-            time.sleep(1.2)
-        if candidates: cursors[source]=(pos+checked)%len(candidates)
-        stats[source]={"links":len(candidates),"checked":checked,"accepted":accepted}
+                outcomes[source]=future.result()
+            except Exception as exc:
+                stats[source]={"error":type(exc).__name__}
+                print("SOURCE_FAILED",source,type(exc).__name__,flush=True)
+    additions=[]
+    for source in sources:
+        if source not in outcomes:
+            continue
+        updated,source_cursors,source_stats=outcomes[source]
+        for key in list(rows):
+            if rows[key].get("sourceName")==source and key not in updated:
+                del rows[key]
+        additions.append([row for key,row in updated.items() if key not in rows])
+        for key,row in updated.items():
+            if key in rows:
+                rows[key]=row
+        for key in (("games","applications") if source=="Aptoide" else (source,)):
+            if key in source_cursors:
+                cursors[key]=source_cursors[key]
+        stats.update(source_stats)
+    # Preserve prior entries and distribute remaining capacity across sources.
+    for batch in zip_longest(*additions):
+        for row in batch:
+            if row is not None and len(rows)<LIMIT:
+                rows[row["id"]]=row
     new=len(set(rows)-initial); count={s:sum(a["sourceName"]==s for a in rows.values()) for s in ("Aptoide","APKMirror","Uptodown","TapTap","APKPure","LiteAPKs","Aurora")}
     report={"new":new,"total":len(rows),"targetNew":args.min_new,"targetMet":new>=args.min_new,"counts":count,"sources":stats,"unavailable":["APKPure","LiteAPKs","Aurora"]}
     print("CATALOG_RESULT",json.dumps(report),flush=True)

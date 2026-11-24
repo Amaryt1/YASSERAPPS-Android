@@ -1,7 +1,7 @@
 name: Refresh YASSERAPPS server catalogue
 on:
   schedule:
-    - cron: '23 */2 * * *'
+    - cron: '3-58/5 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -16,11 +16,13 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - name: Check Python syntax
+        run: python3 -m py_compile catalog/generate_live_catalog.py
       - name: Generate and measure new catalogue records
         run: python3 catalog/generate_live_catalog.py --min-new 500
       - name: Validate generated catalogue
