@@ -23,7 +23,8 @@ final class DirectSources {
     // Only the seven owner-selected providers may be activated in this release.
     // Aptoide is the only live, verified public listing interface so far.
     private static final Source[] SOURCES = {
-        new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", "")
+        new Source("aptoide", "Aptoide", "https://ws75.aptoide.com/api/7/apps/get", ""),
+        new Source("apkmirror", "APKMirror", "https://www.apkmirror.com/feed/", "")
     };
     static final class Source {
         final String id, name, base, fingerprint;
@@ -420,6 +421,22 @@ final class DirectSources {
         return fresh;
     }
     private static Snapshot update(Context context,Source source,Snapshot cached,java.util.function.Consumer<List<Catalog.App>> preview) throws Exception {
+        if(source.id.equals("apkmirror")){
+            long now=System.currentTimeMillis();
+            if(cached!=null&&now>=cached.timestamp&&now-cached.timestamp<60L*60*1000)return cached;
+            File temp=File.createTempFile("mirror-rss-", ".xml",context.getCacheDir());
+            try{
+                download(source.base,temp,2*1024*1024,-1,null);
+                List<Catalog.App> rows;
+                try(InputStream in=new FileInputStream(temp)){rows=MirrorFeed.parse(in);}
+                if(rows.isEmpty())throw new IOException("Empty APKMirror release feed");
+                Map<String,Catalog.App> unique=new LinkedHashMap<>();
+                for(Catalog.App a:rows)unique.put(a.id,a);
+                if(cached!=null)for(Catalog.App a:cached.apps)if(unique.size()<2000&&"APKMirror".equals(a.sourceName))unique.putIfAbsent(a.id,a);
+                Snapshot fresh=new Snapshot(now,hex(MessageDigest.getInstance("SHA-256").digest(Long.toString(now).getBytes(StandardCharsets.UTF_8))),new ArrayList<>(unique.values()));
+                writeCache(context,source,fresh);return fresh;
+            }finally{temp.delete();}
+        }
         if(source.id.equals("aptoide")) {
             final int target=20000;
             long now=System.currentTimeMillis();
@@ -538,9 +555,10 @@ final class DirectSources {
             Snapshot snap=snapshots.get(source.id);
             if(snap==null) continue;
             for(Catalog.App a:snap.apps) {
-                Catalog.App old=unique.get(a.packageName);
+                String key=a.packageName.isEmpty()?a.id:a.packageName;
+                Catalog.App old=unique.get(key);
                 if(old==null||(old.discoveryOnly&&!a.discoveryOnly)||((old.discoveryOnly==a.discoveryOnly)&&old.signerSha256.equalsIgnoreCase(a.signerSha256)&&a.versionCode>old.versionCode))
-                    unique.put(a.packageName,a);
+                    unique.put(key,a);
             }
         }
         List<Catalog.App> result=new ArrayList<>(unique.values());
