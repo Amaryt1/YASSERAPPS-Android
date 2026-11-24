@@ -6,7 +6,7 @@ from html.parser import HTMLParser
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
-LIMIT=20000
+LIMIT=50000
 HEADERS={"User-Agent":"YASSERAPPS-Catalog/1.0 (public metadata index)"}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kw): return None

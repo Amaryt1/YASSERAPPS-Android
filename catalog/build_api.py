@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Build the public, read-only YASSERAPPS catalogue API as static JSON."""
 import json
+import argparse
+from itertools import zip_longest
 import shutil
 import tempfile
 from collections import Counter
@@ -57,9 +59,46 @@ def self_test():
         assert manifest["groups"]["apkmirror"]["first"] is None
     print("API self-test passed")
 
+def legacy_view(data):
+    # Preserve the old Android limit. Keep original ordering when it fits.
+    rows=data["apps"]
+    if len(rows)>20000:
+        buckets=[[r for r in rows if r["sourceName"]==s] for s in ("APKMirror","Uptodown","TapTap","Aptoide")]
+        rows=[r for batch in zip_longest(*buckets) for r in batch if r is not None][:20000]
+    report=dict(data["report"])
+    report["total"]=len(rows)
+    report["counts"]={s:sum(r["sourceName"]==s for r in rows) for s in SOURCES}
+    report["fullTotal"]=len(data["apps"])
+    view={"schemaVersion":1,"generatedAt":data["generatedAt"],"report":report,"apps":rows}
+    # The old client enforces both a count and a byte limit.
+    def encode():
+        return json.dumps(view,ensure_ascii=False,separators=(",",":"))
+    encoded=encode()
+    while len(encoded.encode("utf-8"))>=25*1024*1024:
+        if len(rows)<=1: raise ValueError("Legacy catalog cannot fit")
+        rows=rows[:max(1,int(len(rows)*0.9))]
+        view["apps"]=rows
+        report["total"]=len(rows)
+        report["counts"]={s:sum(r["sourceName"]==s for r in rows) for s in SOURCES}
+        encoded=encode()
+    return encoded
+
+def legacy_test():
+    rows=[{"id":str(i),"sourceName":"Aptoide" if i<21000 else "TapTap","category":"game","discoveryOnly":True,"apkUrl":""} for i in range(21005)]
+    data={"schemaVersion":1,"generatedAt":123,"report":{"total":len(rows)},"apps":rows}
+    v=json.loads(legacy_view(data))
+    assert len(v["apps"])==20000 and v["report"]["fullTotal"]==21005
+    assert v["report"]["counts"]["TapTap"]==5 and len(data["apps"])==21005
+    print("Legacy compatibility self-test passed")
+
 if __name__=="__main__":
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--input",default="catalog/generated/index.json")
+    parser.add_argument("--legacy-output")
+    args=parser.parse_args()
     self_test()
-    data=json.loads(Path("catalog/generated/index.json").read_text())
+    legacy_test()
+    data=json.loads(Path(args.input).read_text())
     destination=Path("catalog/api/v1")
     destination.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(dir=destination.parent) as d:
@@ -68,4 +107,6 @@ if __name__=="__main__":
         build(data,temp)
         if destination.exists(): shutil.rmtree(destination)
         temp.rename(destination)
+    if args.legacy_output:
+        Path(args.legacy_output).write_text(legacy_view(data),encoding="utf-8")
     print("API published locally:",len(data["apps"]),"records")

@@ -31,27 +31,29 @@ jobs:
       - name: Check Python syntax
         run: python3 -m py_compile catalog/generate_live_catalog.py
       - name: Generate and measure new catalogue records
-        run: python3 catalog/generate_live_catalog.py --min-new 500
+        run: |
+          if [ ! -f catalog/generated/full-index.json ]; then cp catalog/generated/index.json catalog/generated/full-index.json; fi
+          python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500
       - name: Validate generated catalogue
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
-          d=json.loads(Path('catalog/generated/index.json').read_text())
-          assert d['schemaVersion']==1 and 0<len(d['apps'])<=20000
+          d=json.loads(Path('catalog/generated/full-index.json').read_text())
+          assert d['schemaVersion']==1 and 0<len(d['apps'])<=50000
           assert len({a['id'] for a in d['apps']})==len(d['apps'])
           assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
           assert d['report']['total']==len(d['apps'])
-          assert Path('catalog/generated/index.json').stat().st_size<25*1024*1024
+          assert Path('catalog/generated/full-index.json').stat().st_size<64*1024*1024
           print(json.dumps(d['report'],indent=2))
           PY
       - name: Build and test paginated JSON API
-        run: python3 catalog/build_api.py
+        run: python3 catalog/build_api.py --input catalog/generated/full-index.json --legacy-output catalog/generated/index.json
       - name: Publish metadata only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add catalog/generated/index.json catalog/api/v1
+          git add catalog/generated/index.json catalog/generated/full-index.json catalog/api/v1
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Refresh generated YASSERAPPS catalogue"
           git pull --rebase origin main
@@ -60,13 +62,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: YASSERAPPS-Live-Catalog
-          path: catalog/generated/index.json
+          path: catalog/generated/full-index.json
           retention-days: 7
       - name: Check requested growth goal
         run: |
           python3 - <<'PY'
           import json
-          r=json.load(open('catalog/generated/index.json'))['report']
+          r=json.load(open('catalog/generated/full-index.json'))['report']
           if not r['targetMet']:
               print('::warning::New-entry target not reached: '+str(r['new'])+' of '+str(r['targetNew']))
           PY
