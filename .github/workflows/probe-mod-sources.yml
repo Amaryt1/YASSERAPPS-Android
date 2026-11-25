@@ -1,16 +1,23 @@
 name: Probe public MOD source capabilities
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '37 4 * * *'
   push:
     branches: [main]
     paths:
       - 'catalog/probe_sources.py'
+      - 'catalog/review_snapshot.py'
+      - 'catalog/test_review_snapshot.py'
       - 'catalog/review_metadata.py'
       - 'catalog/test_review_metadata.py'
       - 'catalog/mod-source-candidates.json'
       - '.github/workflows/probe-mod-sources.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: yasserapps-public-review
+  cancel-in-progress: false
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -19,7 +26,22 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 -m py_compile catalog/probe_sources.py catalog/review_metadata.py
       - run: python3 -m unittest discover -s catalog -p test_review_metadata.py
+      - run: python3 -m unittest discover -s catalog -p test_review_snapshot.py
       - run: python3 catalog/probe_sources.py
+      - name: Generate metadata-only review API
+        run: |
+          python3 catalog/review_snapshot.py catalog/source-probe-report.json --run-id "$GITHUB_RUN_ID"
+          python3 -m unittest discover -s catalog -p test_review_api_snapshot.py
+      - name: Publish review metadata only
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add catalog/api/review/v1
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Update public metadata review snapshot'
+          git pull --rebase origin main
+          git push origin HEAD:main
       - uses: actions/upload-artifact@v4
         with:
           name: MOD-source-capability-report

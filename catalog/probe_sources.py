@@ -3,6 +3,7 @@ import concurrent.futures,gzip,io,json,re,time,urllib.request,urllib.error,urlli
 from html.parser import HTMLParser
 from pathlib import Path
 from review_metadata import candidates as review_candidates,factual_rows
+from review_snapshot import feed_titles
 AGENT="YASSERAPPS-Catalog"
 MAX_BYTES=2*1024*1024
 MAX_SITEMAP_BYTES=50*1024*1024
@@ -89,6 +90,7 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
     child_maps=0
     page_urls=set()
     blocked=False
+    feed_rows=[]
     while queue:
         typ,url=queue.pop(0)
         if url in seen or not same(url) or not rp.can_fetch(AGENT,url):continue
@@ -116,6 +118,8 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
                         page_urls.update(loc for loc in locs if same(loc) and rp.can_fetch(AGENT,loc))
                     key={"sitemapindex":"sitemaps","urlset":"sitemaps","rss":"rss","feed":"atom"}.get(kind)
                     if key:counts[key]+=1
+                    if kind in ("rss","feed"):
+                        feed_rows.extend(feed_titles(content,name))
             except (ValueError,ET.ParseError):info["status"]="invalid_document"
         result["documents"].append(info)
     counts["sitemapPageUrls"]=len(page_urls)
@@ -141,6 +145,7 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
                 except (ValueError,TypeError):continue
     result["reviewPagesChecked"]=checked
     result["reviewRows"]=sample
+    result["feedTitleRows"]=feed_rows[:50]
     result["status"]="checked_metadata_only"
     return result
 def main():
