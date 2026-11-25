@@ -6,7 +6,7 @@ import java.util.regex.*;
 public final class ScanSignals {
  private static final Pattern URL=Pattern.compile("https?://[^\\s\\\"<>\\\\]{3,400}",Pattern.CASE_INSENSITIVE);
  private final Map<String,Set<String>> sources=new LinkedHashMap<>(),hosts=new TreeMap<>();
- private long strings; private boolean limited;
+ private long strings; private boolean limited; private final EncodingStats encoding=new EncodingStats();
  public static String classify(String value){
   String s=value.toLowerCase(Locale.ROOT);
   boolean update=s.contains("update")||s.contains("upgrade")||s.contains("تحديث");
@@ -26,6 +26,7 @@ public final class ScanSignals {
  public void observe(String source,String value){
   strings++;
   if(value==null||value.length()>8192)return;
+  encoding.observe(value);
   String category=classify(value);
   if(!category.isEmpty())mark(sources,source,category,256);
   if(value.length()>2&&value.charAt(0)=='L'&&value.endsWith(";")){
@@ -49,6 +50,6 @@ public final class ScanSignals {
   b.append("\nمضيفو الروابط المرشحة (دون مسارات أو استعلامات):\n");
   for(Map.Entry<String,Set<String>> e:hosts.entrySet())b.append(e.getKey()).append(": ").append(String.join("، ",e.getValue())).append('\n');
   if(limited)b.append("حد عرض المؤشرات: بعض النتائج لم تُدرج.\n");
-  return b.append("التصنيف تقديري؛ لا يثبت وظيفة الكود أو أمان تعطيل التحديث. لا يتصل الفحص بأي سيرفر ولا يغير الملف.").toString();
+  return b.append("التصنيف تقديري؛ لا يثبت وظيفة الكود أو أمان تعطيل التحديث. لا يتصل الفحص بأي سيرفر ولا يغير الملف.").append("\n\n").append(encoding.report()).toString();
  }
 }
