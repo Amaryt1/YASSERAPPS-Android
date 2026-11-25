@@ -1,7 +1,7 @@
 package iq.yasserapps.studio;
 import android.app.*;import android.os.*;import android.content.*;import android.net.Uri;import android.graphics.Color;import android.widget.*;import java.io.*;import java.nio.charset.StandardCharsets;import java.util.concurrent.*;
 public class MainActivity extends Activity {
- final ExecutorService worker=Executors.newSingleThreadExecutor();File current,exportApk;ApkEngine.Result result;TextView status,report;Button edit,save,choose,dexSearch,dexEdit,verify,again,multi,profile,cancelScan;ProgressBar scanProgress;volatile boolean stopScan;volatile Thread batchThread;boolean busy;String exportText;String lastSigningReport="";Button signingReportButton,analysisButton,deepScanButton;org.json.JSONObject pendingProfile;boolean pendingPromo,pendingUpdate,knownOptional,pendingLegacy;TextView summary;
+ final ExecutorService worker=Executors.newSingleThreadExecutor();File current,exportApk;ApkEngine.Result result;TextView status,report;Button edit,save,choose,dexSearch,dexEdit,verify,again,multi,profile,cancelScan;ProgressBar scanProgress;volatile boolean stopScan;volatile Thread batchThread;java.util.ArrayList<Uri> batchInputs;String batchPreset;boolean busy;String exportText;String lastSigningReport="";Button signingReportButton,analysisButton,deepScanButton;org.json.JSONObject pendingProfile;boolean pendingPromo,pendingUpdate,knownOptional,pendingLegacy;TextView summary;
  static final int GREEN=0xff39ff7a,BG=0xff101310;
  public void onCreate(Bundle b){
  super.onCreate(b);LabUi ui=new LabUi(this);getWindow().setStatusBarColor(LabUi.BG);getWindow().setNavigationBarColor(LabUi.BG);getWindow().getDecorView().setSystemUiVisibility(0);
@@ -9,7 +9,7 @@ public class MainActivity extends Activity {
  LinearLayout root=ui.col();root.setPadding(dp(13),dp(5),dp(13),dp(14));sc.addView(root);setContentView(sc);
  LinearLayout advanced=ui.section();advanced.setVisibility(android.view.View.GONE);
  Runnable toggle=()->{advanced.setVisibility(advanced.getVisibility()==android.view.View.VISIBLE?android.view.View.GONE:android.view.View.VISIBLE);};
- ui.header(root,"V1.0.0 • استبدال الهوية",()->{if(!busy){toggle.run();if(advanced.getVisibility()==android.view.View.VISIBLE)sc.post(()->sc.smoothScrollTo(0,advanced.getTop()));}},()->{if(!busy)editBrandPreset();});
+ ui.header(root,"V1.0.1 • استبدال الهوية",()->{if(!busy){toggle.run();if(advanced.getVisibility()==android.view.View.VISIBLE)sc.post(()->sc.smoothScrollTo(0,advanced.getTop()));}},()->{if(!busy)editBrandPreset();});
  choose=ui.action("اختيار ملف APK","apk",1,()->{if(!busy)startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),1);});ui.add(root,choose,49,5);
  ui.add(root,ui.action("تصميم هويتي • YASSERAPPS","brush",1,()->{if(!busy)editBrandPreset();}),49,7);
  ui.add(root,ui.action("تجربة نافذة الهوية المحفوظة","preview",1,()->{if(!busy)testBrand(false);}),49,7);
@@ -24,7 +24,7 @@ public class MainActivity extends Activity {
  signingReportButton=ui.action("تقرير التوقيع الأخير","cert",3,()->{if(!busy)showSigningReport();});ui.add(advanced,signingReportButton,43,0);
  analysisButton=ui.action("تقرير التحليل والتوافق","bars",3,()->{if(!busy)showAnalysis();});ui.add(advanced,analysisButton,43,6);
  deepScanButton=ui.action("فحص معمّق للموارد (قراءة فقط)","search",3,()->{if(!busy)multiScan();});ui.add(advanced,deepScanButton,43,6);
- ui.add(advanced,ui.action("فحص جماعي لملفات APK","layers",3,()->{if(!busy)pickBatch();}),43,6);
+ ui.add(advanced,ui.action("تعديل وتصدير جماعي","layers",3,()->{if(!busy)pickBatch();}),43,6);
  ui.add(advanced,ui.action("إدارة الهويات المحفوظة","brush",3,()->{if(!busy)managePresets();}),43,6);
  ui.add(advanced,ui.action("تحرير مساحة العمل","folder",3,()->{if(!busy)releaseWorkspace();}),43,6);
  ui.add(root,advanced,-2,0);
@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
  void showAnalysis(){String value=report.getText().toString();ScrollView s=new ScrollView(this);TextView t=text(value,14,Color.WHITE);t.setPadding(dp(16),dp(8),dp(16),dp(8));t.setTextIsSelectable(true);s.addView(t);new AlertDialog.Builder(this).setTitle("تقرير التحليل والتوافق").setView(s).setPositiveButton("إغلاق",null).setNeutralButton("حفظ التقرير",(d,i)->{exportText=value;startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").putExtra(Intent.EXTRA_TITLE,"YASSER-Lab-analysis.txt"),2);}).show();}
  String compatibility(File f,ApkEngine.Result r){int min=0,target=0;boolean parsed=false;try{android.content.pm.PackageInfo p=getPackageManager().getPackageArchiveInfo(f.getAbsolutePath(),0);if(p!=null&&p.applicationInfo!=null){min=p.applicationInfo.minSdkVersion;target=p.applicationInfo.targetSdkVersion;parsed=true;}}catch(Exception ignored){}return CompatibilityReport.assess(r,Build.VERSION.SDK_INT,min,target,Build.SUPPORTED_ABIS,parsed);}
  String identity(File f){try{android.content.pm.PackageInfo p=getPackageManager().getPackageArchiveInfo(f.getAbsolutePath(),android.content.pm.PackageManager.GET_PERMISSIONS);if(p!=null)return "الحزمة: "+p.packageName+"\nالإصدار: "+p.versionName+"\nالأذونات: "+(p.requestedPermissions==null?"لا توجد":String.join(", ",p.requestedPermissions));}catch(Exception ignored){}return "تعذر قراءة معلومات الحزمة";}
- protected void onActivityResult(int req,int code,Intent data){super.onActivityResult(req,code,data);if(code!=RESULT_OK||data==null)return;if(req==5){receiveBatch(data);return;}if(data.getData()==null)return;Uri uri=data.getData();
+ protected void onActivityResult(int req,int code,Intent data){super.onActivityResult(req,code,data);if(code!=RESULT_OK||data==null)return;if(req==5){receiveBatch(data);return;}if(req==6){if(data.getData()!=null)startBatchExport(data.getData());return;}if(data.getData()==null)return;Uri uri=data.getData();
  if(req==4){readLogo(uri);return;}
  if(req==1){state(true,"جاري التحليل");worker.submit(()->{File f=null;try{f=File.createTempFile("source-",".apk",getCacheDir());String hash;try(InputStream in=getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(f)){if(in==null)throw new IOException("Cannot open");hash=ApkEngine.copyAndHash(in,out,ApkEngine.MAX_INPUT_SCAN);}ApkEngine.Result r=ApkEngine.scanCopied(f,hash);File next=f;String id=identity(f)+"\n\n"+compatibility(f,r);runOnUiThread(()->{if(current!=null)current.delete();if(exportApk!=null){exportApk.delete();exportApk=null;}current=next;lastSigningReport="";result=r;pendingProfile=null;pendingPromo=false;pendingUpdate=false;pendingLegacy=false;knownOptional=OptionalRecipe.matches(r.sha256);report.setText(id+"\n"+r.report());state(false,r.scanWarnings.isEmpty()?"تم التحليل":"فحص جزئي — راجع التقرير");});}catch(OutOfMemoryError e){if(f!=null)f.delete();runOnUiThread(()->state(false,"ذاكرة غير كافية لإكمال الفحص"));}catch(Exception e){if(f!=null)f.delete();fail(e);}});}
  if(req==2||req==3){state(true,"تصدير");File f=exportApk;String txt=exportText;worker.submit(()->{try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){if(out==null)throw new IOException("Cannot export");if(req==2)out.write(txt.getBytes(StandardCharsets.UTF_8));else try(InputStream in=new FileInputStream(f)){ApkEngine.copy(in,out,ApkEngine.MAX_INPUT_SCAN);}runOnUiThread(()->state(false,"تم حفظ الملف"));}catch(Exception e){fail(e);}});}
@@ -47,22 +47,49 @@ public class MainActivity extends Activity {
  void pickBatch(){startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true),5);}
  void receiveBatch(Intent data){
   java.util.LinkedHashSet<Uri> unique=new java.util.LinkedHashSet<>();ClipData clip=data.getClipData();
-  if(clip!=null){for(int i=0;i<clip.getItemCount();i++){Uri u=clip.getItemAt(i).getUri();if(u!=null)unique.add(u);if(unique.size()>BatchScan.MAX_FILES){state(false,"الحد الأقصى للفحص الجماعي 20 ملفاً");return;}}}else if(data.getData()!=null)unique.add(data.getData());
+  if(clip!=null){for(int i=0;i<clip.getItemCount();i++){Uri u=clip.getItemAt(i).getUri();if(u!=null)unique.add(u);if(unique.size()>BatchExport.MAX_FILES){state(false,"الحد الأقصى 20 ملفاً");return;}}}else if(data.getData()!=null)unique.add(data.getData());
   if(unique.isEmpty())return;
-  java.util.ArrayList<Uri> items=new java.util.ArrayList<>(unique);stopScan=false;state(true,"بدء الفحص الجماعي");scanProgress.setMax(items.size());scanProgress.setProgress(0);scanProgress.setVisibility(android.view.View.VISIBLE);cancelScan.setVisibility(android.view.View.VISIBLE);cancelScan.setEnabled(true);
-  worker.submit(()->{batchThread=Thread.currentThread();StringBuilder results=new StringBuilder("الفحص الجماعي — قراءة فقط\n");int done=0;
-   try{for(Uri u:items){if(stopScan||Thread.currentThread().isInterrupted())break;final int index=done+1;String label="APK "+index;
-    try(android.database.Cursor cursor=getContentResolver().query(u,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(cursor!=null&&cursor.moveToFirst()){String n=cursor.getString(0);if(n!=null&&!n.isEmpty())label=n.substring(0,Math.min(n.length(),200));}}catch(Exception ignored){}
-    final String name=label;runOnUiThread(()->{if(!isFinishing()&&!isDestroyed()&&!stopScan)status.setText("فحص "+index+" / "+items.size()+"\n"+name);});
-    results.append("\n").append(index).append(" • ").append(name).append("\n");
-    try{results.append(BatchScan.inspect(getCacheDir(),()->getContentResolver().openInputStream(u),Build.VERSION.SDK_INT,Build.SUPPORTED_ABIS));}
-    catch(InterruptedIOException e){results.append("أُلغي فحص الملف");break;}
-    catch(OutOfMemoryError e){results.append("ذاكرة غير كافية لهذا الملف");break;}
-    catch(Exception e){results.append("تعذر الفحص: ").append(CompatibilityReport.error(e));}
-    results.append("\n");done++;final int progress=done;runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())scanProgress.setProgress(progress);});
-   }}finally{batchThread=null;Thread.interrupted();}
-   final int count=done;final String reportText=results.append("\nملفات تمت محاولة فحصها: ").append(count).append(" / ").append(items.size()).append("\nلا يتم تعديل الملفات أو توقيعها في هذا الوضع.").toString();
-   runOnUiThread(()->{if(isFinishing()||isDestroyed())return;finishScan(count==items.size()?"انتهى الفحص الجماعي":"توقف الفحص الجماعي");ScrollView sv=new ScrollView(this);TextView t=text(reportText,14,Color.WHITE);t.setPadding(dp(16),dp(8),dp(16),dp(8));t.setTextIsSelectable(true);sv.addView(t);new AlertDialog.Builder(this).setTitle("نتائج الفحص الجماعي").setView(sv).setPositiveButton("إغلاق",null).setNeutralButton("حفظ التقرير",(d,i)->{exportText=reportText;startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").putExtra(Intent.EXTRA_TITLE,"YASSER-Lab-batch.txt"),2);}).show();});
+  try{final String preset=savedBrand().toString();new AlertDialog.Builder(this).setTitle("تعديل وتصدير "+unique.size()+" تطبيق")
+   .setMessage("تُستخدم الهوية المحفوظة في التطبيقات التي دمج مطوروها عقد الهوية المتوافق. لا تُعدّل نافذة التحديث أو حقوق الناشر. تُحفظ النتائج في مجلد جديد. أؤكد أنني مخول بتعديل كل التطبيقات المحددة.")
+   .setNegativeButton("إلغاء",null).setPositiveButton("أملك الصلاحية — اختيار المجلد",(d,i)->{batchInputs=new java.util.ArrayList<>(unique);batchPreset=preset;startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),6);}).show();
+  }catch(Exception e){fail(e);}
+ }
+ void startBatchExport(Uri tree){
+  if(batchInputs==null||batchInputs.isEmpty()||batchPreset==null)return;
+  final java.util.ArrayList<Uri> items=batchInputs;final String preset=batchPreset;batchInputs=null;batchPreset=null;
+  stopScan=false;state(true,"بدء التعديل الجماعي");scanProgress.setMax(items.size());scanProgress.setProgress(0);scanProgress.setVisibility(android.view.View.VISIBLE);cancelScan.setText("إلغاء العملية");cancelScan.setVisibility(android.view.View.VISIBLE);cancelScan.setEnabled(true);
+  worker.submit(()->{batchThread=Thread.currentThread();StringBuilder results=new StringBuilder("نتائج التعديل الجماعي\n");int done=0,success=0;try{
+    Uri root=android.provider.DocumentsContract.buildDocumentUriUsingTree(tree,android.provider.DocumentsContract.getTreeDocumentId(tree));
+    Uri created=android.provider.DocumentsContract.createDocument(getContentResolver(),root,android.provider.DocumentsContract.Document.MIME_TYPE_DIR,"YASSER-Lab-"+System.currentTimeMillis());
+    if(created==null)throw new IOException("Cannot create output folder");
+    Uri folder=android.provider.DocumentsContract.buildDocumentUriUsingTree(tree,android.provider.DocumentsContract.getDocumentId(created));
+    org.json.JSONObject brand=WindowProfile.parse(preset);
+    for(Uri u:items){if(stopScan||Thread.currentThread().isInterrupted())break;final int index=done+1;String label="APK "+index;
+     try(android.database.Cursor cursor=getContentResolver().query(u,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(cursor!=null&&cursor.moveToFirst()){String n=cursor.getString(0);if(n!=null&&!n.isEmpty())label=n.substring(0,Math.min(n.length(),200));}}catch(Exception ignored){}
+     final String name=label;runOnUiThread(()->{if(!isFinishing()&&!isDestroyed()&&!stopScan)status.setText("تعديل وتوقيع "+index+" / "+items.size()+"\n"+name);});
+     File src=null,unsigned=null,signed=null;Uri dest=null;boolean saved=false;
+     results.append("\n").append(index).append(" • ").append(name).append("\n");
+     try{
+      src=File.createTempFile("batch-source-",".apk",getCacheDir());unsigned=File.createTempFile("batch-unsigned-",".apk",getCacheDir());signed=File.createTempFile("batch-signed-",".apk",getCacheDir());
+      try(InputStream in=getContentResolver().openInputStream(u);OutputStream out=new BufferedOutputStream(new FileOutputStream(src),262144)){if(in==null)throw new IOException("Cannot open");ApkEngine.copy(in,out,ApkEngine.MAX_INPUT_SCAN);}
+      if(stopScan)throw new InterruptedIOException("Batch cancelled");
+      BatchExport.prepare(src,unsigned,brand);org.json.JSONObject expected=WindowProfile.load(unsigned);
+      LocalSigner.sign(src,unsigned,signed);BatchExport.verify(signed,expected);
+      if(stopScan||Thread.currentThread().isInterrupted())throw new InterruptedIOException("Batch cancelled");
+      String filename=BatchExport.outputName(index,name);
+      dest=android.provider.DocumentsContract.createDocument(getContentResolver(),folder,"application/vnd.android.package-archive",filename);
+      if(dest==null)throw new IOException("Cannot create output file");
+      try(InputStream in=new FileInputStream(signed);OutputStream out=getContentResolver().openOutputStream(dest,"wt")){if(out==null)throw new IOException("Cannot export");if(ApkEngine.copy(in,out,ApkEngine.MAX_INPUT_SCAN)!=signed.length())throw new IOException("Incomplete export");}
+      saved=true;success++;results.append("تم الحفظ والتحقق من التوقيع — ").append(filename);
+     }catch(InterruptedIOException e){results.append("أُلغيت العملية");break;}
+     catch(OutOfMemoryError e){results.append("ذاكرة غير كافية");break;}
+     catch(Exception e){results.append("لم يُصدّر: ").append(CompatibilityReport.error(e));}
+     finally{if(dest!=null&&!saved)try{android.provider.DocumentsContract.deleteDocument(getContentResolver(),dest);}catch(Exception ignored){results.append("\nتعذر حذف الملف الجزئي من المجلد");}if(src!=null)src.delete();if(unsigned!=null)unsigned.delete();if(signed!=null)signed.delete();}
+     results.append("\n");done++;final int progress=done;runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())scanProgress.setProgress(progress);});
+    }
+   }catch(Exception e){results.append("\nتعذر إكمال العملية: ").append(CompatibilityReport.error(e));}finally{batchThread=null;Thread.interrupted();}
+   final int count=done,ok=success;final String reportText=results.append("\nنجاح: ").append(ok).append(" / ").append(items.size()).append("\nمحاولات مكتملة: ").append(count).append("\nتحتاج النتائج إلى اختبار التشغيل على الجهاز.").toString();
+   runOnUiThread(()->{if(isFinishing()||isDestroyed())return;cancelScan.setText("إلغاء الفحص");finishScan("تم حفظ "+ok+" من "+items.size());ScrollView sv=new ScrollView(this);TextView t=text(reportText,14,Color.WHITE);t.setPadding(dp(16),dp(8),dp(16),dp(8));t.setTextIsSelectable(true);sv.addView(t);new AlertDialog.Builder(this).setTitle("نتائج التعديل الجماعي").setView(sv).setPositiveButton("إغلاق",null).setNeutralButton("حفظ التقرير",(d,i)->{exportText=reportText;startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").putExtra(Intent.EXTRA_TITLE,"YASSER-Lab-batch.txt"),2);}).show();});
   });
  }
  void managePresets(){
