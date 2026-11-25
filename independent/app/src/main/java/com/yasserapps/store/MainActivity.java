@@ -450,11 +450,11 @@ public final class MainActivity extends Activity {
             gap(content, 14);
             homeAppsSection=linear(true);
             content.addView(homeAppsSection,lp(-1,-2));
-            section(homeAppsSection, "أحدث التطبيقات", matching("app"), false);
+            section(homeAppsSection, "التطبيقات", matching("app"), false);
             gap(content, 17);
             homeGamesSection=linear(true);
             content.addView(homeGamesSection,lp(-1,-2));
-            section(homeGamesSection, "أحدث الألعاب", matching("game"), true);
+            section(homeGamesSection, "الألعاب", matching("game"), true);
         } else if ("app".equals(category)) {
             catalogList(content, "التطبيقات", matching("app"));
         } else if ("game".equals(category)) {
@@ -489,9 +489,9 @@ public final class MainActivity extends Activity {
         for(int i=0;i<next.size();i++)if(next.get(i).packageName.equals(selectedFeaturedPackage))index=i;
         renderFeatured(featuredContainer,next,index);
         homeAppsSection.removeAllViews();
-        section(homeAppsSection,"أحدث التطبيقات",matching("app"),false);
+        section(homeAppsSection,"التطبيقات",matching("app"),false);
         homeGamesSection.removeAllViews();
-        section(homeGamesSection,"أحدث الألعاب",matching("game"),true);
+        section(homeGamesSection,"الألعاب",matching("game"),true);
     }
 
     private void heroCard(LinearLayout root) {
@@ -652,7 +652,7 @@ public final class MainActivity extends Activity {
             name.contains("الألعاب")?"game":"grid", GREEN);
         title.addView(badge,lp(24,27));
         padx(title,7);
-        TextView heading=text(name + " (" + entries.size() + ")",19,WHITE,true);
+        TextView heading=text(name,19,WHITE,true);
         title.addView(heading,new LinearLayout.LayoutParams(0,dp(38),1));
         TextView all=text("عرض الكل  ‹",13,WHITE,false);
         all.setGravity(Gravity.CENTER_VERTICAL);
@@ -677,7 +677,7 @@ public final class MainActivity extends Activity {
     }
 
     private void catalogList(LinearLayout root, String title, List<Catalog.App> entries) {
-        TextView heading = text(title + " (" + entries.size() + ")", 19, WHITE, true);
+        TextView heading = text(title, 19, WHITE, true);
         root.addView(heading);
         gap(root, 9);
         if (entries.isEmpty()) {
@@ -1057,7 +1057,8 @@ public final class MainActivity extends Activity {
             if(!translated.startsWith("تعذّر")&&!translated.startsWith("لا يوجد")) summary.setText(translated);
         }));
         gap(content,16);
-        if(!app.attribution.isEmpty()) {
+        // Ordinary source names are internal metadata; retain license-required credit.
+        if(!app.license.isEmpty() && !app.attribution.isEmpty() && !app.attribution.equalsIgnoreCase(app.sourceName)) {
             TextView credit=text(app.attribution,11,SUBTEXT,false);
             android.text.util.Linkify.addLinks(credit,android.text.util.Linkify.WEB_URLS);
             content.addView(credit);
@@ -1135,6 +1136,7 @@ public final class MainActivity extends Activity {
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
+            else if ("statistics".equals(page)) showStatistics();
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
                 for (Catalog.App current : apps) if (current.id.equals(detailApp.id)) {
@@ -1564,6 +1566,22 @@ public final class MainActivity extends Activity {
         render(c, true);
     }
 
+    private void showStatistics() {
+        page="statistics";
+        LinearLayout c=verticalContent();
+        backBar(c,"إحصائيات المتجر",this::showSettings);
+        int games=0;
+        for(Catalog.App a:apps) if(a.isGame()) games++;
+        detailSection(c,"إجمالي التطبيقات والألعاب",String.valueOf(apps.size()));
+        gap(c,12);
+        detailSection(c,"التطبيقات",String.valueOf(apps.size()-games));
+        gap(c,12);
+        detailSection(c,"الألعاب",String.valueOf(games));
+        gap(c,12);
+        panelText(c,loading?"جاري تحديث الإحصائيات…":"الأعداد تمثل المحتوى المفهرس حالياً على جهازك.");
+        render(c,true);
+    }
+
     private void showSettings() {
         page = "settings";
         LinearLayout c = verticalContent();
@@ -1573,6 +1591,8 @@ public final class MainActivity extends Activity {
         TextView channel = action("قناة YASSERAPPS على تيليجرام", false, () -> open(CHANNEL));
         c.addView(channel, lp(-1, 54));
         gap(c, 11);
+        c.addView(action("إحصائيات المتجر",false,this::showStatistics),lp(-1,54));
+        gap(c,11);
         TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
         c.addView(favorites, lp(-1, 54));
         gap(c, 11);
@@ -1593,7 +1613,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.15\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.16\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
@@ -1603,6 +1623,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onBackPressed() {
         if ("home".equals(page)) super.onBackPressed();
+        else if ("statistics".equals(page)) showSettings();
         else { category = "all"; showHome(); }
     }
 

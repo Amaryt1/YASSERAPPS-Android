@@ -80,6 +80,11 @@ public final class DirectCatalogTest extends Instrumentation {
             },"games",50,100);
             if(large.size()!=5000)throw new AssertionError("Large-catalog pagination");
             android.util.Log.i("YASSERAPPS_CATALOG","PASS synthetic 5000-entry pagination (not live apps)");
+            String cleaned=ArabicCopy.stripPromotions("Manage your photos. Follow us on Instagram. Facebook: Telegram:");
+            if(!cleaned.equals("Manage your photos."))throw new AssertionError("Promotional English text");
+            String arClean=ArabicCopy.stripPromotions("تطبيق لإدارة الصور. تابعونا على فيسبوك. إنستغرام: تيليجرام:");
+            if(!arClean.equals("تطبيق لإدارة الصور."))throw new AssertionError("Promotional Arabic text");
+            if(!ArabicCopy.stripPromotions("Share photos on Instagram.").equals("Share photos on Instagram."))throw new AssertionError("Preserve real app feature");
             String copy=FeaturedApps.displayCopy("Manage your photos.\nSource: https://github.com/example/repo\nBrowse albums and edit images.\nhttps://gitlab.com/foo");
             if(!copy.contains("Manage your photos.")||!copy.contains("Browse albums and edit images.")||copy.contains("https")||copy.contains("Source:"))
                 throw new AssertionError("Description cleanup failed: "+copy);
