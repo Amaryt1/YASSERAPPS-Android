@@ -1,8 +1,3 @@
-# YASSERAPPS public catalog API
-Read-only JSON files generated from the four existing metadata sources on each refresh. No credentials or APK hosting.
-Base: https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/api/v1/
-Fetch index.json for counts, generation and group paths. Pages contain at most 250 records.
-Groups: all, app, game, aptoide, uptodown, apkmirror, taptap, and each source/app or source/game. Follow the relative next filename until null. If generatedAt changes between pages, restart pagination to avoid inconsistent results.
-The API provides discovery metadata, not verified downloadable APKs. It neither grants redistribution rights nor expands upstream access. Client integration requires a separately tested Android change.
+# YASSERAPPS catalog API
 
-The complete snapshot is catalog/generated/full-index.json (up to 50,000 entries). The original catalog/generated/index.json stays within 20,000 entries and 25 MiB for older clients. The paginated API always uses the complete snapshot. A newer client must explicitly support the expanded capacity.
+The active source registry contains only Android Oyun Club and APKVision, pending review. Both manifests are empty until authorized release feeds are supplied. The combined index and store JSON are reset. No credentials or APK hosting. Existing verified-release checks remain mandatory. Follow `index.json` for counts and pagination (up to 250 entries per page). Public availability alone does not grant redistribution rights.

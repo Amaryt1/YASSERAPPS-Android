@@ -1,116 +1,37 @@
-name: Refresh YASSERAPPS server catalogue
+name: Refresh authorized YASSERAPPS catalogue
 on:
-  schedule:
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - 'catalog/generate_live_catalog.py'
-      - 'catalog/import_liteapks.py'
-      - 'catalog/sync_github_releases.py'
-      - 'catalog/test_sync_github_releases.py'
-      - 'catalog/github-release-projects.json'
-      - 'catalog/test_import_liteapks.py'
       - 'catalog/build_api.py'
       - 'catalog/provider_sync.py'
       - 'catalog/provider_formats.py'
-      - 'catalog/test_provider_sync.py'
       - 'catalog/mod-source-candidates.json'
-      - 'catalog/liteapks-review-index.json'
       - 'catalog/approved-mod-feeds/**'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: yasserapps-server-catalog
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
-  refresh:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-      - name: Report scheduler trigger
-        env:
-          TRIGGER: ${{ github.event_name }}
+      - name: Test provider integration
         run: |
-          echo "Refresh trigger: $TRIGGER"
-          echo "Refresh trigger: $TRIGGER" >> "$GITHUB_STEP_SUMMARY"
-      - name: Check Python syntax
-        run: |
-          python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py
+          python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py catalog/build_api.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
-      - name: Import next LiteAPKs metadata batch
-        run: |
-          python3 -m unittest discover -s catalog -p test_import_liteapks.py
-          python3 catalog/import_liteapks.py --limit 500 --seconds 540
-      - name: Summarize source import progress
-        run: |
-          python3 - <<'PY'
-          import json,os
-          from pathlib import Path
-          p=Path('catalog/liteapks-import-state.json')
-          if p.exists():
-              s=json.loads(p.read_text())
-              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
-                  f.write("LiteAPKs reviewed: "+str(len(s["done"]))+"; remaining: "+str(s["remaining"])+"; status: "+s["lastStatus"]+"\n")
-          PY
-      - name: Sync official open-source APK releases
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python3 -m unittest discover -s catalog -p test_sync_github_releases.py
-          if [ ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]; then "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'; fi
-          python3 catalog/sync_github_releases.py
-      - name: Generate and measure new catalogue records
-        env:
-          YASSER_FEED_HAPPYMOD_TOKEN: ${{ secrets.YASSER_FEED_HAPPYMOD_TOKEN }}
-          YASSER_FEED_MODDROID_TOKEN: ${{ secrets.YASSER_FEED_MODDROID_TOKEN }}
-          YASSER_FEED_APKMODY_TOKEN: ${{ secrets.YASSER_FEED_APKMODY_TOKEN }}
-          YASSER_FEED_APKDONE_TOKEN: ${{ secrets.YASSER_FEED_APKDONE_TOKEN }}
-          YASSER_FEED_APKVISION_TOKEN: ${{ secrets.YASSER_FEED_APKVISION_TOKEN }}
-          YASSER_FEED_JOJOY_TOKEN: ${{ secrets.YASSER_FEED_JOJOY_TOKEN }}
+      - name: Generate candidate catalogue without publishing
         run: |
           python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500
-      - name: Validate generated catalogue
-        run: |
-          python3 - <<'PY'
-          import json,re
-          from pathlib import Path
-          d=json.loads(Path('catalog/generated/full-index.json').read_text())
-          assert d['schemaVersion']==1 and d['modOnly'] is True and 0<=len(d['apps'])<=82000
-          assert len({a['id'] for a in d['apps']})==len(d['apps'])
-          assert all(a['modified'] is True and a['modEvidenceUrl'] and a['permissionUrl'] and ((a['discoveryOnly'] and not a['apkUrl']) or (not a['discoveryOnly'] and a['apkUrl'] and re.fullmatch(r'[0-9a-f]{64}',a['sha256']) and re.fullmatch(r'[0-9a-f]{64}',a['signerSha256']))) for a in d['apps'])
-          assert d['report']['total']==len(d['apps'])
-          assert Path('catalog/generated/full-index.json').stat().st_size<64*1024*1024
-          print(json.dumps(d['report'],indent=2))
-          PY
-      - name: Build and test paginated JSON API
-        run: python3 catalog/build_api.py --input catalog/generated/full-index.json --legacy-output catalog/generated/index.json
-      - name: Publish reviewed MOD catalog
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add catalog/generated/index.json catalog/generated/full-index.json catalog/api/v1 catalog/liteapks-review-index.json catalog/approved-mod-feeds
-          if [ -f catalog/liteapks-import-state.json ]; then git add catalog/liteapks-import-state.json; fi
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Refresh generated YASSERAPPS catalogue"
-          git pull --rebase origin main
-          git push origin HEAD:main
-      - name: Upload measured catalogue
-        uses: actions/upload-artifact@v4
+          python3 catalog/build_api.py --input catalog/generated/full-index.json --legacy-output catalog/generated/index.json
+      - uses: actions/upload-artifact@v4
         with:
-          name: YASSERAPPS-Live-Catalog
-          path: catalog/generated/full-index.json
+          name: YASSERAPPS-Catalogue-Review
+          path: catalog/api/v1
           retention-days: 7
-      - name: Check requested growth goal
-        run: |
-          python3 - <<'PY'
-          import json
-          r=json.load(open('catalog/generated/full-index.json'))['report']
-          if not r['targetMet']:
-              print('::warning::New-entry target not reached: '+str(r['new'])+' of '+str(r['targetNew']))
-          PY

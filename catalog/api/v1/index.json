@@ -1,1 +1,42 @@
-{"schemaVersion":1,"modOnly":true,"metadataOnly":false,"installableMetadata":7,"generatedAt":1795622799299,"pageSize":250,"total":7,"groups":{"all":{"total":7,"pages":1,"first":"all/1.json"},"app":{"total":6,"pages":1,"first":"app/1.json"},"game":{"total":1,"pages":1,"first":"game/1.json"}},"xml":"catalog.xml","sourceApis":{"LiteAPKs":{"path":"sources/liteapks/index.json","xml":"sources/liteapks/catalog.xml","total":0,"status":"awaiting_authorized_source","preview":"sources/liteapks/preview.json","previewTotal":117,"downloadPageCount":0},"GitHub Releases":{"path":"sources/github-releases/index.json","xml":"sources/github-releases/catalog.xml","total":7,"status":"published"}},"counts":{"GitHub Releases":7}}
+{
+  "schemaVersion": 1,
+  "modOnly": true,
+  "metadataOnly": true,
+  "installableMetadata": 0,
+  "generatedAt": 1795627151000,
+  "pageSize": 250,
+  "total": 0,
+  "groups": {
+    "all": {
+      "total": 0,
+      "pages": 0,
+      "first": null
+    },
+    "app": {
+      "total": 0,
+      "pages": 0,
+      "first": null
+    },
+    "game": {
+      "total": 0,
+      "pages": 0,
+      "first": null
+    }
+  },
+  "xml": "catalog.xml",
+  "sourceApis": {
+    "Android Oyun Club": {
+      "path": "sources/androidoyun-club/index.json",
+      "xml": "sources/androidoyun-club/catalog.xml",
+      "total": 0,
+      "status": "awaiting_authorized_source"
+    },
+    "APKVision": {
+      "path": "sources/apkvision/index.json",
+      "xml": "sources/apkvision/catalog.xml",
+      "total": 0,
+      "status": "awaiting_authorized_source"
+    }
+  },
+  "counts": {}
+}

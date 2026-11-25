@@ -1,47 +1,35 @@
 {
   "targetRecords": 82000,
   "scope": "modified_android_releases_only",
+  "onlyRegisteredSources": true,
   "sources": [
     {
-      "name": "LiteAPKs",
-      "slug": "liteapks",
-      "probeHome": "https://liteapks.com/",
-      "probeSeed": "https://liteapks.com/worms-zone-io.html",
-      "localApi": "sources/liteapks/index.json",
-      "status": "owner_reported_permission",
+      "name": "Android Oyun Club",
+      "slug": "androidoyun-club",
+      "probeHome": "https://androidoyun.club/",
+      "probeSeed": "https://androidoyun.club/android-oyun-kategorileri",
+      "localApi": "sources/androidoyun-club/index.json",
+      "status": "pending_provider_review",
       "enabled": false,
+      "authorizationConfirmed": false,
+      "probeOnly": true,
       "apiUrl": null,
       "permissionUrl": null,
-      "authorizationConfirmed": false,
-      "ownerReportedPermission": true,
-      "probeOnly": true,
-      "itemsPath": "apps",
-      "nextPath": "next",
-      "fields": {},
-      "delaySeconds": 1,
-      "tokenEnv": "",
-      "discoveryMethods": [
-        "robots",
-        "sitemap",
-        "rss",
-        "atom",
-        "html",
-        "json-ld",
-        "open-graph",
-        "public-json"
-      ],
-      "reason": "Owner confirms permission from LiteAPKs; no independently verified provider grant or release-level rights record. Public verification enabled; authorized feed not supplied.",
-      "permissionStatus": "reported_by_project_owner_2026-11-24"
+      "reason": "New candidate; public capability review only. No verified authorized feed or release distribution rights."
     },
     {
-      "name": "GitHub Releases",
-      "slug": "github-releases",
-      "status": "official_release_import",
+      "name": "APKVision",
+      "slug": "apkvision",
+      "probeHome": "https://apkvision.org/",
+      "probeSeed": "https://apkvision.org/games/adventure/inside-132114/",
+      "localApi": "sources/apkvision/index.json",
+      "status": "pending_provider_review",
       "enabled": false,
       "authorizationConfirmed": false,
-      "localApi": "sources/github-releases/index.json",
-      "reason": "Imported independently from allowlisted licensed derivatives using official GitHub Releases API, with APK verification."
+      "probeOnly": true,
+      "apiUrl": null,
+      "permissionUrl": null,
+      "reason": "New candidate; public capability review only. No verified authorized feed or release distribution rights."
     }
-  ],
-  "onlyRegisteredSources": true
+  ]
 }

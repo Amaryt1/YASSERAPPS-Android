@@ -59,17 +59,8 @@ for cfg in registry["sources"]:
     xml_catalog(prefix+"/catalog.xml",cfg["name"],selected,status)
     assert sg["app"]["total"]+sg["game"]["total"]==len(selected)
     source_apis[cfg["name"]]={"path":prefix+"/index.json","xml":prefix+"/catalog.xml","total":len(selected),"status":status}
-# Factual listing previews are kept separate from the installable release API.
+# Only verified or explicitly approved records are published.
 records=[]
-preview_path=Path("catalog/liteapks-review-index.json")
-if preview_path.exists() and "LiteAPKs" in source_apis:
-    preview=json.loads(preview_path.read_text())
-    records=preview["records"]
-    assert all(r["installable"] is False and r["status"]=="pending_verified_release" for r in records)
-    write("sources/liteapks/preview.json",{"schemaVersion":1,"source":"LiteAPKs","total":len(records),"discoveredPageUrls":preview["discoveredPageUrls"],"reviewedPages":preview.get("reviewedPages",0),"remainingPages":preview.get("remainingPages"),"lastStatus":preview.get("lastStatus","unknown"),"installable":False,"records":records})
-    source_apis["LiteAPKs"]["preview"]="sources/liteapks/preview.json"
-    source_apis["LiteAPKs"]["previewTotal"]=len(records)
-    source_apis["LiteAPKs"]["downloadPageCount"]=sum(bool(r.get("downloadPageUrl")) for r in records)
 write("store.json",{"schemaVersion":1,"generatedAt":d["generatedAt"],"verifiedReleaseCount":sum(not r["discoveryOnly"] for r in rows),"previewCount":len(records),"apps":rows,"previews":records})
 write("index.json",{"schemaVersion":1,"modOnly":True,"metadataOnly":all(r["discoveryOnly"] for r in rows),"installableMetadata":sum(not r["discoveryOnly"] for r in rows),"generatedAt":d["generatedAt"],"pageSize":250,"total":len(rows),"groups":groups,"xml":"catalog.xml","sourceApis":source_apis,"counts":dict(Counter(r["sourceName"] for r in rows))})
 if args.legacy_output:
