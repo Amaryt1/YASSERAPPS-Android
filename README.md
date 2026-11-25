@@ -1,2 +1,2 @@
-# Studio V0.7
-Staged export for developer-supported profiles and one exact SHA-256 matched V7 recipe. Both selected options reproduce the DEX and resource payloads of the user's successful V7 device trial. Other versions are not automatically edited. Local signing and source preservation; install/runtime behavior of Studio output still requires testing.
+# Studio V0.8
+Adds structural recognition for the optional LITEAPKS show_dialog preference across DEX files, matching the full 31-unit method and resolved references. Preserves V0.7 exact-file update recipe and developer profiles. Unsupported or ambiguous matches are rejected. No universal update removal. Android device test of this release still required.
