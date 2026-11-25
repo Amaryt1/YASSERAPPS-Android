@@ -1,2 +1,2 @@
-# Studio V0.8
-Adds structural recognition for the optional LITEAPKS show_dialog preference across DEX files, matching the full 31-unit method and resolved references. Preserves V0.7 exact-file update recipe and developer profiles. Unsupported or ambiguous matches are rejected. No universal update removal. Android device test of this release still required.
+# Studio V0.9
+Native black/green optional channel dialog, saved local branding preset, live preview and interactive demo with persistent opt-out. Embedded profile test consumes the actual packaged asset. Authorized target apps with the optional-dialog-v1 runtime contract can receive exported profile edits; arbitrary APKs are not claimed to render this new dialog. Existing V0.8 optional promo removal and V0.7 exact update recipe remain unchanged. Runtime test on Android is pending.

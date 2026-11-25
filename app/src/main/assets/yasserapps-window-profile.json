@@ -3,10 +3,10 @@
   "contract": "optional-dialog-v1",
   "optionalUpdateEnabled": true,
   "brand": "YASSERAPPS",
-  "title": "تابع قناتنا",
-  "body": "تابع أخبار التطبيقات والتحديثات من قناتنا.",
+  "title": "أهلاً بك في عالم ياسر أبس",
+  "body": "انضم إلى قناتنا الرسمية لتصلك أحدث التطبيقات والألعاب والأخبار.",
   "channelUrl": "https://t.me/YasserAppsIQ",
-  "buttonText": "فتح القناة",
+  "buttonText": "انضم إلى قناة تيليجرام",
   "accent": "#39FF7A",
-  "background": "#101310"
+  "background": "#090B09"
 }
