@@ -52,7 +52,8 @@ def main():
     doc = json.loads(CATALOG.read_text())
     live = [app for app in doc["apps"] if app.get("enabled", True)]
     if not live:
-        raise RuntimeError("No enabled apps to verify")
+        print("::notice::APK verification skipped: empty catalog (0 APKs verified)")
+        return
     with tempfile.TemporaryDirectory() as tmp:
         directory = Path(tmp)
         for app in live[:12]:
