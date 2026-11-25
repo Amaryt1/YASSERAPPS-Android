@@ -100,6 +100,14 @@ public final class DirectCatalogTest extends Instrumentation {
             Catalog.App game=PublicChartFeed.parse("TapTap",chartLinks.get(0),page);
             if(game==null||!game.isGame()||!game.discoveryOnly||!game.packageName.isEmpty()||!game.apkUrl.isEmpty()||!Catalog.fromJson(Catalog.toJson(game)).id.equals(game.id))throw new AssertionError("Public chart identity and metadata-only boundary");
             if(PublicChartFeed.parse("TapTap","https://www.taptap.io.evil.example/app/123",page)!=null)throw new AssertionError("Chart host spoof");
+            Catalog.App social=new Catalog.App();social.id="chat";social.name="Telegram Messenger";
+            Catalog.App video=new Catalog.App();video.id="video";video.name="Video Editor";
+            Catalog.App unknown=new Catalog.App();unknown.id="unknown";unknown.name="Unclassified";
+            Catalog.App chat=new Catalog.App();chat.id="chat2";chat.name="Signal";
+            Catalog.App racing=new Catalog.App();racing.id="race";racing.category="game";racing.genre="Racing";
+            if(!"social".equals(BrowseGroups.topic(social))||!"video".equals(BrowseGroups.topic(video))||!"racing".equals(BrowseGroups.topic(racing))||!BrowseGroups.topic(unknown).isEmpty())throw new AssertionError("Browse groups");
+            List<Catalog.App> fixture=java.util.Arrays.asList(social,video,unknown,chat,racing);
+            if(BrowseGroups.related(fixture,social).size()!=1||BrowseGroups.select(fixture,"topic:app:social").size()!=2||BrowseGroups.select(fixture,"picks:game").size()!=1)throw new AssertionError("Related and shelf filters");
             result.putString("stream","\nPASS market metadata boundaries and pagination fixtures\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {

@@ -123,7 +123,7 @@ def aptoide(r,group):
     if v and v.get("rank")!="TRUSTED": return None
     pkg=r.get("package",""); slug=r.get("uname",""); code=f.get("vercode",0); size=f.get("filesize",r.get("size",0))
     if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)+",pkg) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}",slug) or not isinstance(code,int) or code<1 or not isinstance(size,int) or size<1: return None
-    return entry("Aptoide","aptoide."+pkg,r.get("name",""),"https://"+slug+".en.aptoide.com/app",packageName=pkg,category="game" if group=="games" else "app",version=clean(f.get("vername",""),80),versionCode=code,sizeBytes=size,iconUrl=image("Aptoide",r.get("icon","")),bannerUrl=image("Aptoide",r.get("graphic","")),updatedAt=update_time(r.get("updated","")))
+    return entry("Aptoide","aptoide."+pkg,r.get("name",""),"https://"+slug+".en.aptoide.com/app",packageName=pkg,category="game" if group=="games" else "app",genre=clean(r.get("genre") or r.get("category") or "",100),version=clean(f.get("vername",""),80),versionCode=code,sizeBytes=size,iconUrl=image("Aptoide",r.get("icon","")),bannerUrl=image("Aptoide",r.get("graphic","")),updatedAt=update_time(r.get("updated","")))
 def chart(source,url,discovered=None):
     p=HTML(); p.feed(get(url).decode("utf-8","replace"))
     if discovered is not None:
@@ -136,7 +136,7 @@ def chart(source,url,discovered=None):
     icon=image(source,data.get("image","")) or image(source,p.meta.get("og:image",""))
     if not name or not desc or not icon: return None
     key="apkmirror:"+urllib.parse.urlsplit(url).path if source=="APKMirror" else source.lower()+":"+url
-    return entry(source,key,name,url,category="game" if source=="TapTap" or "game" in str(data.get("applicationCategory","")).lower() else "app",version=clean(data.get("softwareVersion",""),80),iconUrl=icon,summary=desc,description=desc)
+    return entry(source,key,name,url,category="game" if source=="TapTap" or "game" in str(data.get("applicationCategory","")).lower() else "app",genre=clean(data.get("genre") or data.get("applicationSubCategory") or data.get("applicationCategory") or "",100),version=clean(data.get("softwareVersion",""),80),iconUrl=icon,summary=desc,description=desc)
 def approved_rows(source):
     """Import an explicitly authorized provider export, not a guessed endpoint."""
     file=Path(__file__).resolve().parent/"approved-feeds"/(source.lower()+".json")
@@ -155,7 +155,7 @@ def approved_rows(source):
         icon=image(source,item.get("iconUrl",""))
         if not name or not desc or not icon: continue
         key="apkmirror:"+urllib.parse.urlsplit(url).path if source=="APKMirror" else source.lower()+":"+url
-        row=entry(source,key,name,url,category="game" if source=="TapTap" or item.get("category")=="game" else "app",version=clean(item.get("version",""),80),iconUrl=icon,summary=desc,description=desc)
+        row=entry(source,key,name,url,category="game" if source=="TapTap" or item.get("category")=="game" else "app",genre=clean(item.get("genre",""),100),version=clean(item.get("version",""),80),iconUrl=icon,summary=desc,description=desc)
         if row: out[key]=row
     return list(out.values()),"authorized_export"
 

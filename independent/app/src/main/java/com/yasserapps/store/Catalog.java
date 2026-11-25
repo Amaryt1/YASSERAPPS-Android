@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 public final class Catalog {
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     public static class App {
-        public String id="", name="", packageName="", category="app", version="";
+        public String id="", name="", packageName="", category="app", version="", genre="";
         public String apkUrl="", iconUrl="", bannerUrl="", summary="", description="", changelog="", sha256="";
         public String sourceName="", signerSha256="", license="", legacyMd5="", legacySignerSha1="";
         public int versionCode;
@@ -33,7 +33,7 @@ public final class Catalog {
     public interface Callback { void loaded(Result result); }
     static JSONObject toJson(App a) throws Exception {
         return new JSONObject().put("id",a.id).put("name",a.name).put("packageName",a.packageName)
-            .put("category",a.category).put("version",a.version).put("versionCode",a.versionCode)
+            .put("category",a.category).put("genre",a.genre).put("version",a.version).put("versionCode",a.versionCode)
             .put("apkUrl",a.apkUrl).put("iconUrl",a.iconUrl).put("bannerUrl",a.bannerUrl)
             .put("summary",a.summary).put("description",a.description).put("changelog",a.changelog)
             .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
@@ -45,7 +45,7 @@ public final class Catalog {
     static App fromJson(JSONObject obj) throws Exception {
         App a=new App();
         a.id=obj.getString("id"); a.name=obj.getString("name"); a.packageName=obj.getString("packageName");
-        a.category=obj.getString("category"); a.version=obj.getString("version"); a.versionCode=obj.getInt("versionCode");
+        a.category=obj.getString("category"); a.genre=obj.optString("genre"); a.version=obj.getString("version"); a.versionCode=obj.getInt("versionCode");
         a.apkUrl=obj.getString("apkUrl"); a.iconUrl=obj.optString("iconUrl"); a.bannerUrl=obj.optString("bannerUrl");
         a.summary=obj.optString("summary"); a.description=obj.optString("description"); a.changelog=obj.optString("changelog");
         a.sha256=obj.getString("sha256"); a.sizeBytes=obj.getLong("sizeBytes"); a.sourceName=obj.getString("sourceName");

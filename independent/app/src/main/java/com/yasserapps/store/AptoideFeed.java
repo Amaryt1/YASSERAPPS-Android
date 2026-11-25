@@ -119,7 +119,7 @@ final class AptoideFeed {
             if(!pkg.matches("[A-Za-z_][A-Za-z_0-9]*(\\.[A-Za-z_][A-Za-z_0-9]*)+")||name.isEmpty()||name.length()>200||code<1||size<1||!listingLink(link))continue;
             Catalog.App a=new Catalog.App();
             a.id="aptoide."+pkg; a.packageName=pkg; a.name=name;
-            a.category="games".equals(category)?"game":"app"; a.versionCode=code; a.version=f.optString("vername");
+            a.category="games".equals(category)?"game":"app"; a.genre=r.optString("genre",r.optString("category")); a.versionCode=code; a.version=f.optString("vername");
             a.sizeBytes=size; a.sourceName="Aptoide"; a.discoveryOnly=true;
             a.publisherUrl=link; a.attribution="Aptoide";
             a.summary="";
