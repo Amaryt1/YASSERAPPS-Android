@@ -5,4 +5,4 @@ android {
  defaultConfig { applicationId 'iq.yasserapps.studio'; minSdk 26; targetSdk 34; versionCode 12; versionName '0.9.2' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
-dependencies { implementation 'com.android.tools.build:apksig:8.7.3'; implementation 'org.smali:dexlib2:2.5.2'; testImplementation 'junit:junit:4.13.2'; testImplementation 'org.json:json:20240303' }
+dependencies { implementation 'com.android.tools.build:apksig:8.7.3'; implementation 'org.smali:dexlib2:2.5.2'; implementation 'com.google.guava:guava:27.1-android'; testImplementation 'junit:junit:4.13.2'; testImplementation 'org.json:json:20240303' }
