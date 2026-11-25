@@ -9,8 +9,9 @@ public class MainActivity extends Activity {
  LinearLayout root=ui.col();root.setPadding(dp(13),dp(5),dp(13),dp(14));sc.addView(root);setContentView(sc);
  LinearLayout advanced=ui.section();advanced.setVisibility(android.view.View.GONE);
  Runnable toggle=()->{advanced.setVisibility(advanced.getVisibility()==android.view.View.VISIBLE?android.view.View.GONE:android.view.View.VISIBLE);};
- ui.header(root,"V1.0.1 • استبدال الهوية",()->{if(!busy){toggle.run();if(advanced.getVisibility()==android.view.View.VISIBLE)sc.post(()->sc.smoothScrollTo(0,advanced.getTop()));}},()->{if(!busy)editBrandPreset();});
+ ui.header(root,"V1.0.2 • استبدال الهوية",()->{if(!busy){toggle.run();if(advanced.getVisibility()==android.view.View.VISIBLE)sc.post(()->sc.smoothScrollTo(0,advanced.getTop()));}},()->{if(!busy)editBrandPreset();});
  choose=ui.action("اختيار ملف APK","apk",1,()->{if(!busy)startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),1);});ui.add(root,choose,49,5);
+ ui.add(root,ui.action("تعديل وتصدير جماعي","layers",1,()->{if(!busy)pickBatch();}),49,7);
  ui.add(root,ui.action("تصميم هويتي • YASSERAPPS","brush",1,()->{if(!busy)editBrandPreset();}),49,7);
  ui.add(root,ui.action("تجربة نافذة الهوية المحفوظة","preview",1,()->{if(!busy)testBrand(false);}),49,7);
  ui.heading(root,"سير العمل","layers",null);LinearLayout work=ui.section();
@@ -24,7 +25,6 @@ public class MainActivity extends Activity {
  signingReportButton=ui.action("تقرير التوقيع الأخير","cert",3,()->{if(!busy)showSigningReport();});ui.add(advanced,signingReportButton,43,0);
  analysisButton=ui.action("تقرير التحليل والتوافق","bars",3,()->{if(!busy)showAnalysis();});ui.add(advanced,analysisButton,43,6);
  deepScanButton=ui.action("فحص معمّق للموارد (قراءة فقط)","search",3,()->{if(!busy)multiScan();});ui.add(advanced,deepScanButton,43,6);
- ui.add(advanced,ui.action("تعديل وتصدير جماعي","layers",3,()->{if(!busy)pickBatch();}),43,6);
  ui.add(advanced,ui.action("إدارة الهويات المحفوظة","brush",3,()->{if(!busy)managePresets();}),43,6);
  ui.add(advanced,ui.action("تحرير مساحة العمل","folder",3,()->{if(!busy)releaseWorkspace();}),43,6);
  ui.add(root,advanced,-2,0);
