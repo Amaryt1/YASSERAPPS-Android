@@ -8,5 +8,7 @@
   "channelUrl": "https://t.me/YasserAppsIQ",
   "buttonText": "انضم إلى قناة تيليجرام",
   "accent": "#39FF7A",
-  "background": "#090B09"
+  "background": "#090B09",
+  "runtime": "native-brand-v1",
+  "replacementEnabled": false
 }
