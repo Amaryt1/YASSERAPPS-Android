@@ -58,7 +58,40 @@ public final class MainActivity extends Activity {
     private static final String CHANNEL = "https://t.me/YasserAppsIQ";
 
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final ExecutorService images = Executors.newFixedThreadPool(3);
+    private final java.util.concurrent.ThreadPoolExecutor images = new java.util.concurrent.ThreadPoolExecutor(3,3,0L,java.util.concurrent.TimeUnit.MILLISECONDS,new java.util.concurrent.LinkedBlockingDeque<>(96),new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+    private final ExecutorService searchWorker=Executors.newSingleThreadExecutor();
+    private java.util.concurrent.Future<?> searchTask;
+    private Runnable pendingSearch;
+    private int searchGeneration;
+    private Map<String,Long> installedVersions=java.util.Collections.emptyMap();
+    private Map<String,List<Catalog.App>> shelfIndex=java.util.Collections.emptyMap();
+    private List<Catalog.App> featuredIndexItems=java.util.Collections.emptyList();
+    private List<Catalog.App> shelfRows(String key){
+        List<Catalog.App> rows=shelfIndex.get(key);
+        return rows==null?java.util.Collections.emptyList():rows;
+    }
+    private Map<String,Long> readInstalledVersions(){
+        Map<String,Long> versions=new HashMap<>();
+        try {
+            for(PackageInfo pi:getPackageManager().getInstalledPackages(0))
+                versions.put(pi.packageName,Build.VERSION.SDK_INT>=28?pi.getLongVersionCode():(long)pi.versionCode);
+        }catch(Exception ignored){}
+        return versions;
+    }
+    private static Map<String,List<Catalog.App>> buildShelves(List<Catalog.App> rows,Map<String,Long> installed){
+        Map<String,List<Catalog.App>> out=new HashMap<>();
+        out.put("app",new ArrayList<>());out.put("game",new ArrayList<>());out.put("updates",new ArrayList<>());
+        for(Catalog.App a:rows){
+            String kind=a.isGame()?"game":"app";
+            out.get(kind).add(a);
+            String topic=BrowseGroups.topic(a);
+            if(!topic.isEmpty())out.computeIfAbsent("topic:"+kind+":"+topic,k->new ArrayList<>()).add(a);
+            Long v=installed.get(a.packageName);
+            if(v!=null&&a.versionCode>v&&(!a.discoveryOnly||"Aptoide".equals(a.sourceName)))out.get("updates").add(a);
+        }
+        for(String key:new String[]{"picks","picks:app","picks:game","recent","added"})out.put(key,BrowseGroups.select(rows,key));
+        return out;
+    }
     private final android.util.LruCache<String, Bitmap> thumbnails =
         new android.util.LruCache<String, Bitmap>(12 * 1024 * 1024) {
             @Override protected int sizeOf(String key, Bitmap value) {
@@ -113,7 +146,7 @@ public final class MainActivity extends Activity {
     private FrameLayout screen;
     private String page = "home";
     private String category = "all";
-    private static final int CATALOG_PAGE_SIZE = 50;
+    private static final int CATALOG_PAGE_SIZE = 20;
     private String listTitle = "";
     private String listKind = "all";
     private boolean loading = true;
@@ -420,11 +453,8 @@ public final class MainActivity extends Activity {
 
     private boolean installedAndNewer(Catalog.App app) {
         if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName))return false;
-        try {
-            PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
-            long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
-            return app.versionCode > current;
-        } catch (Exception ignored) { return false; }
+        Long current=installedVersions.get(app.packageName);
+        return current!=null&&app.versionCode>current;
     }
 
     private List<Catalog.App> matching(String kind) {
@@ -477,7 +507,7 @@ public final class MainActivity extends Activity {
     private void updateHomeContent(){
         if(homeShelves==null||!homeShelves.isAttachedToWindow()){showHome();return;}
         if("all".equals(category)&&featuredContainer!=null&&featuredContainer.isAttachedToWindow()){
-            List<Catalog.App> next=FeaturedApps.choose(apps);
+            List<Catalog.App> next=featuredIndexItems;
             int index=0;
             for(int i=0;i<next.size();i++)if(next.get(i).packageName.equals(selectedFeaturedPackage))index=i;
             renderFeatured(featuredContainer,next,index);
@@ -492,27 +522,27 @@ public final class MainActivity extends Activity {
             return;
         }
         if("all".equals(category)){
-            shelf(homeShelves,"التطبيقات",matching("app"),"app");
-            shelf(homeShelves,"الألعاب",matching("game"),"game");
-            shelf(homeShelves,"مختارة لك",BrowseGroups.select(apps,"picks"),"picks");
+            shelf(homeShelves,"التطبيقات",shelfRows("app"),"app");
+            shelf(homeShelves,"الألعاب",shelfRows("game"),"game");
+            shelf(homeShelves,"مختارة لك",shelfRows("picks"),"picks");
             // Timestamp is upstream release/update date, not a fabricated first-added date.
-            shelf(homeShelves,"المضافة حديثاً",BrowseGroups.select(apps,"added"),"added");
-            shelf(homeShelves,"آخر الإصدارات والتحديثات",BrowseGroups.select(apps,"recent"),"recent");
-            shelf(homeShelves,"تحديثات تطبيقاتك",matching("updates"),"updates");
+            shelf(homeShelves,"المضافة حديثاً",shelfRows("added"),"added");
+            shelf(homeShelves,"آخر الإصدارات والتحديثات",shelfRows("recent"),"recent");
+            shelf(homeShelves,"تحديثات تطبيقاتك",shelfRows("updates"),"updates");
         }else{
             boolean game="game".equals(category);
             String kind=game?"game":"app";
-            shelf(homeShelves,game?"جميع الألعاب":"جميع التطبيقات",matching(kind),kind);
+            shelf(homeShelves,game?"جميع الألعاب":"جميع التطبيقات",shelfRows(kind),kind);
             for(String[] row:game?BrowseGroups.GAME:BrowseGroups.APP){
                 String key="topic:"+kind+":"+row[0];
-                shelf(homeShelves,row[1],BrowseGroups.select(apps,key),key);
+                shelf(homeShelves,row[1],shelfRows(key),key);
             }
-            shelf(homeShelves,game?"ألعاب مختارة لك":"تطبيقات مختارة لك",BrowseGroups.select(apps,"picks:"+kind),"picks:"+kind);
+            shelf(homeShelves,game?"ألعاب مختارة لك":"تطبيقات مختارة لك",shelfRows("picks:"+kind),"picks:"+kind);
         }
     }
 
     private void heroCard(LinearLayout root) {
-        List<Catalog.App> featured = FeaturedApps.choose(apps);
+        List<Catalog.App> featured = featuredIndexItems;
         LinearLayout container = linear(true);
         featuredContainer=container;
         root.addView(container, lp(-1, -2));
@@ -677,7 +707,7 @@ public final class MainActivity extends Activity {
         scroll.setFillViewport(false);
         LinearLayout row=linear(false);
         row.setGravity(Gravity.TOP);
-        final int limit=Math.min(12,entries.size());
+        final int limit=Math.min(8,entries.size());
         for(int i=0;i<limit;i++){
             Catalog.App app=entries.get(i);
             LinearLayout tile=linear(true);
@@ -765,7 +795,7 @@ public final class MainActivity extends Activity {
         listKind = kind;
         LinearLayout c = verticalContent();
         backBar(c, title, ()->{if(("related".equals(kind)||"others".equals(kind))&&relatedOrigin!=null)showDetail(relatedOrigin);else showHome();});
-        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):"others".equals(kind)&&relatedOrigin!=null?BrowseGroups.others(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")||kind.equals("added")?BrowseGroups.select(apps,kind):matching(kind);
+        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):"others".equals(kind)&&relatedOrigin!=null?BrowseGroups.others(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")||kind.equals("added")?shelfRows(kind):matching(kind);
         catalogList(c, title, rows);
         render(c, true);
     }
@@ -880,20 +910,32 @@ public final class MainActivity extends Activity {
         gap(c, 13);
         LinearLayout results = linear(true);
         c.addView(results, lp(-1, -2));
-        Runnable update = () -> {
-            results.removeAllViews();
-            String query = field.getText().toString().trim().toLowerCase(Locale.ROOT);
-            if (query.isEmpty()) {
-                return;
-            }
-            ArrayList<Catalog.App> matches = new ArrayList<>();
-            for (Catalog.App app : apps) {
-                if (app.name.toLowerCase(Locale.ROOT).contains(query) ||
-                    app.summary.toLowerCase(Locale.ROOT).contains(query) ||
-                    app.packageName.toLowerCase(Locale.ROOT).contains(query)) matches.add(app);
-            }
-            if (matches.isEmpty()) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
-            else catalogList(results, "نتائج البحث", matches);
+        Runnable update=()->{
+            if(pendingSearch!=null)main.removeCallbacks(pendingSearch);
+            if(searchTask!=null)searchTask.cancel(true);
+            final int token=++searchGeneration;
+            String query=field.getText().toString().trim().toLowerCase(Locale.ROOT);
+            if(query.isEmpty()){results.removeAllViews();return;}
+            pendingSearch=()->{
+                if(!"search".equals(page)||token!=searchGeneration||isDestroyed())return;
+                List<Catalog.App> snapshot=new ArrayList<>(apps);
+                searchTask=searchWorker.submit(()->{
+                    ArrayList<Catalog.App> matches=new ArrayList<>();
+                    for(Catalog.App app:snapshot){
+                        if(Thread.currentThread().isInterrupted())return;
+                        if(app.name.toLowerCase(Locale.ROOT).contains(query)||
+                            app.summary.toLowerCase(Locale.ROOT).contains(query)||
+                            app.packageName.toLowerCase(Locale.ROOT).contains(query))matches.add(app);
+                    }
+                    main.post(()->{
+                        if(isDestroyed()||!"search".equals(page)||token!=searchGeneration||!results.isAttachedToWindow())return;
+                        results.removeAllViews();
+                        if(matches.isEmpty())panelText(results,"لا توجد نتائج مطابقة لبحثك.");
+                        else catalogList(results,"نتائج البحث",matches);
+                    });
+                });
+            };
+            main.postDelayed(pendingSearch,250);
         };
         activeSearchRefresh = update;
         field.addTextChangedListener(new TextWatcher() {
@@ -1179,10 +1221,17 @@ public final class MainActivity extends Activity {
         lastCatalogCheck = android.os.SystemClock.elapsedRealtime();
         final int generation = ++catalogRefreshGeneration;
         loading = true;
-        Catalog.load(this, result -> main.post(() -> {
+        Catalog.load(this, result -> {
+            Map<String,Long> installed=readInstalledVersions();
+            Map<String,List<Catalog.App>> prepared=buildShelves(result.apps,installed);
+            List<Catalog.App> featured=FeaturedApps.choose(result.apps);
+            main.post(() -> {
             if (generation != catalogRefreshGeneration || isFinishing() || isDestroyed()) return;
             loading = !result.finalResult;
             if (result.finalResult) refreshInFlight = false;
+            installedVersions=installed;
+            shelfIndex=prepared;
+            featuredIndexItems=featured;
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
@@ -1210,7 +1259,7 @@ public final class MainActivity extends Activity {
                     showHome();
                 }
             }
-        }));
+        });});
     }
 
     private Bitmap decodeLimitedImage(InputStream input) throws Exception {
@@ -1247,7 +1296,9 @@ public final class MainActivity extends Activity {
             target.setImageBitmap(cached);
             return;
         }
+        java.lang.ref.WeakReference<ImageView> targetRef=new java.lang.ref.WeakReference<>(target);
         images.execute(() -> {
+            if(targetRef.get()==null||Thread.currentThread().isInterrupted())return;
             Bitmap bitmap = null;
             // Official catalog artwork bundled into this signed APK has priority,
             // so featured game screenshots and icons appear even when offline.
@@ -1287,7 +1338,8 @@ public final class MainActivity extends Activity {
             if (ready != null && !ready.isRecycled()) {
                 thumbnails.put(address, ready);
                 main.post(() -> {
-                    if (!isDestroyed()) target.setImageBitmap(ready);
+                    ImageView view=targetRef.get();
+                    if (!isDestroyed()&&view!=null&&view.isAttachedToWindow()) view.setImageBitmap(ready);
                 });
             }
         });
@@ -1668,7 +1720,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.17\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.18\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
@@ -1714,6 +1766,10 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityVisible = true;
+        searchWorker.execute(()->{
+            Map<String,Long> installed=readInstalledVersions();
+            main.post(()->{if(!isDestroyed()){installedVersions=installed;if("updates".equals(page))showUpdates();}});
+        });
         scheduleFeatured();
         main.removeCallbacks(catalogTicker);
         catalogTicker.run();
@@ -1747,6 +1803,9 @@ public final class MainActivity extends Activity {
         main.removeCallbacks(featuredTicker);
         main.removeCallbacks(catalogTicker);
         activeSearchRefresh = null;
+        if(pendingSearch!=null)main.removeCallbacks(pendingSearch);
+        if(searchTask!=null)searchTask.cancel(true);
+        searchWorker.shutdownNow();
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         images.shutdownNow();
