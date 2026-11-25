@@ -8,7 +8,9 @@ public final class ScanSignals {
  private final Map<String,Set<String>> sources=new LinkedHashMap<>(),hosts=new TreeMap<>();
  private long strings; private boolean limited; private final EncodingStats encoding=new EncodingStats();
  public static String classify(String value){
-  String s=value.toLowerCase(Locale.ROOT);
+  return classifyLower(value.toLowerCase(Locale.ROOT));
+ }
+ private static String classifyLower(String s){
   boolean update=s.contains("update")||s.contains("upgrade")||s.contains("تحديث");
   if(s.contains("security update")||s.contains("security patch")||s.contains("security_update")||s.contains("security_patch")||s.contains("تحديث أمني"))return "أمني محتمل";
   if(update&&(s.contains("mandatory")||s.contains("force")||s.contains("required")||s.contains("إجباري")))return "إلزامي محتمل";
@@ -27,14 +29,14 @@ public final class ScanSignals {
   strings++;
   if(value==null||value.length()>8192)return;
   encoding.observe(value);
-  String category=classify(value);
+  String lower=value.toLowerCase(Locale.ROOT);
+  String category=classifyLower(lower);
   if(!category.isEmpty())mark(sources,source,category,256);
   if(value.length()>2&&value.charAt(0)=='L'&&value.endsWith(";")){
    String simple=value.substring(value.lastIndexOf('/')+1,value.length()-1).toLowerCase(Locale.ROOT);
    if(simple.contains("dialog")||simple.contains("popup")||simple.contains("window"))mark(sources,source,"نوع واجهة مرشح",256);
    if(simple.equals("strings")||simple.equals("colors")||simple.equals("dimens")||simple.equals("base64image"))mark(sources,source,"مكوّن موارد مرشح",256);
   }
-  String lower=value.toLowerCase(Locale.ROOT);
   if(!lower.contains("http://")&&!lower.contains("https://"))return;
   Matcher m=URL.matcher(value);
   while(m.find())try{

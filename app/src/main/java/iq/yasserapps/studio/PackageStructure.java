@@ -8,6 +8,7 @@ final class PackageStructure {
  long nativeBytes,resourceBytes;
  final Map<String,Integer> machines=new TreeMap<>();
  static final int MAX_HEADERS=4096;
+ private static final java.util.regex.Pattern IMAGE=java.util.regex.Pattern.compile(".*\\.(png|webp|jpg|jpeg|gif)$");
  private int headers;
  private static int u16(byte[] b,int p,boolean le){return le?(b[p]&255)|((b[p+1]&255)<<8):((b[p]&255)<<8)|(b[p+1]&255);}
  private static long u32(byte[] b,int p){return (long)(b[p]&255)|((long)(b[p+1]&255)<<8)|((long)(b[p+2]&255)<<16)|((long)(b[p+3]&255)<<24);}
@@ -20,7 +21,7 @@ final class PackageStructure {
   String n=e.getName().toLowerCase(Locale.ROOT);
   boolean lib=n.startsWith("lib/")&&n.endsWith(".so"),table=n.equals("resources.arsc"),resXml=n.equals("androidmanifest.xml")||(n.startsWith("res/")&&n.endsWith(".xml"));
   if(n.startsWith("assets/"))assets++;
-  if(n.startsWith("res/")){resourceBytes+=e.getSize();if(n.startsWith("res/layout")&&n.endsWith(".xml"))layouts++;if(n.matches(".*\\.(png|webp|jpg|jpeg|gif)$"))images++;}
+  if(n.startsWith("res/")){resourceBytes+=e.getSize();if(n.startsWith("res/layout")&&n.endsWith(".xml"))layouts++;if(IMAGE.matcher(n).matches())images++;}
   if(table)resourceBytes+=e.getSize();
   if(resXml)xml++;
   if(lib){nativeFiles++;nativeBytes+=e.getSize();}
