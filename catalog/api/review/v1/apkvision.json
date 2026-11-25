@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "source": "APKVision",
+  "generatedAt": 1795627598270,
+  "status": "metadata_review_only",
+  "discoveredPageUrls": 6032,
+  "reviewPagesChecked": 24,
+  "total": 24,
+  "installable": 0,
+  "records": [
+    {
+      "name": "INSIDE",
+      "installable": false,
+      "softwareVersion": "1.0.240476",
+      "operatingSystem": "Android",
+      "applicationCategory": "GameApplication",
+      "fileSize": "1.68 GB"
+    },
+    {
+      "name": "1Mobile Market",
+      "installable": false,
+      "softwareVersion": "6.8.0.1",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "7.97 MB"
+    },
+    {
+      "name": "AI Image Generator &#8211; FotoTweak",
+      "installable": false,
+      "softwareVersion": "1.0.43",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "58.92 MB"
+    },
+    {
+      "name": "AI Video Art Creator &#8211; Livensa",
+      "installable": false,
+      "softwareVersion": "5.1.15",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication"
+    },
+    {
+      "name": "AR Drawing: Sketch &#038; Paint",
+      "installable": false,
+      "softwareVersion": "4.6.6",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "159.55 MB"
+    },
+    {
+      "name": "Blur Photo &#8211; Blur Background",
+      "installable": false,
+      "softwareVersion": "1.2.2",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "37.05 MB"
+    },
+    {
+      "name": "BrandSpot365",
+      "installable": false,
+      "softwareVersion": "2.87",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "20.8 MB"
+    },
+    {
+      "name": "Castle &#8211; Make and Pla‪y",
+      "installable": false,
+      "softwareVersion": "144.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "96.59 MB"
+    },
+    {
+      "name": "Color Gear: color wheel",
+      "installable": false,
+      "softwareVersion": "1.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "24 MB"
+    },
+    {
+      "name": "FlipaClip &#8211; Cartoon animation",
+      "installable": false,
+      "softwareVersion": "4.2.5",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "151.23 MB"
+    },
+    {
+      "name": "Imagine: AI Art Generator Pro",
+      "installable": false,
+      "softwareVersion": "2.8.0 b165",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "51.04 MB"
+    },
+    {
+      "name": "MindSync: AI Photo Editor",
+      "installable": false,
+      "softwareVersion": "1.6.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "86.84 MB"
+    },
+    {
+      "name": "Monet &#8211; AI Image Generator",
+      "installable": false,
+      "softwareVersion": "3.0.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "108.43 MB"
+    },
+    {
+      "name": "Stickman: draw animation Premium",
+      "installable": false,
+      "softwareVersion": "5.0.9",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "29.34 MB"
+    },
+    {
+      "name": "Vector Ink",
+      "installable": false,
+      "softwareVersion": "5.0.3",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "171 MB"
+    },
+    {
+      "name": "ASUS Game Genie",
+      "installable": false,
+      "softwareVersion": "5.0.0.41",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "5.73 MB"
+    },
+    {
+      "name": "BeamNG.drive Remote Control",
+      "installable": false,
+      "softwareVersion": "1.2.3",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "3.00MB"
+    },
+    {
+      "name": "BiP Messenger",
+      "installable": false,
+      "softwareVersion": "5.5.31",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "410.73 MB"
+    },
+    {
+      "name": "Beatleap",
+      "installable": false,
+      "softwareVersion": "1.0.31",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "20.3 MB"
+    },
+    {
+      "name": "Calibre Companion",
+      "installable": false,
+      "softwareVersion": "5.4.3.3",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "5.53 MB"
+    },
+    {
+      "name": "Chambers Dictionary",
+      "installable": false,
+      "softwareVersion": "3.71",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "25.48 MB"
+    },
+    {
+      "name": "CleverBook for Minecraft",
+      "installable": false,
+      "softwareVersion": "4.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "13.8 MB"
+    },
+    {
+      "name": "LightX Photo Editor Pro",
+      "installable": false,
+      "softwareVersion": "2.2.0",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "136 MB"
+    },
+    {
+      "name": "NovelShort",
+      "installable": false,
+      "softwareVersion": "0.0.8.1008",
+      "operatingSystem": "Android",
+      "applicationCategory": "UtilitiesApplication",
+      "fileSize": "23.32 MB"
+    }
+  ]
+}

@@ -10,6 +10,9 @@ on:
       - 'catalog/provider_formats.py'
       - 'catalog/mod-source-candidates.json'
       - 'catalog/approved-mod-feeds/**'
+      - 'catalog/api/review/**'
+      - 'catalog/provider-contract/**'
+      - 'catalog/test_review_api_snapshot.py'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
   contents: read
@@ -26,6 +29,7 @@ jobs:
         run: |
           python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py catalog/build_api.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
+          python3 -m unittest discover -s catalog -p test_review_api_snapshot.py
       - name: Generate candidate catalogue without publishing
         run: |
           python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500

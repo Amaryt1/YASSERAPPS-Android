@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "format": "json",
+  "itemsPath": "apps",
+  "nextPath": "next",
+  "maxPageSizeRecommended": 250,
+  "requiredReleaseFields": [
+    "id",
+    "name",
+    "packageName",
+    "category",
+    "version",
+    "versionCode",
+    "modified",
+    "modDescription",
+    "modEvidenceUrl",
+    "publisherUrl"
+  ],
+  "installableReleaseFields": [
+    "apkUrl",
+    "sizeBytes",
+    "sha256",
+    "signerSha256"
+  ],
+  "requirements": {
+    "providerAuthorization": "Explicit authorization and permission URL for the release feed",
+    "releaseRights": "Documented rights for each binary",
+    "transport": "HTTPS same-origin pagination",
+    "description": "Arabic reviewed modification description",
+    "verification": "Verify actual binary hash, package, version and signer before publication",
+    "hosting": "Provider hosts binary; YASSERAPPS hosts JSON only"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": 1795627598270,
+  "mode": "metadata_review_only",
+  "workflowRun": 45664354330,
+  "sources": [
+    {
+      "name": "Android Oyun Club",
+      "path": "androidoyun-club.json",
+      "discoveredPageUrls": 20001,
+      "reviewedRecords": 0,
+      "installable": 0
+    },
+    {
+      "name": "APKVision",
+      "path": "apkvision.json",
+      "discoveredPageUrls": 6032,
+      "reviewedRecords": 24,
+      "installable": 0
+    }
+  ],
+  "installable": 0
+}
