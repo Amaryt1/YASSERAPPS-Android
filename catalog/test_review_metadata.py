@@ -24,3 +24,10 @@ class ReviewTest(unittest.TestCase):
         self.assertFalse(rows[0]["installable"])
         self.assertNotIn("apkUrl",rows[0])
         self.assertNotIn("modified",rows[0])
+
+    def test_size_is_not_a_download_url(self):
+        for size in ("https://example.invalid/fixture.apk","unknown"):
+            html='<script type="application/ld+json">{"@type":"MobileApplication","name":"Fixture","fileSize":"'+size+'"}</script>'
+            self.assertNotIn("fileSize",factual_rows(html,"Fixture","https://x.invalid/app")[0])
+        html='<script type="application/ld+json">{"@type":"MobileApplication","name":"Fixture","fileSize":"1.68 GB"}</script>'
+        self.assertEqual(factual_rows(html,"Fixture","https://x.invalid/app")[0]["fileSize"],"1.68 GB")

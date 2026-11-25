@@ -55,7 +55,11 @@ def factual_rows(html,source,url):
         row={"name":name.strip()[:200],"source":source,"pageUrl":url,"status":"review_required","installable":False}
         for key in ("softwareVersion","operatingSystem","applicationCategory","fileSize"):
             val=item.get(key)
-            if isinstance(val,str) and val.strip():row[key]=val.strip()[:160]
+            if isinstance(val,str) and val.strip():
+                value=val.strip()
+                if key=="fileSize" and not re.fullmatch(r"\d+(?:[.,]\d+)?\s*(?:B|KB|MB|GB|TB|KiB|MiB|GiB|TiB|bytes)",value,re.I):
+                    continue
+                row[key]=value[:160]
         # Image URLs are evidence only; they are not fetched or published in store.
         image=item.get("image")
         if isinstance(image,dict):image=image.get("url")

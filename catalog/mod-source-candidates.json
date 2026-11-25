@@ -6,7 +6,7 @@
     {
       "name": "Android Oyun Club",
       "slug": "androidoyun-club",
-      "probeHome": "https://androidoyun.club/",
+      "probeHome": "https://androidoyun.club/apks",
       "probeSeed": "https://androidoyun.club/android-oyun-kategorileri",
       "localApi": "sources/androidoyun-club/index.json",
       "status": "pending_provider_review",

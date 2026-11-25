@@ -133,7 +133,11 @@ def inspect(name,home,fetch=get,review_pages=MAX_REVIEW_PAGES,seed=None):
             checked+=1
             if status in ("401","403","429"):break
             if status=="200" and content:
-                try:sample.extend(factual_rows(content,name,url))
+                try:
+                    for row in factual_rows(content,name,url):
+                        # Capability reports are metadata only; do not retain candidate download endpoints.
+                        row.pop("explicitApkUrl",None)
+                        sample.append(row)
                 except (ValueError,TypeError):continue
     result["reviewPagesChecked"]=checked
     result["reviewRows"]=sample
