@@ -32,7 +32,7 @@ public final class ReplacementWindow {
   Button next=button(a,"متابعة إلى التطبيق",bg,edge,fg);add(card,next,-1,dp(a,50),10);
   CheckBox hide=new CheckBox(a);hide.setText("عدم الإظهار مجدداً");hide.setTextColor(muted);hide.setTextSize(14);hide.setButtonTintList(ColorStateList.valueOf(accent));hide.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);add(card,hide,-2,-2,9);
   View line=new View(a);line.setBackgroundColor(edge);add(card,line,-1,dp(a,1),12);
-  add(card,text(a,n.getString("brand")+" • إشعار قناة مستقل",12,accent,true),-1,-2,10);
+  TextView footer=text(a,"© "+n.getString("brand"),12,accent,true);footer.setTextDirection(View.TEXT_DIRECTION_LTR);add(card,footer,-1,-2,10);
   if(preview)add(card,text(a,"معاينة التصميم — لا يُحفظ خيار الإخفاء هنا",11,muted,false),-1,-2,6);
   ScrollView scroll=new ScrollView(a);scroll.setFillViewport(false);scroll.addView(card);Dialog d=new Dialog(a);d.requestWindowFeature(Window.FEATURE_NO_TITLE);d.setContentView(scroll);d.setCancelable(true);d.setCanceledOnTouchOutside(false);
   Runnable finish=()->{if(!preview&&hide.isChecked()&&optOut!=null)optOut.run();d.dismiss();};next.setOnClickListener(v->finish.run());d.setOnCancelListener(v->{if(!preview&&hide.isChecked()&&optOut!=null)optOut.run();});
