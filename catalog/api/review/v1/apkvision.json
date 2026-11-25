@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "APKVision",
-  "generatedAt": 1795627598270,
+  "generatedAt": 1795630577781,
   "status": "metadata_review_only",
   "discoveredPageUrls": 6032,
   "reviewPagesChecked": 24,
@@ -11,6 +11,7 @@
     {
       "name": "INSIDE",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.0.240476",
       "operatingSystem": "Android",
       "applicationCategory": "GameApplication",
@@ -19,37 +20,42 @@
     {
       "name": "1Mobile Market",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "6.8.0.1",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "7.97 MB"
     },
     {
-      "name": "AI Image Generator &#8211; FotoTweak",
+      "name": "AI Image Generator – FotoTweak",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.0.43",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "58.92 MB"
     },
     {
-      "name": "AI Video Art Creator &#8211; Livensa",
+      "name": "AI Video Art Creator – Livensa",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.1.15",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication"
     },
     {
-      "name": "AR Drawing: Sketch &#038; Paint",
+      "name": "AR Drawing: Sketch & Paint",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "4.6.6",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "159.55 MB"
     },
     {
-      "name": "Blur Photo &#8211; Blur Background",
+      "name": "Blur Photo – Blur Background",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.2.2",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -58,14 +64,16 @@
     {
       "name": "BrandSpot365",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "2.87",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "20.8 MB"
     },
     {
-      "name": "Castle &#8211; Make and Pla‪y",
+      "name": "Castle – Make and Pla‪y",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "144.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -74,14 +82,16 @@
     {
       "name": "Color Gear: color wheel",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "24 MB"
     },
     {
-      "name": "FlipaClip &#8211; Cartoon animation",
+      "name": "FlipaClip – Cartoon animation",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "4.2.5",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -90,6 +100,7 @@
     {
       "name": "Imagine: AI Art Generator Pro",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "2.8.0 b165",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -98,14 +109,16 @@
     {
       "name": "MindSync: AI Photo Editor",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.6.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
       "fileSize": "86.84 MB"
     },
     {
-      "name": "Monet &#8211; AI Image Generator",
+      "name": "Monet – AI Image Generator",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "3.0.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -114,6 +127,7 @@
     {
       "name": "Stickman: draw animation Premium",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.0.9",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -122,6 +136,7 @@
     {
       "name": "Vector Ink",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.0.3",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -130,6 +145,7 @@
     {
       "name": "ASUS Game Genie",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.0.0.41",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -138,6 +154,7 @@
     {
       "name": "BeamNG.drive Remote Control",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.2.3",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -146,6 +163,7 @@
     {
       "name": "BiP Messenger",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.5.31",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -154,6 +172,7 @@
     {
       "name": "Beatleap",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "1.0.31",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -162,6 +181,7 @@
     {
       "name": "Calibre Companion",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "5.4.3.3",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -170,6 +190,7 @@
     {
       "name": "Chambers Dictionary",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "3.71",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -178,6 +199,7 @@
     {
       "name": "CleverBook for Minecraft",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "4.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -186,6 +208,7 @@
     {
       "name": "LightX Photo Editor Pro",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "2.2.0",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
@@ -194,6 +217,7 @@
     {
       "name": "NovelShort",
       "installable": false,
+      "recordType": "structured_application",
       "softwareVersion": "0.0.8.1008",
       "operatingSystem": "Android",
       "applicationCategory": "UtilitiesApplication",
