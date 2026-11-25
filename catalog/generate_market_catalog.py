@@ -228,7 +228,12 @@ def main():
                     if not u: continue
                     try: stamp=int(parsedate_to_datetime(item.findtext("pubDate","")).timestamp()*1000)
                     except Exception: stamp=0
-                    save(entry("APKMirror","apkmirror:"+urllib.parse.urlsplit(u).path,title,u,summary=clean(item.findtext("description",""),180),updatedAt=stamp))
+                    match=re.match(r"^(.*?)\s+(\d[\w.+-]*)\s+by\s+.+$",title,re.I)
+                    if match:
+                        title,version=match.group(1),match.group(2)
+                    else:
+                        version=""
+                    save(entry("APKMirror","apkmirror:"+urllib.parse.urlsplit(u).path,title,u,version=version,updatedAt=stamp))
             except urllib.error.HTTPError as e:
                 print("RSS_HTTP",e.code,flush=True)
                 if e.code in (403,429):

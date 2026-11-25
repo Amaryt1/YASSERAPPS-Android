@@ -49,11 +49,11 @@ jobs:
           set -euo pipefail
           mkdir -p independent/app/src/main/assets
           DEST=independent/app/src/main/assets/server-catalog.json
-          cp catalog/generated/index.json "$DEST"
+          cp catalog/generated/full-index.json "$DEST"
           python3 - "$DEST" <<'PY'
           import json,sys
           d=json.load(open(sys.argv[1]))
-          assert d['schemaVersion']==1 and 0<len(d['apps'])<=20000
+          assert d['schemaVersion']==1 and 0<len(d['apps'])<=50000
           assert len(d['apps'])==d['report']['total']
           assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
           print("EMBEDDED_CATALOG",json.dumps(d['report']))

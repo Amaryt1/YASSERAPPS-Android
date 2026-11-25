@@ -555,7 +555,7 @@ public final class MainActivity extends Activity {
             name.setMaxLines(2);
             title.addView(name);
             gap(title,7);
-            TextView sub=text("الإصدار "+selected.version+" • "+FeaturedApps.displayCopy(selected.summary),12,WHITE,false);
+            TextView sub=text("الإصدار "+selected.version+" • "+ArabicCopy.preview(selected),12,WHITE,false);
             sub.setMaxLines(2);
             title.addView(sub);
             gap(title,12);
@@ -750,7 +750,7 @@ public final class MainActivity extends Activity {
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         contents.addView(name);
         gap(contents,3);
-        TextView sub=text(app.summary.isEmpty()?"تطبيق للأندرويد":app.summary,12,SUBTEXT,false);
+        TextView sub=text(ArabicCopy.preview(app),12,SUBTEXT,false);
         sub.setMaxLines(2);
         sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
         contents.addView(sub);
@@ -882,14 +882,16 @@ public final class MainActivity extends Activity {
         render(c, true);
     }
 
-    private void detailSection(LinearLayout c, String title, String message) {
+    private TextView detailSection(LinearLayout c, String title, String message) {
         LinearLayout panel = linear(true);
         panel.setPadding(dp(15), dp(13), dp(15), dp(14));
         panel.setBackground(shape(PANEL, 19, Color.rgb(47, 53, 47)));
         panel.addView(text(title, 18, GREEN, true));
         gap(panel, 9);
-        panel.addView(text(message.isEmpty() ? "لا توجد معلومات إضافية." : message, 14, WHITE, false));
+        TextView body=text(message.isEmpty() ? "لا توجد معلومات إضافية." : message, 14, WHITE, false);
+        panel.addView(body);
         c.addView(panel, lp(-1, -2));
+        return body;
     }
 
     private final Map<String,Long> detailChecks=new HashMap<>();
@@ -904,7 +906,7 @@ public final class MainActivity extends Activity {
                     if(isFinishing()||isDestroyed()||fresh==null)return;
                     for(int i=0;i<apps.size();i++){
                         Catalog.App old=apps.get(i);
-                        if(old.packageName.equals(fresh.packageName)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
+                        if(old.id.equals(fresh.id)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
                     }
                     if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(fresh.packageName)&&fresh.versionCode>=detailApp.versionCode)showDetail(fresh);
                 }));
@@ -955,7 +957,7 @@ public final class MainActivity extends Activity {
         name.setMaxLines(2);
         texts.addView(name);
         gap(texts,6);
-        TextView summary=text(FeaturedApps.displayCopy(app.summary),13,SUBTEXT,false);
+        TextView summary=text(ArabicCopy.preview(app),13,SUBTEXT,false);
         summary.setMaxLines(2);
         texts.addView(summary);
         gap(texts,11);
@@ -1013,7 +1015,7 @@ public final class MainActivity extends Activity {
             gap(content,8);
             content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
         }
-        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("المصدر يوفّر بيانات التطبيق فقط؛ لا يوجد رابط تنزيل مباشر متحقق.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -1048,10 +1050,12 @@ public final class MainActivity extends Activity {
             content.addView(scroller,lp(-1,173));
             gap(content,23);
         }
-        detailSection(content,"الوصف",FeaturedApps.description(app).isEmpty()?"لا يوجد وصف متاح لهذا التطبيق.":FeaturedApps.description(app));
-        gap(content,16);
-        detailSection(content,"سجل التحديثات  •  "+app.version,
-            FeaturedApps.displayCopy(app.changelog).isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":FeaturedApps.displayCopy(app.changelog));
+        TextView descriptionBody=detailSection(content,"الوصف",ArabicCopy.initial(app));
+        ArabicCopy.translate(app,translated -> main.post(() -> {
+            if(isFinishing()||isDestroyed()||!"detail".equals(page)||detailApp!=app)return;
+            descriptionBody.setText(translated);
+            if(!translated.startsWith("تعذّر")&&!translated.startsWith("لا يوجد")) summary.setText(translated);
+        }));
         gap(content,16);
         if(!app.attribution.isEmpty()) {
             TextView credit=text(app.attribution,11,SUBTEXT,false);
@@ -1134,6 +1138,7 @@ public final class MainActivity extends Activity {
             else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
             else if ("detail".equals(page) && detailApp != null) {
                 for (Catalog.App current : apps) if (current.id.equals(detailApp.id)) {
+                    if (current.versionCode==detailApp.versionCode && current.discoveryOnly && !detailApp.discoveryOnly && "Aptoide".equals(current.sourceName)) break;
                     if (current.versionCode != detailApp.versionCode || !current.description.equals(detailApp.description) || !current.iconUrl.equals(detailApp.iconUrl) || !current.publisherUrl.equals(detailApp.publisherUrl) || !current.version.equals(detailApp.version) || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
                     break;
                 }
@@ -1588,7 +1593,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.6\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.15\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

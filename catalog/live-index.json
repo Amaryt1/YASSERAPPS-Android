@@ -5,12 +5,12 @@
   "refresh": {
     "pageSize": 50,
     "foregroundGrowthMinutes": 15,
-    "steadyStateHours": 6,
+    "steadyStateHours": 1,
     "targetUniquePackages": 20000,
     "publicChartBatchLimit": 40,
     "publicChartTargetPerSource": 2000,
     "aptoidePagesPerCycle": 70,
-    "serverSchedule": "23 */2 * * *",
+    "serverSchedule": "23 * * * *",
     "minimumNewTarget": 500,
     "deviceRequired": false
   },

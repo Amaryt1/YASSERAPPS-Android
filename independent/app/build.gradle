@@ -10,8 +10,8 @@ android {
         applicationId 'com.yasserapps.store'
         minSdk 26
         targetSdk 35
-        versionCode 35
-        versionName '11.0.14'
+        versionCode 36
+        versionName '11.0.15'
         testInstrumentationRunner 'com.yasserapps.store.DirectCatalogTest'
     }
 
@@ -31,3 +31,5 @@ android {
 dependencies { implementation "com.android.tools.build:apksig:8.10.1" }
 
 dependencies { implementation "org.jsoup:jsoup:1.18.3" }
+
+dependencies { implementation "com.google.mlkit:translate:17.0.3"; implementation "com.google.mlkit:language-id:17.0.6" }
