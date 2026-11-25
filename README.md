@@ -1,2 +1,2 @@
-# Studio V0.6
-Explicit staging and APK export for developer-supported profiles and one exact SHA-256 matched optional-dialog test recipe. The promo-only patch was user-tested earlier; the optional update path is experimental and does not modify the required-update branch. No universal automatic removal or AI. Source APK preserved. Device testing pending.
+# Studio V0.7
+Staged export for developer-supported profiles and one exact SHA-256 matched V7 recipe. Both selected options reproduce the DEX and resource payloads of the user's successful V7 device trial. Other versions are not automatically edited. Local signing and source preservation; install/runtime behavior of Studio output still requires testing.
