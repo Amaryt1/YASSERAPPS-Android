@@ -40,6 +40,10 @@ final class BrowseGroups {
         return "";
     }
     static String topic(Catalog.App a){
+        if(a.browseTopic==null)a.browseTopic=computeTopic(a);
+        return a.browseTopic;
+    }
+    private static String computeTopic(Catalog.App a){
         String[][] table=a.isGame()?GAME:APP;
         String value=match(table,normalize(a.genre));
         if(!value.isEmpty())return value;
@@ -57,11 +61,14 @@ final class BrowseGroups {
             boolean onlyGames=key.endsWith(":game"),onlyApps=key.endsWith(":app");
             for(Catalog.App a:all)if((!onlyGames||a.isGame())&&(!onlyApps||!a.isGame())){
                 if(key.equals("recent")||key.equals("changed")){if(a.updatedAt<=0)continue;}
+                if(key.equals("added")&&a.firstSeenAt<=0)continue;
                 out.add(a);
             }
             if(key.startsWith("picks")){
                 long day=System.currentTimeMillis()/86400000L;
                 out.sort(Comparator.comparingLong(a->mix(a.id.hashCode()^day)));
+            }else if(key.equals("added")){
+                out.sort(Comparator.comparingLong((Catalog.App a)->a.firstSeenAt).reversed().thenComparing(a->a.id));
             }else if(key.equals("recent")||key.equals("changed")){
                 out.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed().thenComparing(a->a.id));
             }
@@ -69,6 +76,11 @@ final class BrowseGroups {
         return out;
     }
     private static long mix(long x){x=(x^(x>>>33))*0xff51afd7ed558ccdL;x=(x^(x>>>33))*0xc4ceb9fe1a85ec53L;return x^(x>>>33);}
+    static List<Catalog.App> others(List<Catalog.App> all,Catalog.App current){
+        ArrayList<Catalog.App> out=new ArrayList<>();
+        for(Catalog.App a:all)if(a.isGame()==current.isGame()&&!a.id.equals(current.id)&&(current.packageName.isEmpty()||!current.packageName.equals(a.packageName)))out.add(a);
+        return out;
+    }
     static List<Catalog.App> related(List<Catalog.App> all,Catalog.App current){
         ArrayList<Catalog.App> out=new ArrayList<>();
         String group=topic(current);

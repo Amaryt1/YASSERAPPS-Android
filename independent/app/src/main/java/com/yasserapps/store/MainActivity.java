@@ -458,7 +458,6 @@ public final class MainActivity extends Activity {
     private String selectedFeaturedPackage = "";
     private LinearLayout featuredContainer,homeShelves;
     private Catalog.App relatedOrigin;
-    private String detailReturnCategory="all";
     private List<Catalog.App> featuredItems=java.util.Collections.emptyList();
     private int featuredIndex;
     private static final long FEATURED_INTERVAL=6000L;
@@ -497,7 +496,8 @@ public final class MainActivity extends Activity {
             shelf(homeShelves,"الألعاب",matching("game"),"game");
             shelf(homeShelves,"مختارة لك",BrowseGroups.select(apps,"picks"),"picks");
             // Timestamp is upstream release/update date, not a fabricated first-added date.
-            shelf(homeShelves,"أحدث الإصدارات",BrowseGroups.select(apps,"recent"),"recent");
+            shelf(homeShelves,"المضافة حديثاً",BrowseGroups.select(apps,"added"),"added");
+            shelf(homeShelves,"آخر الإصدارات والتحديثات",BrowseGroups.select(apps,"recent"),"recent");
             shelf(homeShelves,"تحديثات تطبيقاتك",matching("updates"),"updates");
         }else{
             boolean game="game".equals(category);
@@ -714,7 +714,7 @@ public final class MainActivity extends Activity {
         more.addView(all);
         more.setContentDescription("عرض الكل — "+name);
         more.setOnClickListener(v->{
-            if("related".equals(key))relatedOrigin=detailApp;
+            if("related".equals(key)||"others".equals(key))relatedOrigin=detailApp;
             showList(name,key);
         });
         row.addView(more,lp(98,166));
@@ -764,8 +764,8 @@ public final class MainActivity extends Activity {
         listTitle = title;
         listKind = kind;
         LinearLayout c = verticalContent();
-        backBar(c, title, ()->{if("related".equals(kind)&&relatedOrigin!=null)showDetail(relatedOrigin);else showHome();});
-        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")?BrowseGroups.select(apps,kind):matching(kind);
+        backBar(c, title, ()->{if(("related".equals(kind)||"others".equals(kind))&&relatedOrigin!=null)showDetail(relatedOrigin);else showHome();});
+        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):"others".equals(kind)&&relatedOrigin!=null?BrowseGroups.others(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")||kind.equals("added")?BrowseGroups.select(apps,kind):matching(kind);
         catalogList(c, title, rows);
         render(c, true);
     }
@@ -1117,9 +1117,7 @@ public final class MainActivity extends Activity {
         List<Catalog.App> related=BrowseGroups.related(apps,app);
         if(!related.isEmpty())shelf(content,app.isGame()?"ألعاب مشابهة":"تطبيقات مشابهة",related,"related");
         else {
-            List<Catalog.App> other=new ArrayList<>();
-            for(Catalog.App candidate:matching(app.isGame()?"game":"app"))if(!candidate.id.equals(app.id)&& (app.packageName.isEmpty()||!candidate.packageName.equals(app.packageName)))other.add(candidate);
-            shelf(content,app.isGame()?"ألعاب أخرى":"تطبيقات أخرى",other,app.isGame()?"game":"app");
+            shelf(content,app.isGame()?"ألعاب أخرى":"تطبيقات أخرى",BrowseGroups.others(apps,app),"others");
         }
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
@@ -1681,6 +1679,7 @@ public final class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if ("home".equals(page)) super.onBackPressed();
         else if ("statistics".equals(page)) showSettings();
+        else if ("catalog_list".equals(page)&&("related".equals(listKind)||"others".equals(listKind))&&relatedOrigin!=null)showDetail(relatedOrigin);
         else { category = "all"; showHome(); }
     }
 

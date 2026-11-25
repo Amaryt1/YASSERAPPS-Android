@@ -327,6 +327,7 @@ def main():
         additions.append([row for key,row in updated.items() if key not in rows])
         for key,row in updated.items():
             if key in rows:
+                if rows[key].get("firstSeenAt"): row["firstSeenAt"]=rows[key]["firstSeenAt"]
                 rows[key]=row
         for key in (("games","applications") if source=="Aptoide" else (source,source+":pages",source+":navpos",source+":listings")):
             if key in source_cursors:
@@ -338,6 +339,7 @@ def main():
     for batch in zip_longest(*additions):
         for row in batch:
             if row is not None and len(rows)<LIMIT:
+                row["firstSeenAt"]=int(time.time()*1000)
                 rows[row["id"]]=row
     new=len(set(rows)-initial); count={s:sum(a["sourceName"]==s for a in rows.values()) for s in ("Aptoide","APKMirror","Uptodown","TapTap","APKPure","LiteAPKs","Aurora")}
     report={"new":new,"total":len(rows),"targetNew":args.min_new,"targetMet":new>=args.min_new,"counts":count,"sources":stats,"unavailable":["APKPure","LiteAPKs","Aurora"]}
