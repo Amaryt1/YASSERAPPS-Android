@@ -48,6 +48,8 @@ public final class DownloadCoordinator {
         public int versionCode;
         public String url = "";
         public String sha256 = "";
+        public String signerSha256 = "";
+        public String legacyMd5="", legacySignerSha1="";
         public String fileName = "";
         public long createdAt;
         public int status;
@@ -91,6 +93,8 @@ public final class DownloadCoordinator {
             o.put("versionCode", versionCode);
             o.put("url", url);
             o.put("sha256", sha256);
+            o.put("signerSha256", signerSha256);
+            o.put("legacyMd5",legacyMd5); o.put("legacySignerSha1",legacySignerSha1);
             o.put("fileName", fileName);
             o.put("createdAt", createdAt);
             return o;
@@ -105,6 +109,8 @@ public final class DownloadCoordinator {
             e.versionCode = o.optInt("versionCode");
             e.url = o.optString("url");
             e.sha256 = o.optString("sha256");
+            e.signerSha256 = o.optString("signerSha256");
+            e.legacyMd5=o.optString("legacyMd5"); e.legacySignerSha1=o.optString("legacySignerSha1");
             e.fileName = o.optString("fileName");
             e.createdAt = o.optLong("createdAt");
             return e;
@@ -162,6 +168,8 @@ public final class DownloadCoordinator {
 
     /** DownloadManager persists and resumes transfers independently of the Activity. */
     public synchronized Entry start(Catalog.App item) throws Exception {
+        if(!item.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(item))throw new SecurityException("بيانات تحقق الإصدار غير متاحة");
+        if (item.discoveryOnly) throw new IllegalArgumentException("هذا المشروع ليس APK متحققاً منه");
         if (!isDirectApk(item.apkUrl)) throw new IllegalArgumentException("يجب أن يكون الرابط HTTPS لملف APK أو حزمة مدعومة");
         ArrayList<Entry> entries = load();
         for (Entry old : entries) {
@@ -192,7 +200,7 @@ public final class DownloadCoordinator {
         } else {
             req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
         }
-        req.setAllowedOverMetered(!wifiOnly());
+        req.setAllowedOverMetered(true); // Wi-Fi and mobile data are both supported.
         req.setAllowedOverRoaming(false);
         req.setDestinationInExternalFilesDir(app, Environment.DIRECTORY_DOWNLOADS, fileName);
         Entry entry = new Entry();
@@ -204,6 +212,8 @@ public final class DownloadCoordinator {
         entry.versionCode = item.versionCode;
         entry.url = item.apkUrl;
         entry.sha256 = item.sha256 == null ? "" : item.sha256;
+        entry.signerSha256 = item.signerSha256 == null ? "" : item.signerSha256;
+        entry.legacyMd5=item.legacyMd5; entry.legacySignerSha1=item.legacySignerSha1;
         entry.fileName = fileName;
         entry.createdAt = System.currentTimeMillis();
         entry.status = DownloadManager.STATUS_PENDING;
@@ -295,6 +305,20 @@ public final class DownloadCoordinator {
                 if (apk == null || !apk.isFile() || apk.length() == 0) {
                     throw new Exception("الملف غير موجود أو فارغ");
                 }
+                boolean legacy=AptoideFeed.officialApk(current.url)&&current.legacyMd5.matches("(?i)[0-9a-f]{32}")&&current.legacySignerSha1.matches("(?i)[0-9a-f]{40}");
+                if(!legacy&&!current.sha256.matches("(?i)[0-9a-f]{64}"))throw new SecurityException("لا توجد بصمة تحقق");
+                if(legacy){
+                    MessageDigest md=MessageDigest.getInstance("MD5");
+                    try(FileInputStream stream=new FileInputStream(apk)){
+                        byte[] b=new byte[65536];int n;while((n=stream.read(b))!=-1)md.update(b,0,n);
+                    }
+                    if(!hex(md.digest()).equalsIgnoreCase(current.legacyMd5))throw new SecurityException("الملف لا يطابق الإصدار");
+                    com.android.apksig.ApkVerifier.Result verified=new com.android.apksig.ApkVerifier.Builder(apk).setMinCheckedPlatformVersion(26).build().verify();
+                    if(!verified.isVerified()||(!verified.isVerifiedUsingV2Scheme()&&!verified.isVerifiedUsingV3Scheme())||verified.getSignerCertificates().size()!=1)
+                        throw new SecurityException("توقيع APK الحديث غير صالح");
+                    if(!hex(MessageDigest.getInstance("SHA-1").digest(verified.getSignerCertificates().get(0).getEncoded())).equalsIgnoreCase(current.legacySignerSha1))
+                        throw new SecurityException("شهادة توقيع APK لا تطابق المصدر");
+                }
                 if (current.sha256 != null && !current.sha256.isEmpty()) {
                     if (!current.sha256.matches("(?i)[0-9a-f]{64}")) {
                         throw new Exception("قيمة SHA-256 غير صالحة");
@@ -318,12 +342,24 @@ public final class DownloadCoordinator {
                     PackageManager pm = app.getPackageManager();
                     if (Build.VERSION.SDK_INT >= 33) {
                         packageInfo = pm.getPackageArchiveInfo(
-                            apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(0));
+                            apk.getAbsolutePath(), PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES));
                     } else {
-                        packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
+                        packageInfo = pm.getPackageArchiveInfo(apk.getAbsolutePath(), Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES);
                     }
                     if (packageInfo == null || !current.packageName.equals(packageInfo.packageName)) {
                         throw new Exception("اسم الحزمة داخل APK لا يطابق المتجر، تم منع التثبيت");
+                    }
+                    if(!current.signerSha256.isEmpty()) {
+                        android.content.pm.Signature[] signatures = Build.VERSION.SDK_INT >= 28 ?
+                            (packageInfo.signingInfo == null ? null : packageInfo.signingInfo.getApkContentsSigners()) : packageInfo.signatures;
+                        boolean match=false;
+                        if(signatures!=null && signatures.length==1) {
+                            byte[] certificate=MessageDigest.getInstance("SHA-256").digest(signatures[0].toByteArray());
+                            StringBuilder fingerprint=new StringBuilder();
+                            for(byte b:certificate) fingerprint.append(String.format(Locale.ROOT,"%02x",b&255));
+                            match=fingerprint.toString().equalsIgnoreCase(current.signerSha256);
+                        }
+                        if(!match) throw new Exception("توقيع APK لا يطابق بصمة المطوّر");
                     }
                     long code = Build.VERSION.SDK_INT >= 28 ?
                         packageInfo.getLongVersionCode() : packageInfo.versionCode;
@@ -343,6 +379,7 @@ public final class DownloadCoordinator {
         });
     }
 
+    private static String hex(byte[] bytes){StringBuilder s=new StringBuilder();for(byte b:bytes)s.append(String.format(Locale.ROOT,"%02x",b&255));return s.toString();}
     public static boolean allowedToInstall(Context context) {
         return Build.VERSION.SDK_INT < 26 || context.getPackageManager().canRequestPackageInstalls();
     }

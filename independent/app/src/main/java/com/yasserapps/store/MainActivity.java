@@ -113,6 +113,9 @@ public final class MainActivity extends Activity {
     private FrameLayout screen;
     private String page = "home";
     private String category = "all";
+    private static final int CATALOG_PAGE_SIZE = 50;
+    private String listTitle = "";
+    private String listKind = "all";
     private boolean loading = true;
     private String warning;
     private Catalog.App detailApp;
@@ -237,6 +240,8 @@ public final class MainActivity extends Activity {
     }
 
     private void render(LinearLayout content, boolean footer) {
+        main.removeCallbacks(featuredTicker);
+        if(!"home".equals(page)||!"all".equals(category)) featuredContainer=null;
         screen = new FrameLayout(this);
         screen.setBackgroundColor(BG);
         screen.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -264,6 +269,7 @@ public final class MainActivity extends Activity {
         if (footer) addFooter(screen);
         setContentView(screen);
         if (Build.VERSION.SDK_INT >= 35) screen.requestApplyInsets();
+        scheduleFeatured();
     }
 
     private void addFooter(FrameLayout parent) {
@@ -413,6 +419,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean installedAndNewer(Catalog.App app) {
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName))return false;
         try {
             PackageInfo pi = getPackageManager().getPackageInfo(app.packageName, 0);
             long current = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
@@ -441,27 +448,71 @@ public final class MainActivity extends Activity {
         if ("all".equals(category)) {
             heroCard(content);
             gap(content, 14);
-            section(content, "أحدث التطبيقات", matching("app"), false);
+            homeAppsSection=linear(true);
+            content.addView(homeAppsSection,lp(-1,-2));
+            section(homeAppsSection, "أحدث التطبيقات", matching("app"), false);
             gap(content, 17);
-            section(content, "أحدث الألعاب", matching("game"), true);
+            homeGamesSection=linear(true);
+            content.addView(homeGamesSection,lp(-1,-2));
+            section(homeGamesSection, "أحدث الألعاب", matching("game"), true);
         } else if ("app".equals(category)) {
-            section(content, "أحدث التطبيقات", matching("app"), false);
+            catalogList(content, "التطبيقات", matching("app"));
         } else if ("game".equals(category)) {
-            section(content, "أحدث الألعاب", matching("game"), false);
+            catalogList(content, "الألعاب", matching("game"));
         }
         render(content, true);
     }
 
-    private void heroCard(LinearLayout root) {
-        Catalog.App featured = null;
-        int featuredCount = 0;
-        for (Catalog.App candidate : apps) {
-            if (candidate.featured) {
-                featuredCount++;
-                if (featured == null) featured = candidate;
-            }
+    private String selectedFeaturedPackage = "";
+    private LinearLayout featuredContainer,homeAppsSection,homeGamesSection;
+    private List<Catalog.App> featuredItems=java.util.Collections.emptyList();
+    private int featuredIndex;
+    private static final long FEATURED_INTERVAL=6000L;
+    private final Runnable featuredTicker=new Runnable(){
+        @Override public void run(){
+            if(featuredActive()&&featuredItems.size()>1)renderFeatured(featuredContainer,featuredItems,featuredIndex+1);
         }
-        final Catalog.App selected = featured;
+    };
+    private boolean featuredActive(){
+        return activityVisible&&!isFinishing()&&!isDestroyed()&&"home".equals(page)&&"all".equals(category)
+            &&featuredContainer!=null&&featuredContainer.isAttachedToWindow();
+    }
+    private void scheduleFeatured(){
+        main.removeCallbacks(featuredTicker);
+        if(featuredActive()&&featuredItems.size()>1)main.postDelayed(featuredTicker,FEATURED_INTERVAL);
+    }
+    private void updateHomeContent(){
+        if(!"all".equals(category)||featuredContainer==null||!featuredContainer.isAttachedToWindow()
+            ||homeAppsSection==null||homeGamesSection==null){showHome();return;}
+        List<Catalog.App> next=FeaturedApps.choose(apps);
+        int index=0;
+        for(int i=0;i<next.size();i++)if(next.get(i).packageName.equals(selectedFeaturedPackage))index=i;
+        renderFeatured(featuredContainer,next,index);
+        homeAppsSection.removeAllViews();
+        section(homeAppsSection,"أحدث التطبيقات",matching("app"),false);
+        homeGamesSection.removeAllViews();
+        section(homeGamesSection,"أحدث الألعاب",matching("game"),true);
+    }
+
+    private void heroCard(LinearLayout root) {
+        List<Catalog.App> featured = FeaturedApps.choose(apps);
+        LinearLayout container = linear(true);
+        featuredContainer=container;
+        root.addView(container, lp(-1, -2));
+        int selectedIndex=0;
+        for(int i=0;i<featured.size();i++)
+            if(featured.get(i).packageName.equals(selectedFeaturedPackage)) selectedIndex=i;
+        renderFeatured(container, featured, selectedIndex);
+    }
+
+    private void renderFeatured(LinearLayout root, List<Catalog.App> featured, int index) {
+        root.removeAllViews();
+        final int count=featured.size();
+        final int current=count==0?0:Math.floorMod(index,count);
+        featuredItems=featured;
+        featuredIndex=current;
+        final Catalog.App selected=count==0?null:featured.get(current);
+        if(selected!=null) selectedFeaturedPackage=selected.packageName;
         FrameLayout banner = new FrameLayout(this);
         banner.setBackground(shape(Color.rgb(7,14,8), 18, Color.rgb(65,105,47)));
         banner.setClipToOutline(true);
@@ -504,7 +555,7 @@ public final class MainActivity extends Activity {
             name.setMaxLines(2);
             title.addView(name);
             gap(title,7);
-            TextView sub=text(selected.summary,12,WHITE,false);
+            TextView sub=text("الإصدار "+selected.version+" • "+FeaturedApps.displayCopy(selected.summary),12,WHITE,false);
             sub.setMaxLines(2);
             title.addView(sub);
             gap(title,12);
@@ -525,6 +576,11 @@ public final class MainActivity extends Activity {
             innerShot.setMargins(dp(2), dp(2), dp(2), dp(2));
             shotFrame.addView(realScreenshot, innerShot);
             inner.addView(shotFrame, lp(74, 128));
+        } else if (selected != null && !selected.iconUrl.isEmpty()) {
+            ImageView appIcon = new ImageView(this);
+            appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            image(appIcon, selected.iconUrl);
+            inner.addView(appIcon, lp(74, 74));
         } else if (selected == null) {
             ImageView logo = new ImageView(this);
             logo.setImageResource(R.drawable.yasser_logo);
@@ -535,21 +591,58 @@ public final class MainActivity extends Activity {
             if (selected != null) showDetail(selected);
             else showSearch();
         });
-        root.addView(banner,lp(-1,191));
 
-        if(featuredCount>1){
-            LinearLayout indicators=linear(false);
-            indicators.setGravity(Gravity.CENTER);
-            gap(root,8);
-            for (int i=0;i<Math.min(7,featuredCount);i++) {
-                View dot=new View(this);
-                dot.setBackground(shape(i==0?GREEN:Color.rgb(76,80,77),8,0));
-                LinearLayout.LayoutParams dotParams=lp(i==0?18:7,7);
-                dotParams.setMargins(dp(4),0,dp(4),0);
-                indicators.addView(dot,dotParams);
-            }
-            root.addView(indicators);
+        if(count>1) {
+            final float[] down={0f,0f};
+            banner.setOnTouchListener((v,event)->{
+                if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN) {
+                    main.removeCallbacks(featuredTicker);
+                    down[0]=event.getX(); down[1]=event.getY();
+                } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_UP) {
+                    float dx=event.getX()-down[0], dy=event.getY()-down[1];
+                    if(Math.abs(dx)>dp(42)&&Math.abs(dx)>Math.abs(dy)*1.5f) {
+                        v.setPressed(false);
+                        renderFeatured(root,featured,current+(dx>0?1:-1));
+                        return true;
+                    }
+                    scheduleFeatured();
+                } else if(event.getActionMasked()==android.view.MotionEvent.ACTION_CANCEL) scheduleFeatured();
+                return false;
+            });
         }
+        root.addView(banner,lp(-1,191));
+        if(count>1) {
+            gap(root,5);
+            LinearLayout controls=linear(false);
+            controls.setGravity(Gravity.CENTER);
+            TextView previous=text("‹",25,GREEN,true);
+            previous.setGravity(Gravity.CENTER);
+            previous.setContentDescription("المميز السابق");
+            previous.setOnClickListener(v->renderFeatured(root,featured,current-1));
+            controls.addView(previous,lp(36,36));
+            LinearLayout dots=linear(false);
+            dots.setGravity(Gravity.CENTER);
+            for(int i=0;i<count;i++) {
+                final int target=i;
+                FrameLayout hit=new FrameLayout(this);
+                View dot=new View(this);
+                dot.setBackground(shape(i==current?GREEN:Color.rgb(76,80,77),8,0));
+                FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(i==current?13:6),dp(7),Gravity.CENTER);
+                hit.addView(dot,p);
+                hit.setContentDescription("المميز "+(i+1));
+                hit.setOnClickListener(v->renderFeatured(root,featured,target));
+                dots.addView(hit,new LinearLayout.LayoutParams(0,dp(36),1));
+            }
+            controls.addView(dots,new LinearLayout.LayoutParams(0,dp(36),1));
+            TextView next=text("›",25,GREEN,true);
+            next.setGravity(Gravity.CENTER);
+            next.setContentDescription("المميز التالي");
+            next.setOnClickListener(v->renderFeatured(root,featured,current+1));
+            controls.addView(next,lp(36,36));
+            root.addView(controls,lp(-1,36));
+            android.util.Log.i("YASSERAPPS_CATALOG","UI_FEATURED count="+count+" index="+current+" package="+selected.packageName);
+        }
+        scheduleFeatured();
     }
 
     private void section(LinearLayout root, String name, List<Catalog.App> entries, boolean compact) {
@@ -559,7 +652,7 @@ public final class MainActivity extends Activity {
             name.contains("الألعاب")?"game":"grid", GREEN);
         title.addView(badge,lp(24,27));
         padx(title,7);
-        TextView heading=text(name,19,WHITE,true);
+        TextView heading=text(name + " (" + entries.size() + ")",19,WHITE,true);
         title.addView(heading,new LinearLayout.LayoutParams(0,dp(38),1));
         TextView all=text("عرض الكل  ‹",13,WHITE,false);
         all.setGravity(Gravity.CENTER_VERTICAL);
@@ -577,21 +670,53 @@ public final class MainActivity extends Activity {
             panelText(root,message);
             return;
         }
-        int max=compact?Math.min(3,entries.size()):Math.min(10,entries.size());
-        for(int i=0;i<max;i++){
-            card(root,entries.get(i));
-            gap(root,9);
+        // Keep the familiar home preview, with additional rows available in place.
+        appendCatalogPages(root, entries, compact ? 3 : 10);
+        android.util.Log.i("YASSERAPPS_CATALOG", "UI_HOME_SECTION kind=" +
+            (compact ? "game" : "app") + " total=" + entries.size());
+    }
+
+    private void catalogList(LinearLayout root, String title, List<Catalog.App> entries) {
+        TextView heading = text(title + " (" + entries.size() + ")", 19, WHITE, true);
+        root.addView(heading);
+        gap(root, 9);
+        if (entries.isEmpty()) {
+            panelText(root, loading ? "جاري تحميل محتوى المتجر..." :
+                (warning != null ? warning : "لا يوجد محتوى منشور حاليًا."));
+            return;
         }
+        appendCatalogPages(root, entries, CATALOG_PAGE_SIZE);
+        android.util.Log.i("YASSERAPPS_CATALOG", "UI_LIST total=" + entries.size() +
+            " rendered=" + Math.min(entries.size(), CATALOG_PAGE_SIZE));
+    }
+
+    private void appendCatalogPages(LinearLayout root, List<Catalog.App> entries, int initialSize) {
+        LinearLayout rows = linear(true);
+        root.addView(rows, lp(-1, -2));
+        final int[] cursor = {0};
+        TextView more = action("عرض المزيد", false, () -> {});
+        Runnable append = () -> {
+            int end = Math.min(entries.size(), cursor[0] + (cursor[0] == 0 ? initialSize : CATALOG_PAGE_SIZE));
+            for (int i = cursor[0]; i < end; i++) {
+                card(rows, entries.get(i));
+                gap(rows, 9);
+            }
+            cursor[0] = end;
+            more.setText("عرض المزيد (" + (entries.size() - end) + ")");
+            more.setVisibility(end < entries.size() ? View.VISIBLE : View.GONE);
+        };
+        root.addView(more, lp(-1, 50));
+        more.setOnClickListener(v -> append.run());
+        append.run();
     }
 
     private void showList(String title, String kind) {
-        page = "home";
+        page = "catalog_list";
+        listTitle = title;
+        listKind = kind;
         LinearLayout c = verticalContent();
         backBar(c, title, this::showHome);
-        for (Catalog.App a : matching(kind)) {
-            card(c, a);
-            gap(c, 9);
-        }
+        catalogList(c, title, matching(kind));
         render(c, true);
     }
 
@@ -651,7 +776,7 @@ public final class MainActivity extends Activity {
         LinearLayout installButton=linear(false);
         installButton.setGravity(Gravity.CENTER);
         installButton.setBackground(shape(GREEN,12,0));
-        TextView install=text(installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
+        TextView install=text(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)?"غير متاح":installedAndNewer(app)?"تحديث":"تثبيت",14,Color.BLACK,true);
         installButton.addView(install);
         padx(installButton,4);
         installButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(20,20));
@@ -711,18 +836,16 @@ public final class MainActivity extends Activity {
             if (query.isEmpty()) {
                 return;
             }
-            int matches = 0;
+            ArrayList<Catalog.App> matches = new ArrayList<>();
             for (Catalog.App app : apps) {
                 if (app.name.toLowerCase(Locale.ROOT).contains(query) ||
                     app.summary.toLowerCase(Locale.ROOT).contains(query) ||
-                    app.packageName.toLowerCase(Locale.ROOT).contains(query)) {
-                    card(results, app);
-                    gap(results, 10);
-                    matches++;
-                }
+                    app.packageName.toLowerCase(Locale.ROOT).contains(query)) matches.add(app);
             }
-            if (matches == 0) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
+            if (matches.isEmpty()) panelText(results, "لا توجد نتائج مطابقة لبحثك.");
+            else catalogList(results, "نتائج البحث", matches);
         };
+        activeSearchRefresh = update;
         field.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { update.run(); }
@@ -744,7 +867,7 @@ public final class MainActivity extends Activity {
         c.addView(check, lp(-1, 49));
         gap(c, 10);
         c.addView(text(
-            "يفحص المتجر إصدارات التطبيقات المنشورة عندنا والمتاحة للرؤية على جهازك، ولا يثبت أي تحديث دون موافقتك.",
+            "يقارن المتجر إصدارات التطبيقات المتاحة مع المثبتة على جهازك. يطلب أندرويد موافقتك عند التثبيت.",
             12, SUBTEXT, false
         ));
         gap(c, 17);
@@ -769,7 +892,24 @@ public final class MainActivity extends Activity {
         c.addView(panel, lp(-1, -2));
     }
 
+    private final Map<String,Long> detailChecks=new HashMap<>();
     private void showDetail(Catalog.App app) {
+        if("Aptoide".equals(app.sourceName)){
+            long now=android.os.SystemClock.elapsedRealtime();
+            Long last=detailChecks.get(app.packageName);
+            if(last==null||now-last>300000L){
+                detailChecks.put(app.packageName,now);
+                if(detailChecks.size()>500)detailChecks.clear();
+                Catalog.enrich(this,app,fresh->main.post(()->{
+                    if(isFinishing()||isDestroyed()||fresh==null)return;
+                    for(int i=0;i<apps.size();i++){
+                        Catalog.App old=apps.get(i);
+                        if(old.packageName.equals(fresh.packageName)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
+                    }
+                    if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(fresh.packageName)&&fresh.versionCode>=detailApp.versionCode)showDetail(fresh);
+                }));
+            }
+        }
         detailApp = app;
         page = "detail";
         LinearLayout content = verticalContent();
@@ -815,15 +955,16 @@ public final class MainActivity extends Activity {
         name.setMaxLines(2);
         texts.addView(name);
         gap(texts,6);
-        TextView summary=text(app.summary,13,SUBTEXT,false);
+        TextView summary=text(FeaturedApps.displayCopy(app.summary),13,SUBTEXT,false);
         summary.setMaxLines(2);
         texts.addView(summary);
         gap(texts,11);
-        TextView platform=text(app.isGame()?"🎮 لعبة للأندرويد":"تطبيق للأندرويد",12,GREEN,true);
+        TextView platform=text(!app.originalPlatform.isEmpty()?"بورت • "+app.originalPlatform:app.isGame()?"🎮 لعبة للأندرويد":"تطبيق للأندرويد",12,GREEN,true);
         texts.addView(platform);
         intro.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
         content.addView(intro);
         gap(content,18);
+
 
         LinearLayout specs=linear(false);
         TextView version=text("الإصدار "+app.version,12,WHITE,true);
@@ -845,11 +986,13 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
+            if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
+            if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -859,12 +1002,18 @@ public final class MainActivity extends Activity {
         LinearLayout altButton=linear(false);
         altButton.setGravity(Gravity.CENTER);
         altButton.setBackground(shape(Color.rgb(5,12,5),19,GREEN));
-        altButton.addView(new StoreGlyph(this,"share",GREEN),lp(22,22));
+        altButton.addView(new StoreGlyph(this,app.needsFiles()?"download":"share",GREEN),lp(22,22));
         padx(altButton,7);
-        altButton.addView(text("مشاركة",14,GREEN,true));
-        altButton.setOnClickListener(v -> shareApp(app));
+        altButton.addView(text(app.needsFiles()?"ملفات اللعبة":"مشاركة",13,GREEN,true));
+        altButton.setContentDescription(app.needsFiles()?"ملفات اللعبة":"مشاركة");
+        altButton.setOnClickListener(v -> { if(app.needsFiles()) showGameFiles(app); else shareApp(app); });
         buttons.addView(altButton,new LinearLayout.LayoutParams(0,dp(58),1));
         content.addView(buttons);
+        if(app.needsFiles()) {
+            gap(content,8);
+            content.addView(action("مشاركة",false,()->shareApp(app)),lp(-1,40));
+        }
+        if(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)) { gap(content,8); content.addView(text("التنزيل المباشر غير متاح لهذا الإصدار.",12,SUBTEXT,false)); }
         gap(content,10);
         TextView favorite = action(isFavorite(app) ? "★ إزالة من المفضلة" : "☆ إضافة إلى المفضلة",
             false, () -> {
@@ -899,34 +1048,106 @@ public final class MainActivity extends Activity {
             content.addView(scroller,lp(-1,173));
             gap(content,23);
         }
-        detailSection(content,"الوصف",app.description.isEmpty()?app.summary:app.description);
+        detailSection(content,"الوصف",FeaturedApps.description(app).isEmpty()?"لا يوجد وصف متاح لهذا التطبيق.":FeaturedApps.description(app));
         gap(content,16);
         detailSection(content,"سجل التحديثات  •  "+app.version,
-            app.changelog.isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":app.changelog);
+            FeaturedApps.displayCopy(app.changelog).isEmpty()?"لا يوجد سجل تحديثات لهذا الإصدار.":FeaturedApps.displayCopy(app.changelog));
         gap(content,16);
+        if(!app.attribution.isEmpty()) {
+            TextView credit=text(app.attribution,11,SUBTEXT,false);
+            android.text.util.Linkify.addLinks(credit,android.text.util.Linkify.WEB_URLS);
+            content.addView(credit);
+            gap(content,8);
+        }
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
         render(content,false);
     }
 
+    private void openPublisher(String url) {
+        if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)&&!MirrorFeed.listingLink(url)) {
+            Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
+        }
+        try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
+        catch(Exception ex) { Toast.makeText(this,"تعذّر فتح رابط المصدر",Toast.LENGTH_SHORT).show(); }
+    }
+
+    private void showGameFiles(Catalog.App app) {
+        if(!app.needsFiles())return;
+        StringBuilder info=new StringBuilder();
+        info.append("owned".equals(app.gameFiles)?"تحتاج نسخة أصلية تملكها من اللعبة.":"يحتاج هذا البورت ملفات إضافية.").append("\n\n");
+        if(!app.filesInstructions.isEmpty()) info.append(app.filesInstructions).append("\n\n");
+        else info.append("راجع تعليمات المشروع لمعرفة أسماء الملفات المطلوبة.\n\n");
+        if(!app.filesPath.isEmpty()) info.append("مسار الملفات حسب المصدر:\n").append(app.filesPath).append("\n\n");
+        info.append("ملفات الألعاب الأصلية غير مرفقة. استخدم نسختك القانونية أو الملفات التي ينشرها المطوّر بترخيص يسمح بالتنزيل.");
+        android.app.AlertDialog.Builder dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("ملفات اللعبة • "+app.name).setMessage(info.toString())
+            .setNegativeButton("إغلاق",null);
+        if(PortFeeds.publisherLink(app.publisherUrl)) dialog.setPositiveButton("فتح المصدر",(d,w)->openPublisher(app.publisherUrl));
+        dialog.show();
+    }
+
     private void shareApp(Catalog.App app) {
         Intent send=new Intent(Intent.ACTION_SEND);
         send.setType("text/plain");
-        send.putExtra(Intent.EXTRA_TEXT,app.name+"\n"+app.apkUrl);
+        send.putExtra(Intent.EXTRA_TEXT,app.name+"\n"+(app.discoveryOnly?app.publisherUrl:app.apkUrl));
         startActivity(Intent.createChooser(send,"مشاركة التطبيق"));
     }
 
+    private int catalogRefreshGeneration;
+    private boolean refreshInFlight;
+    private boolean notifyRefresh;
+    private long lastCatalogCheck;
+    private Runnable activeSearchRefresh;
+    private static final long CATALOG_REFRESH_INTERVAL = 5L * 60L * 1000L;
+    private final Runnable catalogTicker = new Runnable() {
+        @Override public void run() {
+            if (!activityVisible || isFinishing()) return;
+            if (!refreshInFlight && android.os.SystemClock.elapsedRealtime() - lastCatalogCheck >= CATALOG_REFRESH_INTERVAL) refresh(false);
+            main.postDelayed(this, 60000);
+        }
+    };
+
     private void refresh() {
+        refresh(false);
+    }
+
+    private void refresh(boolean showResult) {
+        notifyRefresh |= showResult;
+        if (refreshInFlight) return;
+        refreshInFlight = true;
+        lastCatalogCheck = android.os.SystemClock.elapsedRealtime();
+        final int generation = ++catalogRefreshGeneration;
         loading = true;
         Catalog.load(this, result -> main.post(() -> {
-            loading = false;
+            if (generation != catalogRefreshGeneration || isFinishing() || isDestroyed()) return;
+            loading = !result.finalResult;
+            if (result.finalResult) refreshInFlight = false;
             apps.clear();
             apps.addAll(result.apps);
             warning = result.warning;
-            if ("home".equals(page)) showHome();
+            if ("home".equals(page)) updateHomeContent();
+            else if ("catalog_list".equals(page)) showList(listTitle, listKind);
             else if ("updates".equals(page)) showUpdates();
             else if ("downloads".equals(page)) showDownloads();
             else if ("favorites".equals(page)) showFavorites();
+            else if ("search".equals(page) && activeSearchRefresh != null) activeSearchRefresh.run();
+            else if ("detail".equals(page) && detailApp != null) {
+                for (Catalog.App current : apps) if (current.id.equals(detailApp.id)) {
+                    if (current.versionCode != detailApp.versionCode || !current.description.equals(detailApp.description) || !current.iconUrl.equals(detailApp.iconUrl) || !current.publisherUrl.equals(detailApp.publisherUrl) || !current.version.equals(detailApp.version) || !current.apkUrl.equals(detailApp.apkUrl) || !current.gameFiles.equals(detailApp.gameFiles) || !current.filesInstructions.equals(detailApp.filesInstructions)) showDetail(current);
+                    break;
+                }
+            }
+            if (notifyRefresh && result.finalResult) {
+                notifyRefresh = false;
+                String message = result.warning != null ? result.warning :
+                    "تم تحديث المتجر: " + apps.size() + " تطبيقًا ولعبة";
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                if ("settings".equals(page)) {
+                    category = "all";
+                    showHome();
+                }
+            }
         }));
     }
 
@@ -1072,6 +1293,24 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private boolean resolvingInstall;
+    private void resolveAptoideInstall(Catalog.App item){
+        if(resolvingInstall)return;
+        resolvingInstall=true;
+        Toast.makeText(this,"جاري التحقق من أحدث إصدار...",Toast.LENGTH_SHORT).show();
+        Catalog.enrich(this,item,fresh->main.post(()->{
+            resolvingInstall=false;
+            if(isFinishing()||isDestroyed()||!activityVisible)return;
+            if(fresh==null||fresh.discoveryOnly||!AptoideFeed.directEligible(fresh)){
+                Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار أو يحتاج ملفات إضافية",Toast.LENGTH_LONG).show();
+                return;
+            }
+            for(int i=0;i<apps.size();i++)if(apps.get(i).id.equals(fresh.id)){apps.set(i,fresh);break;}
+            DownloadCoordinator.Entry old=downloadCoordinator.latestFor(fresh);
+            if(old!=null&&old.complete())installFromHistory(old);
+            else download(fresh);
+        }));
+    }
     private void download(Catalog.App app) {
         if (Build.VERSION.SDK_INT <= 28 &&
             checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -1332,13 +1571,6 @@ public final class MainActivity extends Activity {
         TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
         c.addView(favorites, lp(-1, 54));
         gap(c, 11);
-        TextView wifi = action(downloadCoordinator.wifiOnly() ?
-            "التنزيل عبر Wi-Fi فقط: مفعّل" : "التنزيل عبر Wi-Fi فقط: غير مفعّل", false, () -> {
-                downloadCoordinator.setWifiOnly(!downloadCoordinator.wifiOnly());
-                showSettings();
-            });
-        c.addView(wifi, lp(-1, 54));
-        gap(c, 11);
         TextView notifications = action("تفعيل إشعارات تحديث المتجر", false, () -> {
             if (Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1355,16 +1587,8 @@ public final class MainActivity extends Activity {
             () -> checkStoreUpdate(true));
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
-        TextView updates = action("فحص تحديثات التطبيقات", false, this::showUpdates);
-        c.addView(updates, lp(-1, 54));
-        gap(c, 11);
-        TextView refresh = action("تحديث قائمة التطبيقات والألعاب", true, () -> {
-            Toast.makeText(this, "جاري تحديث المتجر", Toast.LENGTH_SHORT).show();
-            refresh();
-        });
-        c.addView(refresh, lp(-1, 54));
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 10.2.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.6\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
@@ -1408,6 +1632,9 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityVisible = true;
+        scheduleFeatured();
+        main.removeCallbacks(catalogTicker);
+        catalogTicker.run();
         if (downloadCoordinator != null) {
             if (pendingInstallAfterPermission != null &&
                 DownloadCoordinator.allowedToInstall(this)) {
@@ -1427,12 +1654,17 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         activityVisible = false;
+        main.removeCallbacks(featuredTicker);
+        main.removeCallbacks(catalogTicker);
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         super.onPause();
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(featuredTicker);
+        main.removeCallbacks(catalogTicker);
+        activeSearchRefresh = null;
         main.removeCallbacks(completionWatch);
         main.removeCallbacks(downloadsTick);
         images.shutdownNow();

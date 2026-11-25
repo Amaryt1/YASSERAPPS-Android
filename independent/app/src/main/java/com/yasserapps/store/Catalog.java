@@ -1,183 +1,76 @@
 package com.yasserapps.store;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class Catalog {
-    public static final String ADDRESS =
-        "https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/apps.json";
-    private static final String PREFS = "yasserapps_live_catalog";
-    private static final String CACHE = "last_valid_json";
-    private static final int MAX_BYTES = 2_000_000;
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
-
     public static class App {
-        public String id, name, packageName, category, version;
-        public String apkUrl, iconUrl, bannerUrl, summary, description, changelog, sha256;
+        public String id="", name="", packageName="", category="app", version="";
+        public String apkUrl="", iconUrl="", bannerUrl="", summary="", description="", changelog="", sha256="";
+        public String sourceName="", signerSha256="", license="", legacyMd5="", legacySignerSha1="";
         public int versionCode;
-        public long sizeBytes;
-        public boolean featured;
+        public long sizeBytes, updatedAt;
+        public boolean featured, discoveryOnly;
+        public String originalPlatform="", gameFiles="", filesInstructions="", filesPath="", publisherUrl="", attribution="";
+        public boolean needsFiles() { return "owned".equals(gameFiles)||"required".equals(gameFiles); }
         public ArrayList<String> screenshots = new ArrayList<>();
-
-        public boolean isGame() {
-            return "game".equals(category);
-        }
+        public boolean isGame() { return "game".equals(category); }
     }
-
     public static class Result {
         public final List<App> apps;
         public final String warning;
-
-        Result(List<App> apps, String warning) {
-            this.apps = apps;
-            this.warning = warning;
+        public final boolean finalResult;
+        Result(List<App> apps, String warning, boolean finalResult) {
+            this.apps = apps; this.warning = warning; this.finalResult = finalResult;
         }
     }
-
-    public interface Callback {
-        void loaded(Result result);
+    public interface Callback { void loaded(Result result); }
+    static JSONObject toJson(App a) throws Exception {
+        return new JSONObject().put("id",a.id).put("name",a.name).put("packageName",a.packageName)
+            .put("category",a.category).put("version",a.version).put("versionCode",a.versionCode)
+            .put("apkUrl",a.apkUrl).put("iconUrl",a.iconUrl).put("bannerUrl",a.bannerUrl)
+            .put("summary",a.summary).put("description",a.description).put("changelog",a.changelog)
+            .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
+            .put("legacyMd5",a.legacyMd5).put("legacySignerSha1",a.legacySignerSha1).put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt)
+            .put("screenshots",new JSONArray(a.screenshots))
+            .put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
+            .put("filesInstructions",a.filesInstructions).put("filesPath",a.filesPath).put("publisherUrl",a.publisherUrl).put("attribution",a.attribution);
     }
-
-    private static boolean validHttps(String raw) {
-        if (raw == null || !raw.startsWith("https://") || raw.length() > 2048) return false;
-        try {
-            java.net.URI uri = new java.net.URI(raw);
-            return "https".equalsIgnoreCase(uri.getScheme())
-                && uri.getHost() != null && uri.getUserInfo() == null;
-        } catch (Exception ex) {
-            return false;
-        }
+    static App fromJson(JSONObject obj) throws Exception {
+        App a=new App();
+        a.id=obj.getString("id"); a.name=obj.getString("name"); a.packageName=obj.getString("packageName");
+        a.category=obj.getString("category"); a.version=obj.getString("version"); a.versionCode=obj.getInt("versionCode");
+        a.apkUrl=obj.getString("apkUrl"); a.iconUrl=obj.optString("iconUrl"); a.bannerUrl=obj.optString("bannerUrl");
+        a.summary=obj.optString("summary"); a.description=obj.optString("description"); a.changelog=obj.optString("changelog");
+        a.sha256=obj.getString("sha256"); a.sizeBytes=obj.getLong("sizeBytes"); a.sourceName=obj.getString("sourceName");
+        a.legacyMd5=obj.optString("legacyMd5"); a.legacySignerSha1=obj.optString("legacySignerSha1"); a.signerSha256=obj.getString("signerSha256"); a.license=obj.optString("license"); a.updatedAt=obj.optLong("updatedAt");
+        a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
+        a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
+        a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");
+        if(a.discoveryOnly ? !(PortFeeds.publisherLink(a.publisherUrl)||AptoideFeed.listingLink(a.publisherUrl)||("APKMirror".equals(a.sourceName)&&MirrorFeed.listingLink(a.publisherUrl))||PublicChartFeed.listingLink(a.sourceName,a.publisherUrl)) : (!DownloadCoordinator.isDirectApk(a.apkUrl)||(!a.sha256.matches("(?i)[a-f0-9]{64}")&&!AptoideFeed.directEligible(a))||a.versionCode<1))
+            throw new IllegalArgumentException("Invalid cached entry");
+        JSONArray shots=obj.optJSONArray("screenshots");
+        if(shots!=null) for(int i=0;i<shots.length();i++) a.screenshots.add(shots.getString(i));
+        return a;
     }
-
-    static List<App> parse(String json) throws Exception {
-        JSONObject root = new JSONObject(json);
-        if (root.optInt("schemaVersion") != 1 ||
-            !"YASSERAPPS".equals(root.optString("store"))) {
-            throw new IllegalArgumentException("Invalid catalog format");
-        }
-        JSONArray items = root.getJSONArray("apps");
-        if (items.length() > 5000) throw new IllegalArgumentException("Catalog is too large");
-        ArrayList<App> apps = new ArrayList<>();
-        HashSet<String> seenIds = new HashSet<>();
-        HashSet<String> seenPackages = new HashSet<>();
-        for (int i = 0; i < items.length(); ++i) {
-            JSONObject source = items.getJSONObject(i);
-            if (!source.optBoolean("enabled", true)) continue;
-            App app = new App();
-            app.id = source.optString("id");
-            app.name = source.optString("name");
-            app.packageName = source.optString("packageName");
-            app.category = source.optString("category", "app");
-            app.version = source.optString("version");
-            app.versionCode = source.optInt("versionCode");
-            app.apkUrl = source.optString("apkUrl");
-            app.iconUrl = source.optString("iconUrl");
-            app.bannerUrl = source.optString("bannerUrl");
-            app.summary = source.optString("summary");
-            app.description = source.optString("description");
-            app.changelog = source.optString("changelog");
-            app.sha256 = source.optString("sha256");
-            app.sizeBytes = Math.max(0L, source.optLong("sizeBytes"));
-            app.featured = source.optBoolean("featured");
-            if (app.id.length() < 3 || app.name.isEmpty() ||
-                !app.packageName.matches("[a-zA-Z_][a-zA-Z_0-9]*(\\.[a-zA-Z_][a-zA-Z_0-9]*)+") ||
-                app.versionCode < 1 || !validHttps(app.apkUrl) || !validHttps(app.iconUrl) ||
-                !DownloadCoordinator.isDirectApk(app.apkUrl) ||
-                !app.sha256.matches("(?i)[a-f0-9]{64}") ||
-                !("app".equals(app.category) || "game".equals(app.category)) ||
-                !seenIds.add(app.id) || !seenPackages.add(app.packageName)) {
-                continue;
-            }
-            if (!app.bannerUrl.isEmpty() && !validHttps(app.bannerUrl)) app.bannerUrl = "";
-            JSONArray photos = source.optJSONArray("screenshots");
-            if (photos != null) {
-                for (int j = 0; j < Math.min(photos.length(), 12); ++j) {
-                    String photo = photos.optString(j);
-                    if (validHttps(photo)) app.screenshots.add(photo);
-                }
-            }
-            apps.add(app);
-        }
-        return apps;
-    }
-
-    private static List<App> cache(Context context) {
-        try {
-            SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-            String value = p.getString(CACHE, "");
-            if (!value.isEmpty()) return parse(value);
-        } catch (Exception ignored) { }
-        // The app ships a verified starter catalog so first launch works even
-        // without a network. Online GitHub updates always override this snapshot.
-        try (InputStream file = context.getAssets().open("yasserapps_starter_catalog.json")) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buffer = new byte[4096];
-            int count;
-            while ((count = file.read(buffer)) > 0) {
-                if (out.size() + count > MAX_BYTES) throw new Exception("Starter catalog too large");
-                out.write(buffer, 0, count);
-            }
-            return parse(out.toString("UTF-8"));
-        } catch (Exception e) {
-            android.util.Log.w("YASSERAPPS_CATALOG", "Offline catalog not available", e);
-        }
-        return new ArrayList<>();
-    }
-
-    public static void load(Context context, Callback callback) {
-        Context app = context.getApplicationContext();
-        IO.execute(() -> {
-            List<App> initial = cache(app);
-            if (!initial.isEmpty()) {
-                // Display verified bundled/cached applications immediately,
-                // while the network refresh proceeds asynchronously.
-                callback.loaded(new Result(initial, null));
-            }
-            Result result;
-            HttpURLConnection conn = null;
-            try {
-                conn = (HttpURLConnection) new URL(ADDRESS).openConnection();
-                conn.setConnectTimeout(9000);
-                conn.setReadTimeout(13000);
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("User-Agent", "YASSERAPPS-Android-Independent");
-                if (conn.getResponseCode() != 200) throw new Exception("Catalog HTTP status " + conn.getResponseCode());
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                try (InputStream stream = conn.getInputStream()) {
-                    byte[] buffer = new byte[8192];
-                    int total = 0, read;
-                    while ((read = stream.read(buffer)) != -1) {
-                        total += read;
-                        if (total > MAX_BYTES) throw new Exception("Catalog too large");
-                        bytes.write(buffer, 0, read);
-                    }
-                }
-                String data = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
-                List<App> apps = parse(data);
-                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit().putString(CACHE, data).apply();
-                result = new Result(apps, null);
-            } catch (Exception e) {
-                android.util.Log.w("YASSERAPPS_CATALOG", "Live catalog fetch failed; using cached snapshot", e);
-                List<App> offline = cache(app);
-                result = new Result(offline, offline.isEmpty() ? null : "تعذّر تحديث المتجر. نعرض آخر قائمة محفوظة.");
-            } finally {
-                if (conn != null) conn.disconnect();
-            }
-            callback.loaded(result);
+    private static final ExecutorService DETAILS=Executors.newSingleThreadExecutor();
+    static void enrich(Context context,App original,java.util.function.Consumer<App> callback) {
+        Context app=context.getApplicationContext();
+        DETAILS.execute(()->{
+            App fresh=null;
+            try { fresh=DirectSources.latestAptoide(app,original); }
+            catch(Exception e){android.util.Log.w("YASSERAPPS_CATALOG","DETAIL_LOOKUP_FAILED",e);}
+            callback.accept(fresh);
         });
+    }
+    public static void load(Context context,Callback callback) {
+        Context app=context.getApplicationContext();
+        IO.execute(() -> DirectSources.load(app,callback));
     }
 }

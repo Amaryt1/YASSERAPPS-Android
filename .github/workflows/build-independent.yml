@@ -2,6 +2,11 @@ name: Build Independent YASSERAPPS APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'independent/**'
+      - 'scripts/embed_catalog_media.py'
+      - '.github/workflows/build-independent.yml'
   push:
     branches: [main]
     paths:
@@ -38,15 +43,25 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
 
-      - name: Embed verified offline starter catalog
+      - name: Embed actual server catalogue snapshot
+        shell: bash
         run: |
-          python3 scripts/validate_catalog.py catalog/apps.json
+          set -euo pipefail
           mkdir -p independent/app/src/main/assets
-          cp catalog/apps.json independent/app/src/main/assets/yasserapps_starter_catalog.json
-          python3 scripts/embed_catalog_media.py catalog/apps.json independent/app/src/main/assets/catalog_media
+          DEST=independent/app/src/main/assets/server-catalog.json
+          cp catalog/generated/index.json "$DEST"
+          python3 - "$DEST" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d['schemaVersion']==1 and 0<len(d['apps'])<=20000
+          assert len(d['apps'])==d['report']['total']
+          assert all(a['discoveryOnly'] and not a['apkUrl'] for a in d['apps'])
+          print("EMBEDDED_CATALOG",json.dumps(d['report']))
+          PY
+
       - name: Compile independent APK
         working-directory: independent
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
 
       - name: Verify APK binary and independent package
         shell: bash
@@ -56,6 +71,8 @@ jobs:
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -10
           unzip -t "$APK" > /dev/null
+          if unzip -l "$APK" | grep -q yasserapps_starter_catalog; then exit 1; fi
+          unzip -l "$APK" | grep -F assets/server-catalog.json
           echo "APK archive integrity verified"
 
       - name: Upload YASSERAPPS-independent APK
@@ -65,3 +82,18 @@ jobs:
           path: independent/app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: error
+
+      - name: Enable emulator virtualization for catalog regression
+        if: github.event_name == 'pull_request'
+        run: if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+
+      - name: Verify signed upstream indexes and Android catalog rendering
+        if: github.event_name == 'pull_request'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash independent/scripts/direct-source-smoke.sh

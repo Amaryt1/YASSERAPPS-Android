@@ -1,4 +1,40 @@
 {
   "schemaVersion": 1,
-  "sources": []
+  "sources": [],
+  "gameFeeds": [],
+  "discoveryCandidates": [],
+  "largeCatalogCandidates": [
+    {
+      "id": "aptoide",
+      "status": "public-metadata-only",
+      "documentation": "https://partners-center-be.aptoide.com/partners_api_doc/en",
+      "mode": "metadata-only",
+      "enabled": true,
+      "endpoint": "https://ws75.aptoide.com/api/7/apps/get",
+      "target": 20000,
+      "pageSize": 50
+    },
+    {
+      "id": "taptap",
+      "status": "public-chart-metadata-testing",
+      "website": "https://www.taptap.io/",
+      "enabled": true,
+      "mode": "metadata-only"
+    },
+    {
+      "id": "uptodown",
+      "status": "public-chart-metadata-testing",
+      "website": "https://en.uptodown.com/android",
+      "enabled": true,
+      "mode": "metadata-only"
+    },
+    {
+      "id": "apkmirror",
+      "status": "public-rss-integration-testing",
+      "website": "https://www.apkmirror.com/",
+      "enabled": true,
+      "mode": "metadata-only",
+      "endpoint": "https://www.apkmirror.com/feed/"
+    }
+  ]
 }

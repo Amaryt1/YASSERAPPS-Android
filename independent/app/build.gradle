@@ -10,8 +10,9 @@ android {
         applicationId 'com.yasserapps.store'
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName '10.2.0'
+        versionCode 35
+        versionName '11.0.14'
+        testInstrumentationRunner 'com.yasserapps.store.DirectCatalogTest'
     }
 
     buildTypes {
@@ -25,3 +26,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+// Android SDK signing verifier: cryptographic APK v2/v3 validation.
+dependencies { implementation "com.android.tools.build:apksig:8.10.1" }
+
+dependencies { implementation "org.jsoup:jsoup:1.18.3" }
