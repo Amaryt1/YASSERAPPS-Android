@@ -13,6 +13,8 @@ on:
       - 'catalog/api/review/**'
       - 'catalog/provider-contract/**'
       - 'catalog/test_review_api_snapshot.py'
+      - 'catalog/validate_provider_feed.py'
+      - 'catalog/test_validate_provider_feed.py'
       - '.github/workflows/refresh-live-catalog.yml'
 permissions:
   contents: read
@@ -30,6 +32,10 @@ jobs:
           python3 -m py_compile catalog/generate_live_catalog.py catalog/provider_sync.py catalog/provider_formats.py catalog/build_api.py
           python3 -m unittest discover -s catalog -p test_provider_sync.py
           python3 -m unittest discover -s catalog -p test_review_api_snapshot.py
+          python3 -m unittest discover -s catalog -p test_validate_provider_feed.py
+          for feed in catalog/approved-mod-feeds/*.json; do
+            if [ -f "$feed" ]; then python3 catalog/validate_provider_feed.py "$feed"; fi
+          done
       - name: Generate candidate catalogue without publishing
         run: |
           python3 catalog/generate_live_catalog.py --output catalog/generated/full-index.json --min-new 500
