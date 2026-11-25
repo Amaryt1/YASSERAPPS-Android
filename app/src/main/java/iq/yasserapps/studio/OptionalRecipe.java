@@ -1,0 +1,11 @@
+package iq.yasserapps.studio;
+import java.io.*;import java.security.*;import java.util.*;import java.util.zip.*;import java.nio.*;
+public final class OptionalRecipe {
+ static final String APK="e1782ac85e90c828242dd56527c5c0f0adeb21baa1bc17f04303fb7428bf0b8b",DEX="6645c872d6d34e16e0d427509f95e0bc95e61eab03fb1ccb48832980743123fc",ENTRY="classes3.dex";
+ public static boolean matches(String hash){return APK.equals(hash);}
+ static String hash(byte[] data)throws Exception{StringBuilder s=new StringBuilder();for(byte b:MessageDigest.getInstance("SHA-256").digest(data))s.append(String.format(Locale.ROOT,"%02x",b&255));return s.toString();}
+ static byte[] dex(File f)throws Exception{try(ZipFile z=new ZipFile(f)){ZipEntry e=z.getEntry(ENTRY);if(e==null)throw new IOException("Missing DEX");return ApkEngine.read(z,e,100000);}}
+ static byte[] transform(byte[] b,boolean promo,boolean update)throws Exception{if(!DEX.equals(hash(b))||(!promo&&!update))throw new IOException("Unsupported input");byte[] n=b.clone();if(promo){n[49899]=0x02;}if(update){n[44500]=0x29;n[44502]=0x0d;}byte[] sha=MessageDigest.getInstance("SHA-1").digest(Arrays.copyOfRange(n,32,n.length));System.arraycopy(sha,0,n,12,20);Adler32 a=new Adler32();a.update(n,12,n.length-12);ByteBuffer.wrap(n).order(ByteOrder.LITTLE_ENDIAN).putInt(8,(int)a.getValue());return n;}
+ public static void apply(File src,File dst,boolean promo,boolean update)throws Exception{if(!matches(ApkEngine.sha256(src)))throw new IOException("Unsupported exact APK");byte[] n=transform(dex(src),promo,update);ApkEngine.repack(src,dst,ENTRY,n);if(!Arrays.equals(n,dex(dst)))throw new IOException("DEX verification failed");}
+ public static void verify(File f,boolean promo,boolean update)throws Exception{byte[] b=dex(f);if(b.length!=66712||(promo&&b[49899]!=2)||(update&&(b[44500]!=0x29||b[44502]!=0x0d)))throw new IOException("Output patch mismatch");byte[] check=MessageDigest.getInstance("SHA-1").digest(Arrays.copyOfRange(b,32,b.length));if(!Arrays.equals(check,Arrays.copyOfRange(b,12,32)))throw new IOException("DEX signature mismatch");Adler32 a=new Adler32();a.update(b,12,b.length-12);if((int)a.getValue()!=ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getInt(8))throw new IOException("DEX checksum mismatch");}
+}

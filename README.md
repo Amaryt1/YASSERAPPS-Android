@@ -1,2 +1,2 @@
-# Studio V0.5
-Two main actions: channel appearance and optional update settings, with local focused read-only indicators when unsupported. Optional logo stored as PNG in developer-supported profile. No AI model connected, automatic removal of arbitrary third-party windows not implemented. Target must implement profile and its logo setting. All changes isolated from store main.
+# Studio V0.6
+Explicit staging and APK export for developer-supported profiles and one exact SHA-256 matched optional-dialog test recipe. The promo-only patch was user-tested earlier; the optional update path is experimental and does not modify the required-update branch. No universal automatic removal or AI. Source APK preserved. Device testing pending.
