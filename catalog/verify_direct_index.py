@@ -51,7 +51,7 @@ def queue(candidates,seen,old,now):
     # Reserve part of every run for stale accepted releases, not just new entries.
     stale=sorted((r for r in candidates if r["packageName"] in old and needs(r)),key=lambda r:seen.get(r["packageName"],0))
     for row in stale[:80]:add(row)
-    buckets={kind:sorted((r for r in candidates if r["category"]==kind and needs(r)),key=lambda r:(bool(seen.get(r["packageName"])),seen.get(r["packageName"],0),-r.get("updatedAt",0),r["packageName"])) for kind in ("app","game")}
+    buckets={kind:sorted((r for r in candidates if r["category"]==kind and r["packageName"] not in used and needs(r)),key=lambda r:(bool(seen.get(r["packageName"])),seen.get(r["packageName"],0),-r.get("updatedAt",0),r["packageName"])) for kind in ("app","game")}
     from itertools import zip_longest
     for pair in zip_longest(buckets["app"],buckets["game"]):
         for row in pair:
