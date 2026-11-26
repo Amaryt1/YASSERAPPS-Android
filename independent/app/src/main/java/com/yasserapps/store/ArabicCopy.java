@@ -44,6 +44,7 @@ final class ArabicCopy {
     static String stripPromotions(String raw) {
         if(raw==null||raw.isEmpty())return "";
         StringBuilder out=new StringBuilder();
+        java.util.Set<String> seen=new java.util.HashSet<>();
         for(String sentence:raw.split("(?<=[.!?؟؛])\\s+|\\r?\\n+")){
             String t=sentence.trim();
             if(t.isEmpty())continue;
@@ -59,6 +60,8 @@ final class ArabicCopy {
                 t=end<0?"":prefix.substring(0,end+1).trim();
             }
             if(t.isEmpty())continue;
+            String key=t.toLowerCase(Locale.ROOT).replaceAll("\\s+"," ").replaceAll("^[\\p{Punct}\\s]+|[\\p{Punct}\\s]+$","");
+            if(!seen.add(key))continue;
             if(out.length()>0)out.append('\n');
             out.append(t);
         }

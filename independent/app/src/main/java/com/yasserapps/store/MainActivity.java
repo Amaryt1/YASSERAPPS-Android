@@ -730,9 +730,14 @@ public final class MainActivity extends Activity {
             title.setGravity(Gravity.CENTER);
             tile.addView(title,lp(-1,38));
             TextView install=action(app.discoveryOnly&&!"Aptoide".equals(app.sourceName)?"التفاصيل":installedAndNewer(app)?"تحديث":"تثبيت",true,()->showDetail(app));
-            tile.addView(install,lp(-1,34));
+            install.setPadding(dp(4),0,dp(4),0);
+            install.setIncludeFontPadding(false);
+            install.setSingleLine(true);
+            install.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,13);
+            install.setMinHeight(0);
+            tile.addView(install,lp(-1,40));
             tile.setOnClickListener(v->showDetail(app));
-            row.addView(tile,lp(112,166));
+            row.addView(tile,lp(112,182));
             padx(row,9);
         }
         LinearLayout more=linear(true);
@@ -749,9 +754,9 @@ public final class MainActivity extends Activity {
             if("related".equals(key)||"others".equals(key))relatedOrigin=detailApp;
             showList(name,key);
         });
-        row.addView(more,lp(98,166));
+        row.addView(more,lp(98,182));
         scroll.addView(row,new android.widget.HorizontalScrollView.LayoutParams(-2,-2));
-        root.addView(scroll,lp(-1,166));
+        root.addView(scroll,lp(-1,182));
         gap(root,20);
         android.util.Log.i("YASSERAPPS_CATALOG","UI_SHELF key="+key+" count="+entries.size()+" shown="+limit);
         if("app".equals(key)||"game".equals(key))android.util.Log.i("YASSERAPPS_CATALOG","UI_HOME_SECTION kind="+key+" total="+entries.size());
@@ -1064,6 +1069,13 @@ public final class MainActivity extends Activity {
         TextView name=text(app.name,27,WHITE,true);
         name.setMaxLines(2);
         texts.addView(name);
+        gap(texts,5);
+        TextView ratingLine=text("☆☆☆☆☆  تقييم التطبيق",13,GREEN,true);
+        ratingLine.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        ratingLine.setOnClickListener(v->rateApp(app,ratingLine));
+        ratingLine.setContentDescription("تقييم التطبيق بالنجوم");
+        texts.addView(ratingLine);
+        refreshRating(app,ratingLine);
         gap(texts,6);
         TextView summary=text(ArabicCopy.preview(app),13,SUBTEXT,false);
         summary.setMaxLines(2);
@@ -1159,10 +1171,31 @@ public final class MainActivity extends Activity {
             content.addView(scroller,lp(-1,173));
             gap(content,23);
         }
-        TextView descriptionBody=detailSection(content,"الوصف",ArabicCopy.initial(app));
+        LinearLayout descriptionPanel=linear(true);
+        descriptionPanel.setPadding(dp(15),dp(13),dp(15),dp(14));
+        descriptionPanel.setBackground(shape(PANEL,19,Color.rgb(47,53,47)));
+        descriptionPanel.addView(text("الوصف",18,GREEN,true));gap(descriptionPanel,9);
+        TextView descriptionBody=text(ArabicCopy.initial(app),14,WHITE,false);
+        descriptionBody.setMaxLines(4);
+        descriptionBody.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        descriptionPanel.addView(descriptionBody,lp(-1,-2));
+        TextView readMore=text("قراءة المزيد",14,GREEN,true);
+        readMore.setGravity(Gravity.CENTER_VERTICAL);
+        final boolean[] expanded={false};
+        readMore.setOnClickListener(v->{expanded[0]=!expanded[0];descriptionBody.setMaxLines(expanded[0]?Integer.MAX_VALUE:4);descriptionBody.setEllipsize(expanded[0]?null:android.text.TextUtils.TruncateAt.END);readMore.setText(expanded[0]?"عرض أقل":"قراءة المزيد");});
+        descriptionPanel.addView(readMore,lp(-1,42));
+        Runnable checkLength=()->descriptionBody.post(()->{
+            android.text.Layout layout=descriptionBody.getLayout();
+            if(layout==null)return;
+            boolean clipped=layout.getLineCount()>4|| (layout.getLineCount()>0&&layout.getEllipsisCount(layout.getLineCount()-1)>0);
+            readMore.setVisibility(expanded[0]||clipped?View.VISIBLE:View.GONE);
+        });
+        content.addView(descriptionPanel,lp(-1,-2));
+        checkLength.run();
         ArabicCopy.translate(app,translated -> main.post(() -> {
             if(isFinishing()||isDestroyed()||!"detail".equals(page)||detailApp!=app)return;
             descriptionBody.setText(translated);
+            checkLength.run();
             if(!translated.startsWith("تعذّر")&&!translated.startsWith("لا يوجد")) summary.setText(translated);
         }));
         gap(content,16);
@@ -1186,10 +1219,7 @@ public final class MainActivity extends Activity {
             final int completed=count;
             main.post(()->{if(!isDestroyed()&&detailApp==app&&"detail".equals(page))downloadsLabel.setText("التنزيلات المكتملة على جهازك: "+completed);});
         });
-        int mine=UserPrefs.rating(this,app.id);
-        content.addView(action(mine==0?"قيّم هذا التطبيق (خاص بك)":"تقييمك الخاص: "+mine+" / 5",false,()->rateApp(app)),lp(-1,48));
-        gap(content,8);
-        content.addView(action("إرسال تعليق أو إبلاغ عن مشكلة",false,()->sendFeedback(app)),lp(-1,48));
+        content.addView(action("إبلاغ عن مشكلة",false,()->open(CHANNEL)),lp(-1,48));
         gap(content,8);
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
@@ -1743,42 +1773,26 @@ public final class MainActivity extends Activity {
         render(c,true);
     }
 
-    private void rateApp(Catalog.App a){
+    private void refreshRating(Catalog.App app,TextView line){
+        RatingsClient.read(this,app,(rating,error)->main.post(()->{
+            if(isDestroyed()||detailApp!=app||!"detail".equals(page))return;
+            if(rating==null){line.setText("☆☆☆☆☆  التقييمات غير متاحة");return;}
+            String stars=rating.count==0?"☆☆☆☆☆":"★★★★★".substring(0,Math.min(5,Math.max(0,(int)Math.round(rating.average))))+"☆☆☆☆☆".substring(0,5-Math.min(5,Math.max(0,(int)Math.round(rating.average))));
+            line.setText(rating.count==0?stars+"  قيّم التطبيق":stars+"  "+String.format(Locale.ROOT,"%.1f",rating.average)+" ("+rating.count+")");
+        }));
+    }
+    private void rateApp(Catalog.App app,TextView line){
         String[] stars={"★","★★","★★★","★★★★","★★★★★"};
-        new android.app.AlertDialog.Builder(this).setTitle("تقييمك الخاص").setSingleChoiceItems(stars,UserPrefs.rating(this,a.id)-1,(dialog,which)->{
-            UserPrefs.rating(this,a.id,which+1);dialog.dismiss();showDetail(a);
+        new android.app.AlertDialog.Builder(this).setTitle("قيّم التطبيق بالنجوم").setItems(stars,(dialog,which)->{
+            line.setEnabled(false);
+            RatingsClient.vote(this,app,which+1,(rating,error)->main.post(()->{
+                if(isDestroyed())return;
+                line.setEnabled(true);
+                if(rating==null){Toast.makeText(this,"خدمة التقييمات المشتركة غير متاحة حالياً",Toast.LENGTH_LONG).show();return;}
+                refreshRating(app,line);
+                Toast.makeText(this,"تم تسجيل تقييمك",Toast.LENGTH_SHORT).show();
+            }));
         }).setNegativeButton("إلغاء",null).show();
-    }
-    private void sendFeedback(Catalog.App a){
-        EditText field=new EditText(this);field.setHint(a==null?"اسم التطبيق المطلوب":"اكتب تعليقك أو المشكلة");field.setMaxLines(4);
-        new android.app.AlertDialog.Builder(this).setTitle(a==null?"طلب تطبيق أو لعبة":"تعليق أو بلاغ").setView(field)
-            .setPositiveButton("مشاركة",(dialog,w)->{
-                String message=field.getText().toString().trim();
-                if(message.isEmpty())return;
-                Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,(a==null?"طلب تطبيق من YASSERAPPS":"بلاغ أو تعليق عن "+a.name+" — "+a.version)+"\n"+message+"\n"+CHANNEL);
-                startActivity(Intent.createChooser(send,"اختر تطبيق الإرسال إلى إدارة المتجر"));
-            }).setNegativeButton("إلغاء",null).show();
-    }
-    private static final int EXPORT_PREFS=4290,IMPORT_PREFS=4291;
-    private void backupFile(boolean save){
-        Intent i=new Intent(save?Intent.ACTION_CREATE_DOCUMENT:Intent.ACTION_OPEN_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE);
-        if(save)i.putExtra(Intent.EXTRA_TITLE,"YASSERAPPS-backup.json");
-        try{startActivityForResult(i,save?EXPORT_PREFS:IMPORT_PREFS);}catch(Exception e){Toast.makeText(this,"لا يوجد مدير ملفات متاح",Toast.LENGTH_SHORT).show();}
-    }
-    @Override protected void onActivityResult(int request,int result,Intent data){
-        super.onActivityResult(request,result,data);
-        if(result!=RESULT_OK||data==null||data.getData()==null||(request!=EXPORT_PREFS&&request!=IMPORT_PREFS))return;
-        android.net.Uri uri=data.getData();
-        searchWorker.execute(()->{
-            String status;
-            try{
-                if(request==EXPORT_PREFS){try(java.io.OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new java.io.IOException();out.write(UserPrefs.backup(this));}}
-                else {try(java.io.InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new java.io.IOException();UserPrefs.restore(this,in);}}
-                status=request==EXPORT_PREFS?"تم حفظ نسخة احتياطية":"تم استرجاع المفضلة والإعدادات";
-            }catch(Exception e){status="تعذّر حفظ أو استرجاع النسخة الاحتياطية";}
-            final String message=status;
-            main.post(()->{if(!isDestroyed()){Toast.makeText(this,message,Toast.LENGTH_LONG).show();showSettings();}});
-        });
     }
     private void showSettings() {
         page = "settings";
@@ -1791,15 +1805,13 @@ public final class MainActivity extends Activity {
         gap(c, 11);
         c.addView(action("إحصائيات المتجر",false,this::showStatistics),lp(-1,54));
         gap(c,11);
-        c.addView(action("طلب تطبيق أو لعبة",false,()->sendFeedback(null)),lp(-1,54));gap(c,11);
+        c.addView(action("طلب تطبيق أو لعبة",false,()->open(CHANNEL)),lp(-1,54));gap(c,11);
         c.addView(action(UserPrefs.notices(this)?"إيقاف إشعارات الإضافات":"تفعيل إشعارات الإضافات",false,()->{
             boolean enable=!UserPrefs.notices(this);
             UserPrefs.notices(this,enable);
             if(enable&&Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},REQUEST_UPDATE_NOTICES);
             showSettings();
         }),lp(-1,54));gap(c,11);
-        c.addView(action("نسخ احتياطي للمفضلة والإعدادات",false,()->backupFile(true)),lp(-1,54));gap(c,11);
-        c.addView(action("استرجاع نسخة احتياطية",false,()->backupFile(false)),lp(-1,54));gap(c,11);
         TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
         c.addView(favorites, lp(-1, 54));
         gap(c, 11);
@@ -1820,7 +1832,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.0\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.1\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);
