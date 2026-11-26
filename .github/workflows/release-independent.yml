@@ -46,7 +46,7 @@ jobs:
         run: |
           python3 scripts/validate_catalog.py catalog/apps.json
           mkdir -p independent/app/src/main/assets
-          cp catalog/apps.json independent/app/src/main/assets/yasserapps_starter_catalog.json
+          cp catalog/generated/full-index.json independent/app/src/main/assets/server-catalog.json
           python3 scripts/embed_catalog_media.py catalog/apps.json independent/app/src/main/assets/catalog_media
       - name: Build release APK
         working-directory: independent

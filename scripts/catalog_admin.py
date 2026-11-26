@@ -7,6 +7,7 @@ No token or secret is stored in the Android app or admin HTML.
 import argparse
 import json
 import re
+import time
 from pathlib import Path
 
 from validate_catalog import validate
@@ -27,7 +28,11 @@ def manage(op, raw):
         if not ID.fullmatch(str(entry.get("id", ""))):
             raise ValueError("Invalid app id")
         prior = next((app for app in apps if app.get("id") == entry["id"]), None)
+        entry["updatedAt"] = int(time.time()*1000)
+        entry["firstSeenAt"] = prior.get("firstSeenAt",entry["updatedAt"]) if prior else entry["updatedAt"]
         if prior is not None:
+            if prior.get("signerSha256","").lower() != entry.get("signerSha256","").lower():
+                raise ValueError("Cannot silently switch signer of existing release")
             if prior["packageName"] != entry.get("packageName"):
                 raise ValueError("Cannot change existing packageName; use a new app id")
             if entry.get("versionCode", 0) < prior.get("versionCode", 0):
@@ -35,6 +40,11 @@ def manage(op, raw):
             apps[apps.index(prior)] = entry
         else:
             apps.insert(0, entry)
+    elif op == "delete":
+        identity = str(entry.get("id", "")).strip()
+        target = next((app for app in apps if app.get("id") == identity), None)
+        if target is None: raise ValueError("No app matches that id")
+        apps.remove(target)
     elif op == "disable":
         identity = str(entry.get("id", "")).strip()
         target = next((app for app in apps if app.get("id") == identity), None)
@@ -61,7 +71,7 @@ def manage(op, raw):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--operation", choices=["upsert", "disable", "enable"], required=True)
+    parser.add_argument("--operation", choices=["upsert", "disable", "enable", "delete"], required=True)
     parser.add_argument("--entry-json", required=True)
     args = parser.parse_args()
     manage(args.operation, args.entry_json)

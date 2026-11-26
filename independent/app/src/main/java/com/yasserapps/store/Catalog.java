@@ -72,6 +72,9 @@ public final class Catalog {
     }
     public static void load(Context context,Callback callback) {
         Context app=context.getApplicationContext();
-        IO.execute(() -> DirectSources.load(app,callback));
+        IO.execute(() -> {
+            List<App> owner=OwnerCatalog.load(app);
+            DirectSources.load(app,result -> callback.loaded(new Result(OwnerCatalog.merge(result.apps,owner),result.warning,result.finalResult)));
+        });
     }
 }

@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 VALID_CATEGORIES = {"app", "game"}
-VALID_EXT = (".apk", ".apks", ".apkm", ".xapk")
+VALID_EXT = (".apk",)
 REQUIRED = ("id", "name", "packageName", "category", "version", "versionCode", "apkUrl", "iconUrl")
 PACK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
 ID = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,79}$")
@@ -24,7 +24,7 @@ def validate_url(raw, *, extension=False, optional=False):
     if u.scheme != "https" or not u.hostname or u.username or u.password:
         raise ValueError("URL must be public HTTPS without credentials")
     if extension and not u.path.lower().endswith(VALID_EXT):
-        raise ValueError("File URL must point to APK, APKS, APKM or XAPK")
+        raise ValueError("File URL must point to a single APK")
 
 def validate(path):
     document = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -78,6 +78,11 @@ def validate(path):
                 raise ValueError("featured entries require authentic app banner art or screenshots")
             if type(app.get("sizeBytes", 0)) is not int or app.get("sizeBytes", 0) < 0:
                 raise ValueError("sizeBytes must be nonnegative integer")
+            if app.get("sizeBytes",0)<=0:
+                raise ValueError("Positive exact APK size required")
+            signer = app.get("signerSha256", "")
+            if not isinstance(signer,str) or not HEX.fullmatch(signer):
+                raise ValueError("signerSha256 required")
             checksum = app.get("sha256", "")
             if not isinstance(checksum, str) or not HEX.fullmatch(checksum):
                 raise ValueError("sha256 is required and must be 64 hexadecimal characters")

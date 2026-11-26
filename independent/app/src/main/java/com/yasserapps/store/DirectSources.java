@@ -350,7 +350,7 @@ final class DirectSources {
             }
         }finally{temp.delete();}
     }
-    private static JSONObject fetchJson(Context context,String address,int limit) throws Exception {
+    static JSONObject fetchJson(Context context,String address,int limit) throws Exception {
         File file=File.createTempFile("gamefeed-", ".json",context.getCacheDir());
         try {
             download(address,file,limit,-1,null);

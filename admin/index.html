@@ -31,7 +31,8 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;ba
 <div><label for="versionCode">رقم إصدار أندرويد</label><input id="versionCode" type="number" min="1" step="1" required></div>
 <div><label for="sizeBytes">حجم الملف بالبايت</label><input id="sizeBytes" type="number" min="0" step="1" value="0"></div>
 <div><label for="sha256">بصمة SHA-256 (مطلوبة)</label><input id="sha256" required minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 hex characters"></div>
-<div class="full"><label for="apkUrl">رابط ملف APK / APKS / APKM / XAPK الرسمي (HTTPS)</label><input id="apkUrl" type="url" required placeholder="https://example.org/releases/app.apk"></div>
+<div><label for="signerSha256">بصمة شهادة التوقيع SHA-256</label><input id="signerSha256" required minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}"></div>
+<div class="full"><label for="apkUrl">رابط ملف APK الرسمي (HTTPS)</label><input id="apkUrl" type="url" required placeholder="https://example.org/releases/app.apk"></div>
 <div class="full"><label for="iconUrl">رابط الأيقونة</label><input id="iconUrl" type="url" required placeholder="https://example.org/icon.png"></div>
 <div class="full"><label for="bannerUrl">رابط صورة البانر (اختياري)</label><input id="bannerUrl" type="url" placeholder="https://example.org/banner.jpg"></div>
 <div class="full"><label for="screenshots">لقطات الشاشة — رابط واحد في كل سطر</label><textarea id="screenshots"></textarea></div>
@@ -49,7 +50,7 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;ba
 </main><script>
 "use strict";
 const root="https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/apps.json";
-const fields=["id","name","packageName","category","version","versionCode","sizeBytes","sha256","apkUrl","iconUrl","bannerUrl","screenshots","summary","description","changelog"];
+const fields=["id","name","packageName","category","version","versionCode","sizeBytes","sha256","signerSha256","apkUrl","iconUrl","bannerUrl","screenshots","summary","description","changelog"];
 const el=id=>document.getElementById(id);
 let built="";
 const alertStatus=(t,bad=false)=>{el("status").style.display="block";el("status").className="status"+(bad?" bad":"");el("status").textContent=t;};
@@ -68,7 +69,8 @@ function validate(o){
  if(!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(o.packageName))throw Error("اسم حزمة أندرويد غير صحيح");
  if(!Number.isInteger(o.versionCode)||o.versionCode<1||!Number.isInteger(o.sizeBytes)||o.sizeBytes<0)throw Error("أرقام الإصدار والحجم غير صحيحة");
  if(!/^[A-Fa-f0-9]{64}$/.test(o.sha256))throw Error("لازم SHA-256 حقيقي من الملف الأصلي، وليس قيمة عشوائية");
- if(!validHttp(o.apkUrl)||!/\.(apk|apks|apkm|xapk)$/i.test(new URL(o.apkUrl).pathname))throw Error("رابط ملف تثبيت HTTPS غير صالح");
+ if(!/^[A-Fa-f0-9]{64}$/.test(o.signerSha256))throw Error("بصمة شهادة التوقيع مطلوبة");
+ if(!validHttp(o.apkUrl)||!/\.apk$/i.test(new URL(o.apkUrl).pathname))throw Error("رابط ملف تثبيت HTTPS غير صالح");
  if(!validHttp(o.iconUrl))throw Error("رابط الأيقونة غير صالح");
  if(o.bannerUrl&&!validHttp(o.bannerUrl))throw Error("رابط البانر غير صالح");
  if(o.screenshots.length>12||o.screenshots.some(x=>!validHttp(x)))throw Error("لقطات الشاشة غير صحيحة");
@@ -77,7 +79,7 @@ function validate(o){
 el("editor").addEventListener("submit",evt=>{evt.preventDefault();try{const o=value();validate(o);built=JSON.stringify(o,null,2);el("json").textContent=built;alertStatus("✓ JSON جاهز. انسخه إلى إدارة الكتالوج في GitHub Actions.");}catch(e){alertStatus(e.message,true);}});
 el("copy").onclick=async()=>{if(!built){alertStatus("ولّد JSON أولًا",true);return;}try{await navigator.clipboard.writeText(built);alertStatus("✓ تم نسخ JSON");}catch{alertStatus("استخدم تحديد النص ونسخه يدويًا",true);}};
 el("download").onclick=()=>{if(!built){alertStatus("ولّد JSON أولًا",true);return;}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([built],{type:"application/json"}));a.download="yasserapps-entry.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
-el("clear").onclick=()=>{el("editor").reset();["id","name","packageName","version","versionCode","sizeBytes","sha256","apkUrl","iconUrl","bannerUrl","screenshots","summary","description","changelog"].forEach(x=>el(x).value="");el("enabled").checked=true;preview();};
+el("clear").onclick=()=>{el("editor").reset();["id","name","packageName","version","versionCode","sizeBytes","sha256","signerSha256","apkUrl","iconUrl","bannerUrl","screenshots","summary","description","changelog"].forEach(x=>el(x).value="");el("enabled").checked=true;preview();};
 function preview(){el("previewName").textContent=el("name").value||"اسم التطبيق";el("previewSummary").textContent=el("summary").value||"وصف التطبيق";el("previewVersion").textContent="v"+(el("version").value||"—");const image=el("previewIcon");const url=el("iconUrl").value;image.src=validHttp(url)?url:"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#121812"/><text x="40" y="54" font-size="45" fill="#baff11" text-anchor="middle">Y</text></svg>');}
 el("editor").addEventListener("input",preview);
 async function refresh(){

@@ -6,7 +6,7 @@ on:
       operation:
         description: "Upsert application, disable or enable existing"
         type: choice
-        options: [upsert, disable, enable]
+        options: [upsert, disable, enable, delete]
         required: true
         default: upsert
       entry_json:
@@ -34,6 +34,16 @@ jobs:
           ADMIN_ENTRY_JSON: ${{ inputs.entry_json }}
         run: |
           python3 scripts/catalog_admin.py --operation "$ADMIN_OPERATION" --entry-json "$ADMIN_ENTRY_JSON"
+      - name: Setup Android SDK for owner APK verification
+        if: inputs.operation == 'upsert' || inputs.operation == 'enable'
+        uses: android-actions/setup-android@v3
+      - name: Verify selected owner release before publishing
+        if: inputs.operation == 'upsert' || inputs.operation == 'enable'
+        env:
+          ADMIN_ENTRY_JSON: ${{ inputs.entry_json }}
+        run: |
+          sdkmanager "build-tools;35.0.0"
+          python3 scripts/verify_owner_apk.py "$ANDROID_HOME/build-tools/35.0.0"
       - name: Commit verified catalog change
         run: |
           set -euo pipefail
@@ -45,4 +55,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add catalog/apps.json
           git commit -m "Update YASSERAPPS app catalog via owner workflow"
+          git pull --rebase origin main
           git push origin HEAD:main
