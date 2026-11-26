@@ -118,12 +118,15 @@ def entry(source,key,name,url,**kw):
 def update_time(s):
     try: return int(datetime.fromisoformat(s.replace(" ","T")).replace(tzinfo=timezone.utc).timestamp()*1000)
     except (ValueError,AttributeError): return 0
+def popularity_count(r):
+    v=r.get("downloads")
+    return v if isinstance(v,int) and not isinstance(v,bool) and v>=0 else -1
 def aptoide(r,group):
     f=r.get("file") or {}; v=f.get("malware")
     if v and v.get("rank")!="TRUSTED": return None
     pkg=r.get("package",""); slug=r.get("uname",""); code=f.get("vercode",0); size=f.get("filesize",r.get("size",0))
     if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)+",pkg) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}",slug) or not isinstance(code,int) or code<1 or not isinstance(size,int) or size<1: return None
-    return entry("Aptoide","aptoide."+pkg,r.get("name",""),"https://"+slug+".en.aptoide.com/app",packageName=pkg,category="game" if group=="games" else "app",genre=clean(r.get("genre") or r.get("category") or "",100),version=clean(f.get("vername",""),80),versionCode=code,sizeBytes=size,iconUrl=image("Aptoide",r.get("icon","")),bannerUrl=image("Aptoide",r.get("graphic","")),updatedAt=update_time(r.get("updated","")))
+    return entry("Aptoide","aptoide."+pkg,r.get("name",""),"https://"+slug+".en.aptoide.com/app",packageName=pkg,category="game" if group=="games" else "app",genre=clean(r.get("genre") or r.get("category") or "",100),version=clean(f.get("vername",""),80),versionCode=code,sizeBytes=size,iconUrl=image("Aptoide",r.get("icon","")),bannerUrl=image("Aptoide",r.get("graphic","")),updatedAt=update_time(r.get("updated","")),sourceDownloads=popularity_count(r))
 def chart(source,url,discovered=None):
     p=HTML(); p.feed(get(url).decode("utf-8","replace"))
     if discovered is not None:
@@ -183,6 +186,11 @@ def main():
             if not row: return
             old=rows.get(row["id"])
             if old is None and len(rows)>=LIMIT: return
+            if old is not None:
+                if row.get("sourceDownloads",-1)<0: row["sourceDownloads"]=old.get("sourceDownloads",-1)
+                if not row.get("sourceRank"): row["sourceRank"]=old.get("sourceRank",0)
+                if row["versionCode"]<old["versionCode"]:
+                    old["sourceDownloads"]=row.get("sourceDownloads",-1); old["sourceRank"]=row.get("sourceRank",0)
             if old is None or row["versionCode"]>old["versionCode"] or (row["versionCode"]==old["versionCode"] and row["updatedAt"]>=old["updatedAt"]): rows[row["id"]]=row
         if source in ("Uptodown","TapTap","APKMirror"):
             imported,status=approved_rows(source)
@@ -199,17 +207,23 @@ def main():
             for n in range(args.max_pages):
                 if time.monotonic()-start>=210: break
                 group=groups[n%2]; offset=int(cursors.get(group,0))
+                # Refresh top chart pages each cycle without advancing the discovery cursor.
+                top=n<4
+                if top: offset=50*(n//2)
                 if group in paused: continue
                 try:
                     r=json.loads(get("https://ws75.aptoide.com/api/7/apps/get/group_name="+group+"/limit=50/offset="+str(offset)+"/mature=false/sort=downloads"))
                     if r.get("info",{}).get("status")!="OK": raise ValueError("API status")
                     d=r["datalist"]
-                    for x in d["list"]:
+                    for pos,x in enumerate(d["list"]):
                         f=x.get("file") or {}; verdict=f.get("malware")
                         if verdict and verdict.get("rank")!="TRUSTED": rows.pop("aptoide."+x.get("package",""),None); continue
                         row=aptoide(x,group)
-                        if row: save(row); counts[group]+=1
-                    nxt=int(d.get("next",-1)); cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
+                        if row:
+                            row["sourceRank"]=offset+pos+1
+                            save(row); counts[group]+=1
+                    nxt=int(d.get("next",-1))
+                    if not top: cursors[group]=nxt if offset<nxt<int(d.get("total",2147483647)) and d["list"] else 0
                 except urllib.error.HTTPError as e:
                     print("APTOIDE_HTTP",group,e.code,flush=True)
                     if e.code in (403,429): pause_source(e.code); break

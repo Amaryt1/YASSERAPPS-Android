@@ -18,6 +18,8 @@ def checked(row,detail):
     if not a or a["versionCode"]<row["versionCode"]:return None
     media=detail.get("media") or {}
     desc=clean(media.get("description",""),4500)
+    if a.get("sourceDownloads",-1)<0:a["sourceDownloads"]=row.get("sourceDownloads",-1)
+    a["sourceRank"]=row.get("sourceRank",0)
     a.update(apkUrl=url,legacyMd5=md5,legacySignerSha1=signer,discoveryOnly=False,description=desc,summary=desc[:180],firstSeenAt=row.get("firstSeenAt",0),verifiedAt=int(time.time()*1000))
     return a
 # Prioritize recognizable apps that actually exist in the upstream catalogue.

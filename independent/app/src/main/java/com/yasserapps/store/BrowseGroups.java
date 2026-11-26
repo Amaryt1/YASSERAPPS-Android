@@ -65,8 +65,7 @@ final class BrowseGroups {
                 out.add(a);
             }
             if(key.startsWith("picks")){
-                long day=System.currentTimeMillis()/86400000L;
-                out.sort(Comparator.comparingLong(a->mix(a.id.hashCode()^day)));
+                out.sort(Popularity.ORDER);
             }else if(key.equals("added")){
                 out.sort(Comparator.comparingLong((Catalog.App a)->a.firstSeenAt).reversed().thenComparing(a->a.id));
             }else if(key.equals("recent")||key.equals("changed")){

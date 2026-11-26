@@ -609,7 +609,7 @@ final class DirectSources {
             }
         }
         List<Catalog.App> result=new ArrayList<>(unique.values());
-        result.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed().thenComparing(a->a.name,String.CASE_INSENSITIVE_ORDER));
+        result.sort(Popularity.ORDER);
         // Keep the existing branded hero and choose a real game with artwork if available.
         for(Catalog.App a:result) a.featured=false;
         for(Catalog.App a:result) if(a.isGame()&&(!a.bannerUrl.isEmpty()||!a.screenshots.isEmpty())) { a.featured=true; break; }

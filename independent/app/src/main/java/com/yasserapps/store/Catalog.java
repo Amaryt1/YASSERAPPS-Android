@@ -17,6 +17,8 @@ public final class Catalog {
         public String sourceName="", signerSha256="", license="", legacyMd5="", legacySignerSha1="";
         public int versionCode;
         public long sizeBytes, updatedAt, firstSeenAt;
+        // -1 means unavailable, not zero downloads. Rank is provider chart position (1 = first).
+        public long sourceDownloads=-1, sourceRank=0;
         String browseTopic;
         public boolean featured, discoveryOnly;
         public String originalPlatform="", gameFiles="", filesInstructions="", filesPath="", publisherUrl="", attribution="";
@@ -40,6 +42,7 @@ public final class Catalog {
             .put("summary",a.summary).put("description",a.description).put("changelog",a.changelog)
             .put("sha256",a.sha256).put("sizeBytes",a.sizeBytes).put("sourceName",a.sourceName)
             .put("legacyMd5",a.legacyMd5).put("legacySignerSha1",a.legacySignerSha1).put("signerSha256",a.signerSha256).put("license",a.license).put("updatedAt",a.updatedAt).put("firstSeenAt",a.firstSeenAt)
+            .put("sourceDownloads",a.sourceDownloads).put("sourceRank",a.sourceRank)
             .put("screenshots",new JSONArray(a.screenshots))
             .put("discoveryOnly",a.discoveryOnly).put("originalPlatform",a.originalPlatform).put("gameFiles",a.gameFiles)
             .put("filesInstructions",a.filesInstructions).put("filesPath",a.filesPath).put("publisherUrl",a.publisherUrl).put("attribution",a.attribution);
@@ -52,6 +55,7 @@ public final class Catalog {
         a.summary=obj.optString("summary"); a.description=obj.optString("description"); a.changelog=obj.optString("changelog");
         a.sha256=obj.getString("sha256"); a.sizeBytes=obj.getLong("sizeBytes"); a.sourceName=obj.getString("sourceName");
         a.legacyMd5=obj.optString("legacyMd5"); a.legacySignerSha1=obj.optString("legacySignerSha1"); a.signerSha256=obj.getString("signerSha256"); a.license=obj.optString("license"); a.updatedAt=obj.optLong("updatedAt"); a.firstSeenAt=obj.optLong("firstSeenAt");
+        a.sourceDownloads=Math.max(-1,obj.optLong("sourceDownloads",-1)); a.sourceRank=Math.max(0,obj.optLong("sourceRank",0));
         a.discoveryOnly=obj.optBoolean("discoveryOnly"); a.originalPlatform=obj.optString("originalPlatform");
         a.gameFiles=obj.optString("gameFiles"); a.filesInstructions=obj.optString("filesInstructions");
         a.filesPath=obj.optString("filesPath"); a.publisherUrl=obj.optString("publisherUrl"); a.attribution=obj.optString("attribution");

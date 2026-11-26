@@ -21,8 +21,8 @@ def build(data, root):
         target.parent.mkdir(parents=True,exist_ok=True)
         target.write_text(json.dumps(value,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
     def pages(group,items):
-        # Stable IDs give deterministic order; generation identifies mixed-cache responses.
-        items=sorted(items,key=lambda r:r["id"])
+        # Rank by reported downloads, then actual chart position; unknowns last.
+        items=sorted(items,key=lambda r:(0 if r.get("sourceDownloads",-1)>=0 else 1 if r.get("sourceRank",0)>0 else 2,-r.get("sourceDownloads",-1),r.get("sourceRank",0) or 10**12,-r.get("updatedAt",0),r["id"]))
         count=(len(items)+PAGE_SIZE-1)//PAGE_SIZE
         for i in range(count):
             name=f"{group}/{i+1}.json"

@@ -90,6 +90,7 @@ public final class MainActivity extends Activity {
             Long v=installed.get(a.packageName);
             if(v!=null&&a.versionCode>v&&(!a.discoveryOnly||"Aptoide".equals(a.sourceName)))out.get("updates").add(a);
         }
+        for(Map.Entry<String,List<Catalog.App>> shelf:out.entrySet())if(!"updates".equals(shelf.getKey())&&!"owner".equals(shelf.getKey()))shelf.getValue().sort(Popularity.ORDER);
         for(String key:new String[]{"picks","picks:app","picks:game","recent","added"})out.put(key,BrowseGroups.select(rows,key));
         return out;
     }
@@ -1870,7 +1871,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.4\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.5\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

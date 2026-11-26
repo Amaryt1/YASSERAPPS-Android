@@ -54,7 +54,10 @@ final class AptoideFeed {
         JSONObject detail=response.optJSONObject("data");
         if(detail==null||!original.packageName.equals(detail.optString("package")))return null;
         Catalog.App fresh=parseDetail(detail,original.isGame()?"games":"applications");
-        return fresh!=null&&fresh.versionCode>=original.versionCode?fresh:null;
+        if(fresh==null||fresh.versionCode<original.versionCode)return null;
+        if(fresh.sourceDownloads<0)fresh.sourceDownloads=original.sourceDownloads;
+        fresh.sourceRank=original.sourceRank;
+        return fresh;
     }
     private static Catalog.App parseDetail(JSONObject detail,String category) throws Exception {
         JSONObject wrapper=new JSONObject().put("info",new JSONObject().put("status","OK"))
@@ -121,6 +124,7 @@ final class AptoideFeed {
             a.id="aptoide."+pkg; a.packageName=pkg; a.name=name;
             a.category="games".equals(category)?"game":"app"; a.genre=r.optString("genre",r.optString("category")); a.versionCode=code; a.version=f.optString("vername");
             a.sizeBytes=size; a.sourceName="Aptoide"; a.discoveryOnly=true;
+            a.sourceDownloads=Math.max(-1,r.optLong("downloads",-1));
             a.publisherUrl=link; a.attribution="Aptoide";
             a.summary="";
             a.description="";

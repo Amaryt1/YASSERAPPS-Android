@@ -14,15 +14,13 @@ final class FeaturedApps {
     static List<Catalog.App> choose(List<Catalog.App> apps) {
         Map<String,Catalog.App> unique=new HashMap<>();
         for(Catalog.App a:apps) {
-            if((a.discoveryOnly && !"Aptoide".equals(a.sourceName)) || a.updatedAt<=0 || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
+            if((a.discoveryOnly && !"Aptoide".equals(a.sourceName)) || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
             String key=OwnerCatalog.SOURCE.equals(a.sourceName)?a.id:a.packageName;
             Catalog.App old=unique.get(key);
             if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(key,a);
         }
         ArrayList<Catalog.App> candidates=new ArrayList<>(unique.values());
-        candidates.sort(Comparator.comparing((Catalog.App a)->OwnerCatalog.SOURCE.equals(a.sourceName)&&a.featured).reversed().thenComparing(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed())
-            .thenComparing(Comparator.comparingInt((Catalog.App a)->a.versionCode).reversed())
-            .thenComparing(a->a.packageName));
+        candidates.sort(Comparator.comparing((Catalog.App a)->OwnerCatalog.SOURCE.equals(a.sourceName)&&a.featured).reversed().thenComparing(Popularity.ORDER));
         return new ArrayList<>(candidates.subList(0,Math.min(10,candidates.size())));
     }
     /** Remove technical references from display copy, never invent descriptions. */

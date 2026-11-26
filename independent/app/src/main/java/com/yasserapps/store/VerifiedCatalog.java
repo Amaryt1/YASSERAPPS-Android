@@ -58,7 +58,7 @@ final class VerifiedCatalog {
             if(a.packageName.isEmpty()||unique.containsKey(a.packageName)&&OwnerCatalog.SOURCE.equals(unique.get(a.packageName).sourceName))continue;
             if("Aptoide".equals(a.sourceName)){
                 Catalog.App verified=approved.get(a.packageName);
-                if(verified!=null&&verified.versionCode>=a.versionCode)a=verified;
+                if(verified!=null&&verified.versionCode>=a.versionCode){Popularity.inherit(verified,a);a=verified;}
                 if(blocked.getInt(a.packageName,-1)>=a.versionCode||state.rejected.getOrDefault(a.packageName,-1)>=a.versionCode)continue;
             }
             Catalog.App old=unique.get(a.packageName);
@@ -66,7 +66,7 @@ final class VerifiedCatalog {
         }
         for(Catalog.App a:state.rows)if(eligible(a)&&!unique.containsKey(a.packageName)&&blocked.getInt(a.packageName,-1)<a.versionCode&&state.rejected.getOrDefault(a.packageName,-1)<a.versionCode)unique.put(a.packageName,a);
         ArrayList<Catalog.App> out=new ArrayList<>(unique.values());
-        out.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed().thenComparing(a->a.name));
+        out.sort(Popularity.ORDER);
         return out;
     }
     static List<Catalog.App> merge(Context c,List<Catalog.App> rows,List<Catalog.App> owner){
