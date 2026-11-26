@@ -104,6 +104,10 @@ public final class MainActivity extends Activity {
     private DownloadCoordinator downloadCoordinator;
     private boolean verifyingInstall = false;
     private boolean checkedStoreUpdateThisLaunch = false;
+    private View noticeDot;
+    private boolean noticesLoading,noticesFailed;
+    private long lastNoticeCheck;
+    private List<StoreNotices.Notice> storeNotices=java.util.Collections.emptyList();
     private Catalog.App pendingLegacyDownload;
     private static final int REQUEST_LEGACY_STORAGE = 4281;
     private static final int REQUEST_UPDATE_NOTICES = 4282;
@@ -167,6 +171,9 @@ public final class MainActivity extends Activity {
             openDownloadNotification(getIntent());
         }
         refresh();
+        storeNotices=StoreNotices.cached(this);
+        refreshNotices(true);
+        if(StoreNotices.ACTION.equals(getIntent().getAction()))showNotices();
         StoreUpdates.schedule(this);
         checkStoreUpdate("com.yasserapps.store.SHOW_UPDATE".equals(getIntent().getAction()));
     }
@@ -174,7 +181,8 @@ public final class MainActivity extends Activity {
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if ("com.yasserapps.store.SHOW_UPDATE".equals(intent.getAction())) checkStoreUpdate(true);
+        if(StoreNotices.ACTION.equals(intent.getAction()))showNotices();
+        else if ("com.yasserapps.store.SHOW_UPDATE".equals(intent.getAction())) checkStoreUpdate(true);
         else if ("com.yasserapps.store.OPEN_DOWNLOADS".equals(intent.getAction()))
             openDownloadNotification(intent);
     }
@@ -188,6 +196,39 @@ public final class MainActivity extends Activity {
                 installFromHistory(entry);
             }
         }, 500);
+    }
+
+    private void refreshNotices(boolean force){
+        long now=android.os.SystemClock.elapsedRealtime();
+        if(noticesLoading||(!force&&lastNoticeCheck>0&&now-lastNoticeCheck<5L*60*1000))return;
+        noticesLoading=true;lastNoticeCheck=now;
+        StoreNotices.check(this,result->main.post(()->{
+            if(isDestroyed()||isFinishing())return;
+            noticesLoading=false;noticesFailed=result.failed;storeNotices=result.notices;
+            if("notices".equals(page)){StoreNotices.markRead(this,storeNotices);renderNotices();}
+            else if(noticeDot!=null)noticeDot.setVisibility(StoreNotices.unread(this,storeNotices)?View.VISIBLE:View.GONE);
+        }));
+    }
+    private void showNotices(){
+        page="notices";
+        StoreNotices.markRead(this,storeNotices);
+        renderNotices();refreshNotices(true);
+    }
+    private void renderNotices(){
+        if(!"notices".equals(page))return;
+        LinearLayout c=verticalContent();backBar(c,"الإشعارات",this::showHome);
+        if(storeNotices.isEmpty())panelText(c,noticesFailed?"تعذّر جلب الإشعارات حالياً.": "لا توجد إشعارات حالياً");
+        for(StoreNotices.Notice n:storeNotices){
+            LinearLayout card=linear(true);card.setPadding(dp(15),dp(13),dp(15),dp(13));card.setBackground(shape(PANEL,18,Color.rgb(49,56,49)));
+            String type="update".equals(n.type)?"تحديث المتجر":"addition".equals(n.type)?"إضافة جديدة":"maintenance".equals(n.type)?"صيانة":"إعلان";
+            card.addView(text(type,12,GREEN,true));
+            card.addView(text(n.title,17,WHITE,true));gap(card,5);
+            card.addView(text(n.body,14,WHITE,false));gap(card,6);
+            card.addView(text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM,java.text.DateFormat.SHORT).format(new java.util.Date(n.publishedAt)),11,SUBTEXT,false));
+            if("update".equals(n.type)){gap(card,8);card.addView(action("فحص تحديث المتجر",true,()->checkStoreUpdate(true)),lp(-1,46));}
+            c.addView(card,lp(-1,-2));gap(c,10);
+        }
+        render(c,true);
     }
 
     private void checkStoreUpdate(boolean interactive) {
@@ -364,8 +405,10 @@ public final class MainActivity extends Activity {
         dotPos.rightMargin = dp(3);
         dotPos.topMargin = dp(5);
         telegram.addView(dot, dotPos);
-        telegram.setContentDescription("قناة YASSERAPPS");
-        telegram.setOnClickListener(v -> open(CHANNEL));
+        noticeDot=dot;
+        dot.setVisibility(StoreNotices.unread(this,storeNotices)?View.VISIBLE:View.GONE);
+        telegram.setContentDescription("إشعارات المتجر");
+        telegram.setOnClickListener(v -> showNotices());
         row.addView(telegram, lp(38, 54));
 
         padx(row, 9);
@@ -1275,6 +1318,7 @@ public final class MainActivity extends Activity {
     private final Runnable catalogTicker = new Runnable() {
         @Override public void run() {
             if (!activityVisible || isFinishing()) return;
+            refreshNotices(false);
             if (!refreshInFlight && android.os.SystemClock.elapsedRealtime() - lastCatalogCheck >= CATALOG_REFRESH_INTERVAL) refresh(false);
             main.postDelayed(this, 60000);
         }
@@ -1871,7 +1915,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.5\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.6\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

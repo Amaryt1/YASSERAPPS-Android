@@ -9,7 +9,10 @@ public final class UpdateJob extends JobService {
         StoreUpdates.check(getApplicationContext(), (release, error) -> {
             if (release != null) StoreUpdates.notify(getApplicationContext(), release);
             CatalogNotices.check(getApplicationContext());
-            jobFinished(parameters, false);
+            StoreNotices.check(getApplicationContext(), result -> {
+                if(!result.failed)StoreNotices.notifyNew(getApplicationContext(),result.notices);
+                jobFinished(parameters, false);
+            });
         });
         return true;
     }
