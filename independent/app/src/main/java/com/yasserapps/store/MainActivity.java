@@ -1021,6 +1021,7 @@ public final class MainActivity extends Activity {
                         Catalog.App old=apps.get(i);
                         if(old.id.equals(fresh.id)&&fresh.versionCode>=old.versionCode){apps.set(i,fresh);break;}
                     }
+                    if(fresh.discoveryOnly){VerifiedCatalog.exclude(this,app);apps.removeIf(a->a.packageName.equals(app.packageName));refresh();if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(app.packageName))showHome();return;}
                     if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(fresh.packageName)&&fresh.versionCode>=detailApp.versionCode)showDetail(fresh);
                 }));
             }
@@ -1072,8 +1073,7 @@ public final class MainActivity extends Activity {
         gap(texts,5);
         TextView ratingLine=text("☆☆☆☆☆  تقييم التطبيق",13,GREEN,true);
         ratingLine.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        ratingLine.setOnClickListener(v->rateApp(app,ratingLine));
-        ratingLine.setContentDescription("تقييم التطبيق بالنجوم");
+        ratingLine.setContentDescription("متوسط تقييمات التطبيق");
         texts.addView(ratingLine);
         refreshRating(app,ratingLine);
         gap(texts,6);
@@ -1115,7 +1115,7 @@ public final class MainActivity extends Activity {
         mainButton.setOnClickListener(v -> {
             if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
             if(OwnerCatalog.SOURCE.equals(app.sourceName)){resolveOwnerInstall(app);return;}
-            if(app.discoveryOnly) { offerProvider(app); return; }
+            if(app.discoveryOnly) { Toast.makeText(this,"تعذّر التحقق من الملف",Toast.LENGTH_SHORT).show(); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -1219,6 +1219,8 @@ public final class MainActivity extends Activity {
             final int completed=count;
             main.post(()->{if(!isDestroyed()&&detailApp==app&&"detail".equals(page))downloadsLabel.setText("التنزيلات المكتملة على جهازك: "+completed);});
         });
+        content.addView(action("تقييم التطبيق",false,()->rateApp(app,ratingLine)),lp(-1,48));
+        gap(content,8);
         content.addView(action("إبلاغ عن مشكلة",false,()->open(CHANNEL)),lp(-1,48));
         gap(content,8);
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
@@ -1483,7 +1485,13 @@ public final class MainActivity extends Activity {
             resolvingInstall=false;
             if(isFinishing()||isDestroyed()||!activityVisible)return;
             if(fresh==null||fresh.discoveryOnly||!AptoideFeed.directEligible(fresh)){
-                offerProvider(item);
+                if(fresh!=null&&fresh.discoveryOnly){
+                    VerifiedCatalog.exclude(this,item);
+                    apps.removeIf(a->a.packageName.equals(item.packageName));
+                    refresh();
+                    if("detail".equals(page)&&detailApp!=null&&detailApp.packageName.equals(item.packageName))showHome();
+                }
+                Toast.makeText(this,"تعذّر التحقق من ملف التثبيت، حاول لاحقاً",Toast.LENGTH_LONG).show();
                 return;
             }
             for(int i=0;i<apps.size();i++)if(apps.get(i).id.equals(fresh.id)){apps.set(i,fresh);break;}
@@ -1782,17 +1790,47 @@ public final class MainActivity extends Activity {
         }));
     }
     private void rateApp(Catalog.App app,TextView line){
-        String[] stars={"★","★★","★★★","★★★★","★★★★★"};
-        new android.app.AlertDialog.Builder(this).setTitle("قيّم التطبيق بالنجوم").setItems(stars,(dialog,which)->{
-            line.setEnabled(false);
-            RatingsClient.vote(this,app,which+1,(rating,error)->main.post(()->{
+        LinearLayout body=linear(true);
+        body.setPadding(dp(16),dp(14),dp(16),dp(8));
+        LinearLayout stars=linear(false);
+        stars.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        stars.setGravity(Gravity.CENTER);
+        final int[] selected={UserPrefs.rating(this,app.id)};
+        TextView[] icons=new TextView[5];
+        TextView status=text("اختر تقييمك من خمس نجوم",14,WHITE,false);
+        status.setGravity(Gravity.CENTER);
+        Runnable paint=()->{
+            for(int i=0;i<5;i++){icons[i].setText(i<selected[0]?"★":"☆");icons[i].setTextColor(i<selected[0]?GREEN:SUBTEXT);}
+            status.setText(selected[0]==0?"اختر تقييمك من خمس نجوم":selected[0]+" / 5");
+        };
+        for(int i=0;i<5;i++){
+            final int score=i+1;
+            TextView star=text("☆",32,SUBTEXT,true);
+            star.setGravity(Gravity.CENTER);
+            star.setIncludeFontPadding(false);
+            star.setContentDescription("تقييم "+score+" من 5");
+            icons[i]=star;
+            stars.addView(star,new LinearLayout.LayoutParams(0,dp(54),1));
+            star.setOnClickListener(v->{selected[0]=score;paint.run();});
+        }
+        body.addView(stars,lp(-1,56));body.addView(status,lp(-1,40));
+        paint.run();
+        android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("تقييم التطبيق").setView(body).setNegativeButton("إلغاء",null).setPositiveButton("إرسال",null).create();
+        dialog.setOnShowListener(v->dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(btn->{
+            if(selected[0]==0){status.setText("اختر نجمة أولاً");return;}
+            int score=selected[0];
+            btn.setEnabled(false);
+            RatingsClient.vote(this,app,score,(rating,error)->main.post(()->{
                 if(isDestroyed())return;
-                line.setEnabled(true);
-                if(rating==null){Toast.makeText(this,"خدمة التقييمات المشتركة غير متاحة حالياً",Toast.LENGTH_LONG).show();return;}
-                refreshRating(app,line);
+                btn.setEnabled(true);
+                if(rating==null){status.setText("تعذّر إرسال التقييم. حاول لاحقاً.");return;}
+                UserPrefs.rating(this,app.id,score);
+                dialog.dismiss();refreshRating(app,line);
                 Toast.makeText(this,"تم تسجيل تقييمك",Toast.LENGTH_SHORT).show();
             }));
-        }).setNegativeButton("إلغاء",null).show();
+        }));
+        dialog.show();
     }
     private void showSettings() {
         page = "settings";
@@ -1832,7 +1870,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.1\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.2\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

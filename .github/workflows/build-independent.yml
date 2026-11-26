@@ -50,6 +50,8 @@ jobs:
           mkdir -p independent/app/src/main/assets
           DEST=independent/app/src/main/assets/server-catalog.json
           cp catalog/generated/full-index.json "$DEST"
+          if [ ! -s catalog/generated/direct-index.json ]; then python3 catalog/verify_direct_index.py --limit 50; fi
+          cp catalog/generated/direct-index.json independent/app/src/main/assets/direct-catalog.json
           python3 - "$DEST" <<'PY'
           import json,sys
           d=json.load(open(sys.argv[1]))
