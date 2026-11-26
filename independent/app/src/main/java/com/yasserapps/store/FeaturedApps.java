@@ -15,8 +15,9 @@ final class FeaturedApps {
         Map<String,Catalog.App> unique=new HashMap<>();
         for(Catalog.App a:apps) {
             if((a.discoveryOnly && !"Aptoide".equals(a.sourceName)) || a.updatedAt<=0 || (a.iconUrl.isEmpty()&&a.bannerUrl.isEmpty()&&a.screenshots.isEmpty())) continue;
-            Catalog.App old=unique.get(a.packageName);
-            if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(a.packageName,a);
+            String key=OwnerCatalog.SOURCE.equals(a.sourceName)?a.id:a.packageName;
+            Catalog.App old=unique.get(key);
+            if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(key,a);
         }
         ArrayList<Catalog.App> candidates=new ArrayList<>(unique.values());
         candidates.sort(Comparator.comparing((Catalog.App a)->OwnerCatalog.SOURCE.equals(a.sourceName)&&a.featured).reversed().thenComparing(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed())

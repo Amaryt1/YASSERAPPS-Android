@@ -61,7 +61,12 @@ jobs:
 
       - name: Compile independent APK
         working-directory: independent
-        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+          else
+            gradle --no-daemon -PmobileOnly :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+          fi
 
       - name: Verify APK binary and independent package
         shell: bash

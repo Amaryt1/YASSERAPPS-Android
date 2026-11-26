@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 
 public final class Catalog {
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    private static final ExecutorService OWNER_IO = Executors.newSingleThreadExecutor();
     public static class App {
         public String id="", name="", packageName="", category="app", version="", genre="";
         public String apkUrl="", iconUrl="", bannerUrl="", summary="", description="", changelog="", sha256="";
@@ -73,8 +74,14 @@ public final class Catalog {
     public static void load(Context context,Callback callback) {
         Context app=context.getApplicationContext();
         IO.execute(() -> {
-            List<App> owner=OwnerCatalog.load(app);
-            DirectSources.load(app,result -> callback.loaded(new Result(OwnerCatalog.merge(result.apps,owner),result.warning,result.finalResult)));
+            java.util.concurrent.Future<List<App>> request=OWNER_IO.submit(()->OwnerCatalog.load(app));
+            DirectSources.load(app,result -> {
+                List<App> owner=java.util.Collections.emptyList();
+                if(request.isDone()||result.finalResult){
+                    try{owner=request.get(result.finalResult?12:0,java.util.concurrent.TimeUnit.SECONDS);}catch(Exception ignored){if(result.finalResult)request.cancel(true);}
+                }
+                callback.loaded(new Result(OwnerCatalog.merge(result.apps,owner),result.warning,result.finalResult));
+            });
         });
     }
 }

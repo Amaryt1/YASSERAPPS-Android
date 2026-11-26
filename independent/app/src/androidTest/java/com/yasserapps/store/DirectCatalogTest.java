@@ -108,6 +108,16 @@ public final class DirectCatalogTest extends Instrumentation {
             if(!"social".equals(BrowseGroups.topic(social))||!"video".equals(BrowseGroups.topic(video))||!"racing".equals(BrowseGroups.topic(racing))||!BrowseGroups.topic(unknown).isEmpty())throw new AssertionError("Browse groups");
             List<Catalog.App> fixture=java.util.Arrays.asList(social,video,unknown,chat,racing);
             if(BrowseGroups.related(fixture,social).size()!=1||BrowseGroups.select(fixture,"topic:app:social").size()!=2||BrowseGroups.select(fixture,"picks:game").size()!=1)throw new AssertionError("Related and shelf filters");
+            org.json.JSONObject owned=new org.json.JSONObject().put("id","test.owner").put("packageName","test.owner").put("name","Owner fixture").put("category","app").put("version","1").put("versionCode",1).put("apkUrl","https://example.org/app.apk").put("sha256",String.join("",java.util.Collections.nCopies(64,"a"))).put("signerSha256",String.join("",java.util.Collections.nCopies(64,"b"))).put("sizeBytes",123);
+            org.json.JSONObject ownerRoot=new org.json.JSONObject().put("schemaVersion",1).put("store","YASSERAPPS").put("apps",new org.json.JSONArray().put(owned));
+            List<Catalog.App> ownerRows=OwnerCatalog.parse(ownerRoot);
+            if(ownerRows.size()!=1||ownerRows.get(0).discoveryOnly||!ownerRows.get(0).id.equals("owner.test.owner"))throw new AssertionError("Owner catalog boundary");
+            owned.put("enabled",false);
+            if(!OwnerCatalog.parse(ownerRoot).isEmpty())throw new AssertionError("Disabled app visible");
+            owned.put("enabled",true).put("sha256","bad");
+            boolean rejected=false;
+            try{OwnerCatalog.parse(ownerRoot);}catch(SecurityException expected){rejected=true;}
+            if(!rejected)throw new AssertionError("Invalid owner hash accepted");
             result.putString("stream","\nPASS market metadata boundaries and pagination fixtures\n");
             finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {

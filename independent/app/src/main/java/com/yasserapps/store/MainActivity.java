@@ -1102,6 +1102,7 @@ public final class MainActivity extends Activity {
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
             if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
+            if(OwnerCatalog.SOURCE.equals(app.sourceName)){resolveOwnerInstall(app);return;}
             if(app.discoveryOnly) { offerProvider(app); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
@@ -1177,6 +1178,14 @@ public final class MainActivity extends Activity {
         else {
             shelf(content,app.isGame()?"ألعاب أخرى":"تطبيقات أخرى",BrowseGroups.others(apps,app),"others");
         }
+        TextView downloadsLabel=text("التنزيلات المكتملة على جهازك: …",12,SUBTEXT,false);
+        content.addView(downloadsLabel);gap(content,8);
+        searchWorker.execute(()->{
+            int count=0;
+            for(DownloadCoordinator.Entry entry:downloadCoordinator.all())if(entry.appId.equals(app.id)&&entry.complete())count++;
+            final int completed=count;
+            main.post(()->{if(!isDestroyed()&&detailApp==app&&"detail".equals(page))downloadsLabel.setText("التنزيلات المكتملة على جهازك: "+completed);});
+        });
         int mine=UserPrefs.rating(this,app.id);
         content.addView(action(mine==0?"قيّم هذا التطبيق (خاص بك)":"تقييمك الخاص: "+mine+" / 5",false,()->rateApp(app)),lp(-1,48));
         gap(content,8);
@@ -1452,6 +1461,22 @@ public final class MainActivity extends Activity {
             if(old!=null&&old.complete())installFromHistory(old);
             else download(fresh);
         }));
+    }
+    private void resolveOwnerInstall(Catalog.App item){
+        if(resolvingInstall)return;
+        resolvingInstall=true;
+        searchWorker.execute(()->{
+            Catalog.App fresh=null;
+            for(Catalog.App a:OwnerCatalog.load(this))if(a.id.equals(item.id)&&a.packageName.equals(item.packageName)&&a.versionCode>=item.versionCode&&a.signerSha256.equalsIgnoreCase(item.signerSha256)){fresh=a;break;}
+            final Catalog.App selected=fresh;
+            main.post(()->{
+                resolvingInstall=false;
+                if(isDestroyed()||!activityVisible)return;
+                if(selected==null){Toast.makeText(this,"تعذّر التحقق من أحدث إصدار منشور",Toast.LENGTH_LONG).show();return;}
+                DownloadCoordinator.Entry prior=downloadCoordinator.latestFor(selected);
+                if(prior!=null&&prior.complete())installFromHistory(prior);else download(selected);
+            });
+        });
     }
     private void download(Catalog.App app) {
         if (Build.VERSION.SDK_INT <= 28 &&
