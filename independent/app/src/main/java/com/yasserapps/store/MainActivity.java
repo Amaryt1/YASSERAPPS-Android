@@ -1777,7 +1777,9 @@ public final class MainActivity extends Activity {
         detailSection(c,"الألعاب",String.valueOf(games));
         gap(c,12);
         detailSection(c,"تطبيقات إدارة YASSERAPPS",String.valueOf(shelfRows("owner").size()));gap(c,12);
-        panelText(c,loading?"جاري تحديث الإحصائيات…":"الأعداد تمثل المحتوى المفهرس حالياً على جهازك.");
+        int verified=0;for(Catalog.App a:apps)if(VerifiedCatalog.eligible(a))verified++;
+        detailSection(c,"روابط تنزيل متحققة",String.valueOf(verified));gap(c,12);
+        panelText(c,loading?"جاري تحديث الإحصائيات…":"باقي التطبيقات تُفحص قبل التنزيل؛ العدد لا يعني أن جميع الملفات جاهزة للتثبيت.");
         render(c,true);
     }
 
@@ -1870,7 +1872,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.2\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.3\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

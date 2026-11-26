@@ -66,6 +66,7 @@ def main():
     now=int(time.time()*1000)
     old={a["packageName"]:a for a in data.get("apps",[]) if now-a.get("verifiedAt",0)<14*DAY}
     seen={str(k):int(v) for k,v in data.get("checked",{}).items()}
+    rejected_versions={str(k):int(v) for k,v in data.get("rejectedVersions",{}).items()}
     for pkg,a in old.items():seen.setdefault(pkg,a.get("verifiedAt",0))
     # Preserve cooldown across CI jobs; do not rotate identity or bypass restrictions.
     retry_after=int(data.get("retryAfter",0))
@@ -86,8 +87,10 @@ def main():
                 entry["summary"]=entry.get("summary","")[:160]
                 if pkg not in old:added+=1
                 old[pkg]=entry
+                rejected_versions.pop(pkg,None)
             else:
                 old.pop(pkg,None);rejected+=1
+                rejected_versions[pkg]=row["versionCode"]
             seen[pkg]=int(time.time()*1000);attempted+=1
         except urllib.error.HTTPError as e:
             if e.code in (401,403,429):
@@ -96,7 +99,7 @@ def main():
                 except (TypeError,ValueError):pass
                 retry_after=int(time.time()*1000)+delay*1000;break
             if e.code in (404,410):
-                old.pop(pkg,None);seen[pkg]=int(time.time()*1000);attempted+=1;rejected+=1;continue
+                old.pop(pkg,None);rejected_versions[pkg]=row["versionCode"];seen[pkg]=int(time.time()*1000);attempted+=1;rejected+=1;continue
             break
         except Exception as e:
             print("DIRECT_TRANSIENT",type(e).__name__);break
@@ -104,7 +107,7 @@ def main():
     # retain all eligible identities while shedding only optional preview text if needed.
     valid=set(r["packageName"] for r in candidates)
     seen={k:v for k,v in seen.items() if k in valid}
-    output=dict(schemaVersion=1,checked=seen,retryAfter=retry_after,apps=list(old.values()))
+    output=dict(schemaVersion=1,checked=seen,rejectedVersions={k:v for k,v in rejected_versions.items() if k in valid},retryAfter=retry_after,apps=list(old.values()))
     raw=json.dumps(output,ensure_ascii=False,separators=(",",":")).encode()
     if len(raw)>30*1024*1024:
         for a in output["apps"]:a["description"]="";a["summary"]=a.get("summary","")[:80]

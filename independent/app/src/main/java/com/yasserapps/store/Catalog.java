@@ -75,13 +75,15 @@ public final class Catalog {
         Context app=context.getApplicationContext();
         IO.execute(() -> {
             java.util.concurrent.Future<List<App>> request=OWNER_IO.submit(()->OwnerCatalog.load(app));
-            List<App> seed=VerifiedCatalog.seed(app);
-            if(!seed.isEmpty())callback.loaded(new Result(VerifiedCatalog.merge(app,seed,java.util.Collections.emptyList()),null,false));
-            List<App> direct=VerifiedCatalog.remote(app,seed);
-            List<App> owner=java.util.Collections.emptyList();
-            try{owner=request.get(12,java.util.concurrent.TimeUnit.SECONDS);}catch(Exception ignored){request.cancel(true);}
-            List<App> ready=VerifiedCatalog.merge(app,direct,owner);
-            callback.loaded(new Result(ready,ready.isEmpty()?"لا توجد ملفات تثبيت متحققة متاحة حالياً.":null,true));
+            java.util.concurrent.Future<VerifiedCatalog.State> checks=OWNER_IO.submit(()->VerifiedCatalog.state(app));
+            DirectSources.load(app,result->{
+                List<App> owner=java.util.Collections.emptyList();
+                VerifiedCatalog.State verified=new VerifiedCatalog.State();
+                try{if(request.isDone()||result.finalResult)owner=request.get(result.finalResult?12:0,java.util.concurrent.TimeUnit.SECONDS);}catch(Exception ignored){}
+                try{if(checks.isDone()||result.finalResult)verified=checks.get(result.finalResult?15:0,java.util.concurrent.TimeUnit.SECONDS);}catch(Exception ignored){}
+                List<App> ready=VerifiedCatalog.restore(app,result.apps,verified,owner);
+                callback.loaded(new Result(ready,result.warning,result.finalResult));
+            });
         });
     }
 }

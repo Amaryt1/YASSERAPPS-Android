@@ -33,6 +33,42 @@ final class VerifiedCatalog {
         try{return parse(DirectSources.fetchJson(c,URL,32*1024*1024));}
         catch(Exception e){return seed;}
     }
+    static final class State {
+        List<Catalog.App> rows=Collections.emptyList();
+        final Map<String,Integer> rejected=new HashMap<>();
+    }
+    static State state(Context c){
+        State s=new State();
+        try{
+            JSONObject root=DirectSources.fetchJson(c,URL,32*1024*1024);
+            s.rows=parse(root);
+            JSONObject bad=root.optJSONObject("rejectedVersions");
+            if(bad!=null){Iterator<String> keys=bad.keys();while(keys.hasNext()){String pkg=keys.next();int code=bad.optInt(pkg,0);if(code>0)s.rejected.put(pkg,code);}}
+        }catch(Exception e){s.rows=seed(c);}
+        return s;
+    }
+    static List<Catalog.App> restore(Context c,List<Catalog.App> metadata,State state,List<Catalog.App> owner){
+        Map<String,Catalog.App> unique=new LinkedHashMap<>();
+        Map<String,Catalog.App> approved=new HashMap<>();
+        for(Catalog.App a:state.rows)if(eligible(a))approved.put(a.packageName,a);
+        android.content.SharedPreferences blocked=c.getSharedPreferences("unavailable_direct",0);
+        for(Catalog.App a:owner)if(eligible(a))unique.put(a.packageName,a);
+        for(Catalog.App a:metadata){
+            if(!"Aptoide".equals(a.sourceName)&&!eligible(a))continue;
+            if(a.packageName.isEmpty()||unique.containsKey(a.packageName)&&OwnerCatalog.SOURCE.equals(unique.get(a.packageName).sourceName))continue;
+            if("Aptoide".equals(a.sourceName)){
+                Catalog.App verified=approved.get(a.packageName);
+                if(verified!=null&&verified.versionCode>=a.versionCode)a=verified;
+                if(blocked.getInt(a.packageName,-1)>=a.versionCode||state.rejected.getOrDefault(a.packageName,-1)>=a.versionCode)continue;
+            }
+            Catalog.App old=unique.get(a.packageName);
+            if(old==null||a.versionCode>old.versionCode||a.versionCode==old.versionCode&&old.discoveryOnly&&!a.discoveryOnly)unique.put(a.packageName,a);
+        }
+        for(Catalog.App a:state.rows)if(eligible(a)&&!unique.containsKey(a.packageName)&&blocked.getInt(a.packageName,-1)<a.versionCode&&state.rejected.getOrDefault(a.packageName,-1)<a.versionCode)unique.put(a.packageName,a);
+        ArrayList<Catalog.App> out=new ArrayList<>(unique.values());
+        out.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed().thenComparing(a->a.name));
+        return out;
+    }
     static List<Catalog.App> merge(Context c,List<Catalog.App> rows,List<Catalog.App> owner){
         Map<String,Catalog.App> unique=new LinkedHashMap<>();
         ArrayList<Catalog.App> all=new ArrayList<>(owner);all.addAll(rows);
