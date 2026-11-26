@@ -8,6 +8,7 @@ public final class UpdateJob extends JobService {
     @Override public boolean onStartJob(JobParameters parameters) {
         StoreUpdates.check(getApplicationContext(), (release, error) -> {
             if (release != null) StoreUpdates.notify(getApplicationContext(), release);
+            CatalogNotices.check(getApplicationContext());
             jobFinished(parameters, false);
         });
         return true;

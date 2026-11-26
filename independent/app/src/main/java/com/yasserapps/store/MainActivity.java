@@ -80,10 +80,11 @@ public final class MainActivity extends Activity {
     }
     private static Map<String,List<Catalog.App>> buildShelves(List<Catalog.App> rows,Map<String,Long> installed){
         Map<String,List<Catalog.App>> out=new HashMap<>();
-        out.put("app",new ArrayList<>());out.put("game",new ArrayList<>());out.put("updates",new ArrayList<>());
+        out.put("app",new ArrayList<>());out.put("game",new ArrayList<>());out.put("updates",new ArrayList<>());out.put("owner",new ArrayList<>());
         for(Catalog.App a:rows){
             String kind=a.isGame()?"game":"app";
             out.get(kind).add(a);
+            if(OwnerCatalog.SOURCE.equals(a.sourceName))out.get("owner").add(a);
             String topic=BrowseGroups.topic(a);
             if(!topic.isEmpty())out.computeIfAbsent("topic:"+kind+":"+topic,k->new ArrayList<>()).add(a);
             Long v=installed.get(a.packageName);
@@ -522,6 +523,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if("all".equals(category)){
+            shelf(homeShelves,"حصريات YASSERAPPS",shelfRows("owner"),"owner");
             shelf(homeShelves,"التطبيقات",shelfRows("app"),"app");
             shelf(homeShelves,"الألعاب",shelfRows("game"),"game");
             shelf(homeShelves,"مختارة لك",shelfRows("picks"),"picks");
@@ -795,7 +797,7 @@ public final class MainActivity extends Activity {
         listKind = kind;
         LinearLayout c = verticalContent();
         backBar(c, title, ()->{if(("related".equals(kind)||"others".equals(kind))&&relatedOrigin!=null)showDetail(relatedOrigin);else showHome();});
-        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):"others".equals(kind)&&relatedOrigin!=null?BrowseGroups.others(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")||kind.equals("added")?shelfRows(kind):matching(kind);
+        List<Catalog.App> rows="related".equals(kind)&&relatedOrigin!=null?BrowseGroups.related(apps,relatedOrigin):"others".equals(kind)&&relatedOrigin!=null?BrowseGroups.others(apps,relatedOrigin):kind.startsWith("topic:")||kind.startsWith("picks")||kind.equals("recent")||kind.equals("added")||kind.equals("owner")?shelfRows(kind):matching(kind);
         catalogList(c, title, rows);
         render(c, true);
     }
@@ -893,11 +895,13 @@ public final class MainActivity extends Activity {
         root.addView(view, lp(-1, -2));
     }
 
+    private EditText searchField;
     private void showSearch() {
         page = "search";
         LinearLayout c = verticalContent();
         backBar(c, "البحث", this::showHome);
         EditText field = new EditText(this);
+        searchField=field;
         field.setTextSize(16);
         field.setSingleLine(true);
         field.setTextColor(WHITE);
@@ -915,7 +919,7 @@ public final class MainActivity extends Activity {
             if(searchTask!=null)searchTask.cancel(true);
             final int token=++searchGeneration;
             String query=field.getText().toString().trim().toLowerCase(Locale.ROOT);
-            if(query.isEmpty()){results.removeAllViews();return;}
+            if(query.isEmpty()){showRecentSearches(results,field);return;}
             pendingSearch=()->{
                 if(!"search".equals(page)||token!=searchGeneration||isDestroyed())return;
                 List<Catalog.App> snapshot=new ArrayList<>(apps);
@@ -937,6 +941,8 @@ public final class MainActivity extends Activity {
             };
             main.postDelayed(pendingSearch,250);
         };
+        field.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        field.setOnEditorActionListener((v,id,event)->{UserPrefs.remember(this,field.getText().toString());update.run();return false;});
         activeSearchRefresh = update;
         field.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -945,6 +951,15 @@ public final class MainActivity extends Activity {
         });
         update.run();
         render(c, true);
+    }
+
+    private void showRecentSearches(LinearLayout root,EditText field){
+        root.removeAllViews();
+        List<String> history=UserPrefs.recent(this);
+        if(history.isEmpty())return;
+        root.addView(text("عمليات البحث الأخيرة",17,WHITE,true));
+        for(String q:history){gap(root,6);root.addView(action(q,false,()->{field.setText(q);field.setSelection(q.length());}),lp(-1,42));}
+        gap(root,8);root.addView(action("مسح سجل البحث",false,()->{UserPrefs.clearRecent(this);showRecentSearches(root,field);}),lp(-1,42));
     }
 
     private void showUpdates() {
@@ -988,6 +1003,7 @@ public final class MainActivity extends Activity {
 
     private final Map<String,Long> detailChecks=new HashMap<>();
     private void showDetail(Catalog.App app) {
+        if("search".equals(page)&&searchField!=null)UserPrefs.remember(this,searchField.getText().toString());
         if("Aptoide".equals(app.sourceName)){
             long now=android.os.SystemClock.elapsedRealtime();
             Long last=detailChecks.get(app.packageName);
@@ -1080,13 +1096,13 @@ public final class MainActivity extends Activity {
         mainButton.addView(new StoreGlyph(this,"download",Color.BLACK),lp(25,25));
         padx(mainButton,10);
         DownloadCoordinator.Entry previous = downloadCoordinator.latestFor(app);
-        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "غير متاح" : !app.discoveryOnly&&previous != null && previous.complete() ?
+        String installLabel = app.discoveryOnly&&!"Aptoide".equals(app.sourceName) ? "عرض الخيارات" : !app.discoveryOnly&&previous != null && previous.complete() ?
             "تثبيت المحمّل" : installedAndNewer(app) ? "تحديث" : "تثبيت";
         TextView action=text(installLabel,19,Color.BLACK,true);
         mainButton.addView(action);
         mainButton.setOnClickListener(v -> {
             if("Aptoide".equals(app.sourceName)){resolveAptoideInstall(app);return;}
-            if(app.discoveryOnly) { Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار",Toast.LENGTH_LONG).show(); return; }
+            if(app.discoveryOnly) { offerProvider(app); return; }
             DownloadCoordinator.Entry existing = downloadCoordinator.latestFor(app);
             if (existing != null && existing.complete()) installFromHistory(existing);
             else download(app);
@@ -1161,11 +1177,23 @@ public final class MainActivity extends Activity {
         else {
             shelf(content,app.isGame()?"ألعاب أخرى":"تطبيقات أخرى",BrowseGroups.others(apps,app),"others");
         }
+        int mine=UserPrefs.rating(this,app.id);
+        content.addView(action(mine==0?"قيّم هذا التطبيق (خاص بك)":"تقييمك الخاص: "+mine+" / 5",false,()->rateApp(app)),lp(-1,48));
+        gap(content,8);
+        content.addView(action("إرسال تعليق أو إبلاغ عن مشكلة",false,()->sendFeedback(app)),lp(-1,48));
+        gap(content,8);
         TextView note=text("سيطلب أندرويد موافقتك قبل تثبيت أي تطبيق.",12,SUBTEXT,false);
         content.addView(note);
         render(content,false);
     }
 
+    private void offerProvider(Catalog.App app){
+        if(!AptoideFeed.listingLink(app.publisherUrl)&&!MirrorFeed.listingLink(app.publisherUrl)&&!PublicChartFeed.listingLink(app.sourceName,app.publisherUrl)){
+            Toast.makeText(this,"لا يوجد رابط تنزيل مباشر متحقق",Toast.LENGTH_LONG).show();return;
+        }
+        new android.app.AlertDialog.Builder(this).setTitle("التنزيل المباشر غير متاح").setMessage("تقدر تفتح صفحة التطبيق لدى المصدر للتحقق من الخيارات المتاحة. هذا ليس تنزيلاً مباشراً من المتجر.")
+            .setPositiveButton("فتح صفحة التطبيق",(d,w)->open(app.publisherUrl)).setNegativeButton("إلغاء",null).show();
+    }
     private void openPublisher(String url) {
         if(!PortFeeds.publisherLink(url)&&!AptoideFeed.listingLink(url)&&!MirrorFeed.listingLink(url)) {
             Toast.makeText(this,"لا يوجد رابط مطوّر مؤكد",Toast.LENGTH_SHORT).show(); return;
@@ -1416,7 +1444,7 @@ public final class MainActivity extends Activity {
             resolvingInstall=false;
             if(isFinishing()||isDestroyed()||!activityVisible)return;
             if(fresh==null||fresh.discoveryOnly||!AptoideFeed.directEligible(fresh)){
-                Toast.makeText(this,"التنزيل المباشر غير متاح لهذا الإصدار أو يحتاج ملفات إضافية",Toast.LENGTH_LONG).show();
+                offerProvider(item);
                 return;
             }
             for(int i=0;i<apps.size();i++)if(apps.get(i).id.equals(fresh.id)){apps.set(i,fresh);break;}
@@ -1685,10 +1713,48 @@ public final class MainActivity extends Activity {
         gap(c,12);
         detailSection(c,"الألعاب",String.valueOf(games));
         gap(c,12);
+        detailSection(c,"تطبيقات إدارة YASSERAPPS",String.valueOf(shelfRows("owner").size()));gap(c,12);
         panelText(c,loading?"جاري تحديث الإحصائيات…":"الأعداد تمثل المحتوى المفهرس حالياً على جهازك.");
         render(c,true);
     }
 
+    private void rateApp(Catalog.App a){
+        String[] stars={"★","★★","★★★","★★★★","★★★★★"};
+        new android.app.AlertDialog.Builder(this).setTitle("تقييمك الخاص").setSingleChoiceItems(stars,UserPrefs.rating(this,a.id)-1,(dialog,which)->{
+            UserPrefs.rating(this,a.id,which+1);dialog.dismiss();showDetail(a);
+        }).setNegativeButton("إلغاء",null).show();
+    }
+    private void sendFeedback(Catalog.App a){
+        EditText field=new EditText(this);field.setHint(a==null?"اسم التطبيق المطلوب":"اكتب تعليقك أو المشكلة");field.setMaxLines(4);
+        new android.app.AlertDialog.Builder(this).setTitle(a==null?"طلب تطبيق أو لعبة":"تعليق أو بلاغ").setView(field)
+            .setPositiveButton("مشاركة",(dialog,w)->{
+                String message=field.getText().toString().trim();
+                if(message.isEmpty())return;
+                Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,(a==null?"طلب تطبيق من YASSERAPPS":"بلاغ أو تعليق عن "+a.name+" — "+a.version)+"\n"+message+"\n"+CHANNEL);
+                startActivity(Intent.createChooser(send,"اختر تطبيق الإرسال إلى إدارة المتجر"));
+            }).setNegativeButton("إلغاء",null).show();
+    }
+    private static final int EXPORT_PREFS=4290,IMPORT_PREFS=4291;
+    private void backupFile(boolean save){
+        Intent i=new Intent(save?Intent.ACTION_CREATE_DOCUMENT:Intent.ACTION_OPEN_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE);
+        if(save)i.putExtra(Intent.EXTRA_TITLE,"YASSERAPPS-backup.json");
+        try{startActivityForResult(i,save?EXPORT_PREFS:IMPORT_PREFS);}catch(Exception e){Toast.makeText(this,"لا يوجد مدير ملفات متاح",Toast.LENGTH_SHORT).show();}
+    }
+    @Override protected void onActivityResult(int request,int result,Intent data){
+        super.onActivityResult(request,result,data);
+        if(result!=RESULT_OK||data==null||data.getData()==null||(request!=EXPORT_PREFS&&request!=IMPORT_PREFS))return;
+        android.net.Uri uri=data.getData();
+        searchWorker.execute(()->{
+            String status;
+            try{
+                if(request==EXPORT_PREFS){try(java.io.OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new java.io.IOException();out.write(UserPrefs.backup(this));}}
+                else {try(java.io.InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new java.io.IOException();UserPrefs.restore(this,in);}}
+                status=request==EXPORT_PREFS?"تم حفظ نسخة احتياطية":"تم استرجاع المفضلة والإعدادات";
+            }catch(Exception e){status="تعذّر حفظ أو استرجاع النسخة الاحتياطية";}
+            final String message=status;
+            main.post(()->{if(!isDestroyed()){Toast.makeText(this,message,Toast.LENGTH_LONG).show();showSettings();}});
+        });
+    }
     private void showSettings() {
         page = "settings";
         LinearLayout c = verticalContent();
@@ -1700,6 +1766,15 @@ public final class MainActivity extends Activity {
         gap(c, 11);
         c.addView(action("إحصائيات المتجر",false,this::showStatistics),lp(-1,54));
         gap(c,11);
+        c.addView(action("طلب تطبيق أو لعبة",false,()->sendFeedback(null)),lp(-1,54));gap(c,11);
+        c.addView(action(UserPrefs.notices(this)?"إيقاف إشعارات الإضافات":"تفعيل إشعارات الإضافات",false,()->{
+            boolean enable=!UserPrefs.notices(this);
+            UserPrefs.notices(this,enable);
+            if(enable&&Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},REQUEST_UPDATE_NOTICES);
+            showSettings();
+        }),lp(-1,54));gap(c,11);
+        c.addView(action("نسخ احتياطي للمفضلة والإعدادات",false,()->backupFile(true)),lp(-1,54));gap(c,11);
+        c.addView(action("استرجاع نسخة احتياطية",false,()->backupFile(false)),lp(-1,54));gap(c,11);
         TextView favorites = action("★ تطبيقاتي المفضّلة", false, this::showFavorites);
         c.addView(favorites, lp(-1, 54));
         gap(c, 11);
@@ -1720,7 +1795,7 @@ public final class MainActivity extends Activity {
         c.addView(storeUpdate, lp(-1, 54));
         gap(c, 11);
         gap(c, 19);
-        detailSection(c, "حول المتجر", "YASSERAPPS 11.0.18\n"
+        detailSection(c, "حول المتجر", "YASSERAPPS 12.0.0\n"
             + "وجهتك للتطبيقات والألعاب في مكان واحد. استكشف أحدث الإصدارات، "
             + "وتابع تنزيلاتك وتحديثاتك بسهولة، ضمن تجربة عصرية تجمع البساطة والتنظيم والأمان.");
         gap(c, 12);

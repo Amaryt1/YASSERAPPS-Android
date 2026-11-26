@@ -71,7 +71,7 @@ public final class StoreUpdates {
         JobInfo job = new JobInfo.Builder(
             JOB_ID, new ComponentName(context, UpdateJob.class))
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-            .setPeriodic(24L * 60L * 60L * 1000L)
+            .setPeriodic(60L * 60L * 1000L)
             .setPersisted(true)
             .build();
         try {

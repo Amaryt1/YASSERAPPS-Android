@@ -19,7 +19,7 @@ final class FeaturedApps {
             if(old==null||a.updatedAt>old.updatedAt||(a.updatedAt==old.updatedAt&&a.versionCode>old.versionCode)) unique.put(a.packageName,a);
         }
         ArrayList<Catalog.App> candidates=new ArrayList<>(unique.values());
-        candidates.sort(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed()
+        candidates.sort(Comparator.comparing((Catalog.App a)->OwnerCatalog.SOURCE.equals(a.sourceName)&&a.featured).reversed().thenComparing(Comparator.comparingLong((Catalog.App a)->a.updatedAt).reversed())
             .thenComparing(Comparator.comparingInt((Catalog.App a)->a.versionCode).reversed())
             .thenComparing(a->a.packageName));
         return new ArrayList<>(candidates.subList(0,Math.min(10,candidates.size())));
