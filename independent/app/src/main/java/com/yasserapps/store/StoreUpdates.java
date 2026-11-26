@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 public final class StoreUpdates {
     public static final String URL =
         "https://raw.githubusercontent.com/Amaryt1/YASSERAPPS-Android/main/catalog/store-release.json";
+    static final String RELEASE_SIGNER = "be68375e728239aeeb11fa39e80c3e667e6a363b5ce53c47437c094b673d7463";
     private static final int JOB_ID = 73081;
     private static final int NOTIFY_ID = 708;
     private static final String CHANNEL = "yasserapps_updates";
@@ -53,6 +54,7 @@ public final class StoreUpdates {
             app.summary = "تحديث متجر YASSERAPPS";
             app.changelog = notes;
             app.sha256 = sha256;
+            app.signerSha256 = RELEASE_SIGNER;
             app.sizeBytes = sizeBytes;
             return app;
         }
@@ -125,6 +127,7 @@ public final class StoreUpdates {
                 release.notes = root.optString("notes");
                 release.sizeBytes = root.optLong("sizeBytes", 0L);
                 if (release.enabled && release.versionCode > installedVersion(app)) {
+                    if (!RELEASE_SIGNER.equalsIgnoreCase(root.optString("signerSha256"))) throw new Exception("شهادة إصدار المتجر غير مطابقة");
                     if (!DownloadCoordinator.isDirectApk(release.apkUrl) ||
                         !release.apkUrl.split("[?#]", 2)[0].toLowerCase(Locale.ROOT).endsWith(".apk") ||
                         !release.sha256.matches("(?i)[a-f0-9]{64}") ||
