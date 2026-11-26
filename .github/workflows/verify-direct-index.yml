@@ -1,7 +1,7 @@
 name: Verify YASSERAPPS direct download metadata
 on:
   schedule:
-    - cron: '43 * * * *'
+    - cron: '03,43 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -15,10 +15,12 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
-      - run: python3 catalog/verify_direct_index.py --limit 120
+      - name: Test queue and refresh policy
+        run: python3 -m unittest discover -s catalog -p test_verify_direct_index.py
+      - run: python3 catalog/verify_direct_index.py --limit 480 --budget-seconds 680
       - run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
