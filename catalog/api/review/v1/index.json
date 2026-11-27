@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "generatedAt": 1795702932743,
+  "generatedAt": 1795789027533,
   "mode": "metadata_review_only",
-  "workflowRun": 45837834673,
+  "workflowRun": 46014111295,
   "sources": [
     {
       "name": "Android Oyun Club",
       "path": "androidoyun-club.json",
       "discoveredPageUrls": 20001,
-      "reviewedRecords": 10,
+      "reviewedRecords": 9,
       "installable": 0
     },
     {
